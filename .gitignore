@@ -1,0 +1,28 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+.venv*/
+env/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local artifacts
+media/
+*.log
+*.db-shm
+*.db-wal
+.env
+.env.*
+nohup.out
+.runtime/
+.codex_runs/
+.omc/
