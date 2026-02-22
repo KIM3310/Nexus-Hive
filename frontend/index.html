@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus-Hive | Executive BI Copilot</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Abstract ambient background -->
+    <div class="glow-orb primary"></div>
+    <div class="glow-orb secondary"></div>
+
+    <div class="app-container">
+        <!-- Sidebar: LangGraph Thought Process -->
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <span class="logo-icon">⬡</span>
+                <h2>Nexus-Hive</h2>
+                <span class="badge">Multi-Agent State</span>
+            </div>
+
+            <div class="agent-feed" id="agent-logs">
+                <div class="log-entry system">
+                    <span class="timestamp">System initialized.</span>
+                    <p>Awaiting natural language input to compile SQL...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content: Chat & Chart Visualization -->
+        <main class="main-content">
+            <header class="topbar">
+                <h1>Executive Data Copilot</h1>
+                <div class="status-indicator">
+                    <span class="dot pulse"></span>
+                    <span>Federated AI Online</span>
+                </div>
+            </header>
+
+            <div class="visualization-area glass-panel">
+                <div class="empty-state" id="empty-state">
+                    <h3>No Data Rendered</h3>
+                    <p>Ask a question below to trigger the SQL compilation and visualization pipeline.</p>
+                </div>
+                <!-- Dynamic Chart Container -->
+                <canvas id="biChart" style="display: none;"></canvas>
+            </div>
+
+            <!-- Command Palette -->
+            <div class="command-palette glass-panel">
+                <div class="input-wrap">
+                    <input type="text" id="nl-input" class="cmd-input"
+                        placeholder="e.g., Show me total revenue by region, grouped as a bar chart..."
+                        autocomplete="off">
+                    <button id="ask-btn" class="execute-btn">EXECUTE</button>
+                </div>
+                <div class="suggested-prompts">
+                    <span class="prompt-chip"
+                        onclick="setPrompt('what is the total net revenue grouped by category?')">Revenue by
+                        Category</span>
+                    <span class="prompt-chip"
+                        onclick="setPrompt('show me the top 5 regions by total profit in a pie chart')">Top Regions
+                        (Profit)</span>
+                    <span class="prompt-chip"
+                        onclick="setPrompt('What is the average discount applied per category?')">Avg Discount</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
