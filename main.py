@@ -2,7 +2,7 @@ import json
 import sqlite3
 import pandas as pd
 from typing import TypedDict, Annotated, List, Dict, Any
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +12,7 @@ import asyncio
 import httpx
 
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, AIMessage
+from agent_utils import normalize_chart_config, strip_markdown_fence, validate_read_only_sql
 
 # --- Configuration ---
 DB_PATH = 'nexus_enterprise.db'
@@ -72,7 +72,7 @@ If previous error exists, fix this issue: {state.get('error', 'None')}
     sql_response = await ask_ollama(prompt)
     
     # Clean markdown if the LLM misbehaves
-    sql = sql_response.strip().replace("```sql", "").replace("```", "").strip()
+    sql = strip_markdown_fence(sql_response)
     state["sql_query"] = sql
     state["log_stream"].append(f"[Agent 1: Translator] Generated SQL:\n{sql}")
     return state
@@ -82,9 +82,9 @@ def executor_node(state: AgentState) -> AgentState:
     sql = state["sql_query"]
     state["log_stream"].append(f"[Agent 2: Executor] Auditing and executing SQL against nexus_enterprise.db...")
     
-    # Security Audit
-    if any(keyword in sql.upper() for keyword in ['DROP', 'DELETE', 'UPDATE', 'INSERT']):
-        state["error"] = "Unsafe operations detected. Read-only queries allowed."
+    is_safe, validation_message = validate_read_only_sql(sql)
+    if not is_safe:
+        state["error"] = validation_message
         state["log_stream"].append(f"[Agent 2: Executor] ❌ ERROR: {state['error']}")
         return state
 
@@ -126,22 +126,25 @@ Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
 }}
 """
     config_response = await ask_ollama(prompt)
+    parsed_config: Dict[str, Any] = {}
+    used_fallback = False
     try:
-        clean_json = config_response.strip().replace("```json", "").replace("```", "").strip()
-        config = json.loads(clean_json)
-        state["chart_config"] = config
-        state["log_stream"].append(f"[Agent 3: Visualizer] ✅ Generated Chart.js config: {config['type'].upper()} Chart.")
-    except:
-        # Fallback if LLM fails JSON parsing
-        keys = list(state["db_result"][0].keys())
-        state["chart_config"] = {
-            "type": "bar",
-            "labels_key": keys[0],
-            "data_key": keys[1] if len(keys) > 1 else keys[0],
-            "title": "Data Visualization"
-        }
+        clean_json = strip_markdown_fence(config_response)
+        loaded = json.loads(clean_json)
+        if isinstance(loaded, dict):
+            parsed_config = loaded
+        else:
+            used_fallback = True
+    except json.JSONDecodeError:
+        used_fallback = True
+
+    state["chart_config"] = normalize_chart_config(parsed_config, state["db_result"])
+    if used_fallback:
         state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ Fallback chart config used.")
-        
+    else:
+        chart_type = state["chart_config"]["type"].upper()
+        state["log_stream"].append(f"[Agent 3: Visualizer] ✅ Generated Chart.js config: {chart_type} Chart.")
+
     return state
 
 # --- Edge Routing Logic ---
@@ -228,14 +231,18 @@ class AskRequest(BaseModel):
     question: str
 
 @app.post("/api/ask")
-async def ask_endpoint(req: Request):
-    # This expects a JSON body, but we need SSE for the response, so we grab query params or body depending on fetch structure.
-    # To easily use EventSource in frontend with GET, we'll expose a GET endpoint instead.
-    pass
+async def ask_endpoint(payload: AskRequest):
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+    return StreamingResponse(run_agent_and_stream(question), media_type="text/event-stream")
 
 @app.get("/api/stream")
 async def stream_endpoint(q: str):
-    return StreamingResponse(run_agent_and_stream(q), media_type="text/event-stream")
+    question = q.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Query parameter 'q' cannot be empty.")
+    return StreamingResponse(run_agent_and_stream(question), media_type="text/event-stream")
 
 # Mount frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
