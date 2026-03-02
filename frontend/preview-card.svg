@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Nexus-Hive preview card</title>
+  <desc id="desc">Executive BI copilot with audited SQL, governance, and runtime review surfaces.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020" />
+      <stop offset="100%" stop-color="#161f4a" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4fd1c5" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="40" fill="url(#bg)" />
+  <circle cx="1040" cy="120" r="140" fill="#4fd1c5" opacity="0.08" />
+  <circle cx="180" cy="520" r="220" fill="#7c3aed" opacity="0.12" />
+  <g fill="none" stroke="rgba(255,255,255,0.16)">
+    <path d="M120 430 C280 320 420 360 520 300 S820 180 1060 280" stroke-width="6" />
+    <path d="M180 500 C340 420 430 470 580 420 S840 320 1020 370" stroke-width="3" />
+  </g>
+  <text x="96" y="148" fill="#9ae6ff" font-size="28" font-family="Inter, Arial, sans-serif" letter-spacing="8">EXECUTIVE BI COPILOT</text>
+  <text x="96" y="254" fill="#ffffff" font-size="88" font-weight="700" font-family="Inter, Arial, sans-serif">Nexus-Hive</text>
+  <text x="96" y="332" fill="#cbd5f5" font-size="34" font-family="Inter, Arial, sans-serif">Audited SQL, governance scorecards, and runtime analytics.</text>
+  <rect x="96" y="402" width="312" height="72" rx="22" fill="url(#accent)" opacity="0.94" />
+  <text x="132" y="448" fill="#06111d" font-size="30" font-weight="700" font-family="Inter, Arial, sans-serif">Warehouse + Review Pack</text>
+  <g transform="translate(760 156)">
+    <rect width="320" height="300" rx="28" fill="rgba(9,16,34,0.68)" stroke="rgba(255,255,255,0.12)" />
+    <text x="28" y="58" fill="#9ae6ff" font-size="26" font-family="Inter, Arial, sans-serif">Runtime posture</text>
+    <text x="28" y="112" fill="#ffffff" font-size="52" font-weight="700" font-family="Inter, Arial, sans-serif">Review-ready</text>
+    <text x="28" y="164" fill="#cbd5f5" font-size="24" font-family="Inter, Arial, sans-serif">• SQL lineage</text>
+    <text x="28" y="204" fill="#cbd5f5" font-size="24" font-family="Inter, Arial, sans-serif">• Policy preview</text>
+    <text x="28" y="244" fill="#cbd5f5" font-size="24" font-family="Inter, Arial, sans-serif">• Query audit trail</text>
+  </g>
+</svg>

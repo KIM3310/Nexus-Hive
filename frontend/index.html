@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="description" content="Multi-agent BI copilot that turns executive questions into audited SQL and production-ready charts with a local Ollama-backed FastAPI stack.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Nexus-Hive | Executive BI Copilot">
+    <meta property="og:description" content="Multi-agent BI copilot that turns executive questions into audited SQL and production-ready charts with a local Ollama-backed FastAPI stack.">
+    <meta property="og:image" content="/preview-card.svg">
+    <meta property="og:image:alt" content="Nexus-Hive executive BI copilot review card">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Nexus-Hive | Executive BI Copilot">
+    <meta name="twitter:description" content="Multi-agent BI copilot that turns executive questions into audited SQL and production-ready charts with a local Ollama-backed FastAPI stack.">
+    <meta name="twitter:image" content="/preview-card.svg">
+    <title>Nexus-Hive | Executive BI Copilot</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-api-base="https://nexus-hive-api-811356341663.asia-northeast3.run.app">
+    <a class="skip-link" href="#nl-input">Skip to query input</a>
+    <div class="glow-orb primary"></div>
+    <div class="glow-orb secondary"></div>
+
+    <div class="app-container">
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <p class="brief-label">Analytics runtime</p>
+                    <h1>Executive Data Copilot</h1>
+                </div>
+                <div class="status-indicator">
+                    <span class="dot pulse"></span>
+                    <span id="status-text">Waiting for query</span>
+                </div>
+            </header>
+
+            <div class="command-palette glass-panel command-palette-priority">
+                <div class="input-wrap">
+                    <input type="text" id="nl-input" class="cmd-input"
+                        placeholder="e.g., Show me total revenue by region, grouped as a bar chart..."
+                        autocomplete="off">
+                    <button id="ask-btn" class="execute-btn">EXECUTE</button>
+                </div>
+                <div class="suggested-prompts" aria-label="recorded prompt starters">
+                    <button class="prompt-chip" type="button" data-prompt="what is the total net revenue grouped by category?">Revenue by Category</button>
+                    <button class="prompt-chip" type="button" data-prompt="show me the top 5 regions by total profit in a pie chart">Top Regions (Profit)</button>
+                    <button class="prompt-chip" type="button" data-prompt="What is the average discount applied per category?">Avg Discount</button>
+                </div>
+            </div>
+
+            <section class="reviewer-priority-panel glass-panel" id="reviewer-priority-panel">
+                <div class="readiness-header reviewer-priority-header">
+                    <div>
+                        <p class="brief-label">Top-fold reviewer path</p>
+                        <h2 id="priority-headline">Keep one request visible from ask to approval to chart to audit.</h2>
+                    </div>
+                    <span class="badge" id="priority-badge">FOCUSED REQUEST</span>
+                </div>
+                <p class="detail-card priority-summary" id="priority-summary">Submit one question, keep its request ID in view, and only present the chart once approval posture plus audit proof are both visible.</p>
+                <div class="priority-metrics">
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Focused Request</span>
+                        <strong id="priority-request">Waiting for request</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Mode Guardrail</span>
+                        <strong id="priority-mode">Recorded workflow only until endpoints answer</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Approval Gate</span>
+                        <strong id="priority-approval">Review pending</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Next Reviewer Move</span>
+                        <strong id="priority-next">Run ask, then focus approval before chart sharing</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Proof Freshness</span>
+                        <strong id="priority-freshness">Awaiting audit timestamp</strong>
+                    </section>
+                </div>
+                <div class="priority-flow" id="priority-flow">
+                    <section class="priority-step active" data-step="ask">
+                        <span class="brief-label">01 · Ask</span>
+                        <strong>Register the business question.</strong>
+                        <p>The request ID becomes the thread attached to every audit step.</p>
+                    </section>
+                    <section class="priority-step" data-step="approve">
+                        <span class="brief-label">02 · Approve</span>
+                        <strong>Check policy before trust.</strong>
+                        <p>Approval or denial must be visible before a chart looks presentation-ready.</p>
+                    </section>
+                    <section class="priority-step" data-step="chart">
+                        <span class="brief-label">03 · Chart</span>
+                        <strong>Show one governed answer.</strong>
+                        <p>Keep the chart scoped to the same request instead of jumping across sessions.</p>
+                    </section>
+                    <section class="priority-step" data-step="audit">
+                        <span class="brief-label">04 · Audit</span>
+                        <strong>Close with evidence.</strong>
+                        <p>Audit detail proves fallback, retries, and SQL lineage for the same request.</p>
+                    </section>
+                </div>
+                <div class="priority-thread" id="priority-thread">
+                    <section class="detail-card priority-thread-rail">
+                        <span class="brief-label">Continuity rail</span>
+                        <p class="priority-thread-copy">Keep one governed request attached to the question, proof route, and chart posture.</p>
+                        <div class="priority-thread-pills">
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Question</span>
+                                <strong id="priority-question">Awaiting governed question</strong>
+                            </article>
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Proof Route</span>
+                                <strong id="priority-route">/api/query-approval-board → /api/query-review-board → /api/query-audit/{request_id}</strong>
+                            </article>
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Chart Posture</span>
+                                <strong id="priority-chart">Awaiting governed answer</strong>
+                            </article>
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Trace Continuity</span>
+                                <strong id="priority-trace">Awaiting audit depth</strong>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+                <div class="detail-card priority-proof-note" id="priority-proof-note">Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.</div>
+                <div class="detail-card priority-proof-note" id="priority-staleness">Proof freshness should stay visible before any governed chart is shared.</div>
+                <div class="detail-card priority-proof-note" id="priority-trace-note">Trace continuity keeps retries and audit depth attached to the same request.</div>
+                <div class="detail-card priority-proof-note" id="priority-lock">Request continuity stays blocked until approval posture, chart posture, and audit freshness all point to the same request ID.</div>
+                <div class="detail-card priority-proof-note" id="priority-review-window">Review window stays tied to one request before any governed chart is forwarded.</div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Audience Lens</p>
+                        <h2 id="lens-headline">Reviewer-first governed path</h2>
+                    </div>
+                    <div class="action-row">
+                        <button id="lens-analyst-btn" class="control-button secondary active" type="button">Analyst</button>
+                        <button id="lens-reviewer-btn" class="control-button secondary" type="button">Reviewer</button>
+                        <button id="lens-executive-btn" class="control-button secondary" type="button">Executive</button>
+                    </div>
+                </div>
+                <p class="detail-card" id="lens-summary">Start with the approval board, then open the review board and audit detail before presenting any chart answer.</p>
+                <div class="brief-grid" id="lens-grid">
+                    <section class="brief-list-card"><span class="brief-label">01 · Approval</span><ul class="brief-list"><li class="brief-list-item">Review-required SQL should stop at a human gate first.</li></ul></section>
+                    <section class="brief-list-card"><span class="brief-label">02 · Review</span><ul class="brief-list"><li class="brief-list-item">Use the review board for fallback-heavy or denied requests.</li></ul></section>
+                    <section class="brief-list-card"><span class="brief-label">03 · Audit</span><ul class="brief-list"><li class="brief-list-item">Copy the governed claim only after the audit trace is visible.</li></ul></section>
+                </div>
+                <div class="action-row">
+                    <button id="lens-primary-btn" class="control-button secondary" type="button">Copy Review Routes</button>
+                    <button id="lens-secondary-btn" class="control-button secondary" type="button">Copy Governed Claim</button>
+                    <button id="lens-tertiary-btn" class="control-button secondary" type="button">Copy Review Bundle</button>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Chart Storyboard</p>
+                        <h2 id="storyboard-headline">Loading claim-to-chart review path...</h2>
+                    </div>
+                    <span class="badge" id="storyboard-badge">GUIDED PROOF</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Approval Posture</span>
+                        <strong id="storyboard-approval">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Focused Chart</span>
+                        <strong id="storyboard-chart">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Saved Sessions</span>
+                        <strong id="storyboard-sessions">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Review Routes</span>
+                        <strong id="storyboard-routes">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid storyboard-grid">
+                    <section class="detail-card">
+                        <span class="brief-label">Chart Claim</span>
+                        <div id="storyboard-claim"></div>
+                    </section>
+                    <section class="detail-card">
+                        <span class="brief-label">Audit Story</span>
+                        <div id="storyboard-audit"></div>
+                    </section>
+                    <section class="detail-card">
+                        <span class="brief-label">Next Reviewer Move</span>
+                        <div id="storyboard-next"></div>
+                    </section>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Runtime Brief</p>
+                        <h2 id="brief-headline">Loading runtime posture...</h2>
+                    </div>
+                    <span class="badge" id="brief-badge">LOADING</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Answer Schema</span>
+                        <strong id="brief-schema">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Model</span>
+                        <strong id="brief-model">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Warehouse Ready</span>
+                        <strong id="brief-db-ready">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Retry Budget</span>
+                        <strong id="brief-retry-budget">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Review Flow</span>
+                        <ul class="brief-list" id="brief-review-flow"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Operator Rules</span>
+                        <ul class="brief-list" id="brief-operator-rules"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Agent Contract</span>
+                        <ul class="brief-list" id="brief-agent-contract"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Watchouts</span>
+                        <ul class="brief-list" id="brief-watchouts"></ul>
+                    </section>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Review Pack</p>
+                        <h2 id="reviewpack-headline">Loading executive summary...</h2>
+                    </div>
+                    <span class="badge" id="reviewpack-badge">LOADING</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Approval Surface</span>
+                        <strong id="reviewpack-ready">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Review Routes</span>
+                        <strong id="reviewpack-routes">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Answer Contract</span>
+                        <strong id="reviewpack-schema">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Retry Budget</span>
+                        <strong id="reviewpack-retry">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Promises + Proof Assets</span>
+                        <ul class="brief-list" id="reviewpack-promises"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Trust Boundary</span>
+                        <ul class="brief-list" id="reviewpack-boundary"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Review Sequence</span>
+                        <ul class="brief-list" id="reviewpack-sequence"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Watchouts</span>
+                        <ul class="brief-list" id="reviewpack-watchouts"></ul>
+                    </section>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Governed Analytics</p>
+                        <h2 id="warehouse-headline">Loading warehouse and audit posture...</h2>
+                    </div>
+                    <span class="badge" id="warehouse-badge">LOADING</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Warehouse / Fallback</span>
+                        <strong id="warehouse-mode">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Tables / Eval</span>
+                        <strong id="warehouse-table-count">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Quality Gate</span>
+                        <strong id="warehouse-quality">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Recent Audits</span>
+                        <strong id="warehouse-audit-count">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Lineage Relations</span>
+                        <ul class="brief-list" id="warehouse-lineage"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Quality Checks</span>
+                        <ul class="brief-list" id="warehouse-quality-checks"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Policy Examples</span>
+                        <ul class="brief-list" id="warehouse-policies"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Query Audit Feed</span>
+                        <ul class="brief-list" id="warehouse-audit-feed"></ul>
+                    </section>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Governance Workbench</p>
+                        <h2>Preview SQL policy, run the gold eval suite, and inspect audit detail before trusting an answer.</h2>
+                    </div>
+                    <span class="badge">REVIEWER TOOLS</span>
+                </div>
+
+                <div class="action-row">
+                    <button id="copy-review-routes-btn" class="control-button secondary" type="button">Copy Review Routes</button>
+                    <button id="copy-governed-claim-btn" class="control-button secondary" type="button">Copy Governed Claim</button>
+                    <button id="copy-query-decision-btn" class="control-button secondary" type="button">Copy Query Decision Brief</button>
+                    <button id="copy-review-bundle-btn" class="control-button secondary" type="button">Copy Review Bundle</button>
+                    <button id="copy-latest-audit-btn" class="control-button secondary" type="button">Copy Latest Audit</button>
+                    <button id="focus-latest-audit-btn" class="control-button secondary" type="button">Focus Latest Audit</button>
+                    <button id="seed-denied-sql-btn" class="control-button secondary" type="button">Seed Denied SQL</button>
+                    <button id="copy-gold-eval-btn" class="control-button secondary" type="button">Copy Gold Eval</button>
+                </div>
+                <p class="detail-card" id="governanceHotkeys">Keyboard: E execute · P policy check · G governed claim · D decision brief · B review bundle · A latest audit · ? help.</p>
+
+                <div class="brief-grid governance-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Policy Preview</span>
+                        <div class="form-stack">
+                            <label class="brief-label" for="policy-role-select">Role</label>
+                            <select id="policy-role-select" class="control-select">
+                                <option value="analyst">analyst</option>
+                                <option value="viewer">viewer</option>
+                            </select>
+                            <label class="brief-label" for="policy-sql-input">SQL Draft</label>
+                            <textarea
+                                id="policy-sql-input"
+                                class="control-textarea"
+                                rows="6"
+                                placeholder="SELECT region, SUM(net_revenue) AS total_revenue FROM sales GROUP BY region ORDER BY total_revenue DESC LIMIT 5;"
+                            ></textarea>
+                            <div class="action-row">
+                                <button id="policy-check-btn" class="control-button" type="button">Run Policy Check</button>
+                                <button id="use-latest-sql-btn" class="control-button secondary" type="button">Load Latest SQL</button>
+                            </div>
+                        </div>
+                        <div id="policy-verdict" class="detail-card">Policy verdict will appear here.</div>
+                    </section>
+
+                    <section class="brief-list-card">
+                        <span class="brief-label">Gold Eval Runner</span>
+                        <div class="action-row">
+                            <button id="run-gold-eval-btn" class="control-button" type="button">Run Gold Eval</button>
+                        </div>
+                        <div id="gold-eval-summary" class="detail-card">Gold eval summary will appear here.</div>
+                        <ul class="brief-list" id="gold-eval-failures"></ul>
+                    </section>
+
+                    <section class="brief-list-card">
+                        <span class="brief-label">Audit Detail</span>
+                        <div id="audit-detail" class="detail-card">
+                            Select a recent audit request or run a question to inspect request-level trace and SQL posture.
+                        </div>
+                    </section>
+
+                    <section class="brief-list-card">
+                        <span class="brief-label">Saved Sessions</span>
+                        <div id="session-board-summary" class="detail-card">Saved session posture will appear here.</div>
+                        <ul class="brief-list" id="session-board-list"></ul>
+                    </section>
+                </div>
+            </section>
+
+            <div class="visualization-area glass-panel">
+                <div class="empty-state" id="empty-state">
+                    <h3>No Data Rendered</h3>
+                    <p>Ask a question below to trigger the SQL compilation and visualization pipeline.</p>
+                </div>
+                <canvas id="biChart" style="display: none;"></canvas>
+            </div>
+        </main>
+
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <span class="logo-icon">⬡</span>
+                <div>
+                    <h2>Trace log</h2>
+                    <p class="sidebar-caption">Optional event stream for deeper reviewer playback.</p>
+                </div>
+                <span class="badge sidebar-badge">SECONDARY</span>
+            </div>
+
+            <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button">Toggle trace log</button>
+            <div class="agent-feed" id="agent-logs">
+                <div class="log-entry system">
+                    <span class="timestamp">System initialized.</span>
+                    <p>Ask one governed question to start the request thread.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+</body>
+
+</html>
