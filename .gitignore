@@ -17,6 +17,4 @@ env/
 media/
 *.log
 nohup.out
-
-# Debug artifacts
-.venv_*/
+.codex_runs/
