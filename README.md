@@ -43,3 +43,16 @@ uvicorn main:app --port 8000
 1. Navigate to **http://localhost:8000** in your browser.
 2. Ask a natural language SQL query such as *"Show me total net revenue by region grouped as a bar chart"*
 3. Watch the left **Thought Process Sidebar** as the AI Agents construct the SQL, test it against the Database, and dynamically render the chart for you.
+
+<!-- codex:local-verification:start -->
+## Local Verification
+```bash
+test -f README.md -o -f README
+```
+
+## Repository Hygiene
+- Keep runtime artifacts out of commits (`.codex_runs/`, cache folders, temporary venvs).
+- Prefer running verification commands above before opening a PR.
+
+_Last updated: 2026-03-04_
+<!-- codex:local-verification:end -->
