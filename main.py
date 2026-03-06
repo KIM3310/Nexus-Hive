@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from typing import TypedDict, Annotated, List, Dict, Any
 from urllib.parse import quote_plus
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -17,14 +18,17 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage
 
 # --- Configuration ---
-DB_PATH = 'nexus_enterprise.db'
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "phi3"
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
+OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
+MODEL_NAME = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
 
 import operator
 
 # Read DB Schema for the LLM
 def get_db_schema():
+    if not DB_PATH.exists():
+        return ""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
@@ -190,11 +194,26 @@ app.add_middleware(
 
 
 def build_runtime_meta() -> Dict[str, Any]:
+    db_exists = DB_PATH.exists()
+    db_size_bytes = DB_PATH.stat().st_size if db_exists else 0
+    schema_loaded = bool(DB_SCHEMA.strip())
+    diagnostics = {
+        "db_ready": db_exists and schema_loaded,
+        "db_size_bytes": db_size_bytes,
+        "schema_loaded": schema_loaded,
+        "ollama_configured": OLLAMA_URL.startswith("http"),
+        "next_action": (
+            "POST /api/ask with an executive question, then follow the returned /api/stream URL."
+            if db_exists and schema_loaded and OLLAMA_URL.startswith("http")
+            else "Run `python3 seed_db.py` and verify NEXUS_HIVE_OLLAMA_URL before live demos."
+        ),
+    }
     return {
         "service": "nexus-hive",
         "model": MODEL_NAME,
         "ollama_url": OLLAMA_URL,
-        "db_path": DB_PATH,
+        "db_path": str(DB_PATH),
+        "diagnostics": diagnostics,
         "routes": ["/health", "/api/meta", "/api/ask", "/api/stream"],
         "capabilities": [
             "natural-language-to-sql",
@@ -248,18 +267,25 @@ class AskRequest(BaseModel):
 
 @app.get("/health")
 async def health_endpoint():
+    runtime_meta = build_runtime_meta()
     return {
-        "status": "ok",
-        **build_runtime_meta(),
+        "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
+        "links": {
+            "meta": "/api/meta",
+            "ask": "/api/ask",
+            "stream": "/api/stream",
+        },
+        **runtime_meta,
     }
 
 
 @app.get("/api/meta")
 async def meta_endpoint():
+    runtime_meta = build_runtime_meta()
     return {
-        "status": "ok",
+        "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        **build_runtime_meta(),
+        **runtime_meta,
     }
 
 
