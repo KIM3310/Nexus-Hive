@@ -1,11 +1,10 @@
 import sqlite3
 import pandas as pd
-import numpy as np
 import random
 from datetime import datetime, timedelta
-import os
+from pathlib import Path
 
-DB_PATH = 'nexus_enterprise.db'
+DB_PATH = Path(__file__).resolve().parent / "nexus_enterprise.db"
 
 def generate_data():
     print("🚀 Initializing Nexus-Hive Enterprise Data Synthesis...")
@@ -71,8 +70,8 @@ def generate_data():
     df_sales = pd.DataFrame(sales)
     
     # Save to SQLite
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
+    if DB_PATH.exists():
+        DB_PATH.unlink()
         
     print(f"💾 Saving to SQLite database: {DB_PATH}")
     with sqlite3.connect(DB_PATH) as conn:
