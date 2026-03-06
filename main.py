@@ -214,6 +214,11 @@ def build_runtime_meta() -> Dict[str, Any]:
         "ollama_url": OLLAMA_URL,
         "db_path": str(DB_PATH),
         "diagnostics": diagnostics,
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 1,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
         "routes": ["/health", "/api/meta", "/api/ask", "/api/stream"],
         "capabilities": [
             "natural-language-to-sql",

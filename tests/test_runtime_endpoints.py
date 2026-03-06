@@ -30,12 +30,14 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["service"] == "nexus-hive"
     assert health_payload["links"]["meta"] == "/api/meta"
     assert health_payload["diagnostics"]["db_ready"] is True
+    assert health_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health_payload["diagnostics"]
 
     assert meta.status_code == 200
     meta_payload = meta.json()
     assert meta_payload["service"] == "nexus-hive"
     assert meta_payload["diagnostics"]["schema_loaded"] is True
+    assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "/api/ask" in meta_payload["routes"]
 
 
