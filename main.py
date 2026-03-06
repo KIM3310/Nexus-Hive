@@ -1,8 +1,10 @@
 import json
 import sqlite3
 import pandas as pd
+from datetime import datetime, timezone
 from typing import TypedDict, Annotated, List, Dict, Any
-from fastapi import FastAPI, Request
+from urllib.parse import quote_plus
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -186,6 +188,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def build_runtime_meta() -> Dict[str, Any]:
+    return {
+        "service": "nexus-hive",
+        "model": MODEL_NAME,
+        "ollama_url": OLLAMA_URL,
+        "db_path": DB_PATH,
+        "routes": ["/health", "/api/meta", "/api/ask", "/api/stream"],
+        "capabilities": [
+            "natural-language-to-sql",
+            "audit-safe-readonly-execution",
+            "chart-config-generation",
+            "sse-agent-trace-streaming",
+        ],
+    }
+
 async def run_agent_and_stream(question: str):
     state = {
         "user_query": question,
@@ -227,11 +245,39 @@ async def run_agent_and_stream(question: str):
 class AskRequest(BaseModel):
     question: str
 
+
+@app.get("/health")
+async def health_endpoint():
+    return {
+        "status": "ok",
+        **build_runtime_meta(),
+    }
+
+
+@app.get("/api/meta")
+async def meta_endpoint():
+    return {
+        "status": "ok",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        **build_runtime_meta(),
+    }
+
+
 @app.post("/api/ask")
-async def ask_endpoint(req: Request):
-    # This expects a JSON body, but we need SSE for the response, so we grab query params or body depending on fetch structure.
-    # To easily use EventSource in frontend with GET, we'll expose a GET endpoint instead.
-    pass
+async def ask_endpoint(req: AskRequest, request: Request):
+    question = str(req.question or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="question is required")
+    if len(question) > 1000:
+        raise HTTPException(status_code=413, detail="question is too long")
+
+    stream_url = str(request.url_for("stream_endpoint"))
+    return {
+        "status": "accepted",
+        "message": "Use the SSE stream endpoint to receive the full agent trace.",
+        "question": question,
+        "stream_url": f"{stream_url}?q={quote_plus(question)}",
+    }
 
 @app.get("/api/stream")
 async def stream_endpoint(q: str):
