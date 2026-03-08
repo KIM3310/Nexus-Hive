@@ -1,5 +1,6 @@
 let currentChart = null;
 let latestRequestId = null;
+let latestAuditRequestId = null;
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -42,6 +43,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const warehouseQualityChecks = document.getElementById('warehouse-quality-checks');
     const warehousePolicies = document.getElementById('warehouse-policies');
     const warehouseAuditFeed = document.getElementById('warehouse-audit-feed');
+    const policyRoleSelect = document.getElementById('policy-role-select');
+    const policySqlInput = document.getElementById('policy-sql-input');
+    const policyCheckBtn = document.getElementById('policy-check-btn');
+    const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
+    const policyVerdict = document.getElementById('policy-verdict');
+    const runGoldEvalBtn = document.getElementById('run-gold-eval-btn');
+    const goldEvalSummary = document.getElementById('gold-eval-summary');
+    const goldEvalFailures = document.getElementById('gold-eval-failures');
+    const auditDetail = document.getElementById('audit-detail');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -103,6 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
             listItem.className = 'brief-list-item';
             listItem.innerText = formatter(item);
             container.appendChild(listItem);
+        });
+    }
+
+    function renderDetailCard(container, lines) {
+        container.innerHTML = '';
+        lines.forEach((line) => {
+            const div = document.createElement('div');
+            div.className = 'detail-line';
+            div.innerText = line;
+            container.appendChild(div);
         });
     }
 
@@ -245,12 +265,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            renderObjectList(warehouseAuditFeed, items, (item) => {
+            latestAuditRequestId = items[0].request_id || latestAuditRequestId;
+            warehouseAuditFeed.innerHTML = '';
+            items.forEach((item) => {
                 const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
                 const rowPart = Number.isFinite(item.row_count) ? ` | ${item.row_count} rows` : '';
                 const policyPart = item.policy_decision ? ` | ${item.policy_decision}` : '';
                 const fallbackPart = item.fallback_sql_used || item.fallback_chart_used ? ' | fallback' : '';
-                return `${item.stage.toUpperCase()} | ${item.request_id}${policyPart}${chartPart}${rowPart}${fallbackPart} | ${item.question}`;
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${item.stage.toUpperCase()} | ${item.request_id}${policyPart}${chartPart}${rowPart}${fallbackPart} | ${item.question}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                warehouseAuditFeed.appendChild(listItem);
             });
             warehouseAuditCount.innerText = `${items.length} requests`;
         } catch (error) {
@@ -272,6 +300,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const latest = payload.latest || {};
             const policyDecision = latest.policy_decision || 'unknown';
             const fallback = latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no';
+            latestAuditRequestId = payload.request_id;
+            if (latest.sql_query) {
+                policySqlInput.value = latest.sql_query;
+            }
+            renderDetailCard(auditDetail, [
+                `Request ID: ${payload.request_id}`,
+                `Decision: ${policyDecision.toUpperCase()}`,
+                `Stage: ${(latest.stage || 'unknown').toUpperCase()}`,
+                `Rows: ${latest.row_count || 0}`,
+                `Retries: ${latest.retry_count || 0}`,
+                `Chart: ${latest.chart_type || 'n/a'}`,
+                `Fallback: ${fallback}`,
+                `SQL: ${latest.sql_query || 'not captured yet'}`,
+            ]);
             addLog(
                 `Audit detail ${payload.request_id}: ${policyDecision.toUpperCase()} | ${latest.row_count || 0} rows | ${fallback}`,
                 policyDecision === 'deny' ? 'error' : 'system'
@@ -279,6 +321,84 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(error);
             addLog('Failed to load query audit detail.', 'error');
+            renderDetailCard(auditDetail, ['Audit detail unavailable.']);
+        }
+    }
+
+    async function runPolicyCheck() {
+        const sql = policySqlInput.value.trim();
+        const role = policyRoleSelect.value;
+        if (!sql) {
+            renderDetailCard(policyVerdict, ['Enter SQL or load the latest audited query first.']);
+            return;
+        }
+
+        policyCheckBtn.disabled = true;
+        policyCheckBtn.innerText = 'CHECKING...';
+        try {
+            const response = await fetch('/api/policy/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ sql, role })
+            });
+            if (!response.ok) {
+                throw new Error(`Policy check failed with ${response.status}`);
+            }
+            const payload = await response.json();
+            const verdict = payload.verdict || {};
+            const reasons = [
+                ...(verdict.deny_reasons || []).map((item) => `DENY: ${item}`),
+                ...(verdict.review_reasons || []).map((item) => `REVIEW: ${item}`),
+            ];
+            renderDetailCard(policyVerdict, [
+                `Role: ${(verdict.role || role).toUpperCase()}`,
+                `Decision: ${(verdict.decision || 'unknown').toUpperCase()}`,
+                ...(reasons.length ? reasons : ['ALLOW: no policy blockers triggered']),
+            ]);
+            addLog(`Policy preview ${String(verdict.decision || 'unknown').toUpperCase()} for role ${role}.`, verdict.decision === 'deny' ? 'error' : 'system');
+        } catch (error) {
+            console.error(error);
+            renderDetailCard(policyVerdict, ['Policy check unavailable.']);
+            addLog('Failed to run policy preview.', 'error');
+        } finally {
+            policyCheckBtn.disabled = false;
+            policyCheckBtn.innerText = 'Run Policy Check';
+        }
+    }
+
+    async function loadGoldEvalRun() {
+        runGoldEvalBtn.disabled = true;
+        runGoldEvalBtn.innerText = 'RUNNING...';
+        try {
+            const response = await fetch('/api/evals/nl2sql-gold/run');
+            if (!response.ok) {
+                throw new Error(`Gold eval run failed with ${response.status}`);
+            }
+            const payload = await response.json();
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            const failing = items.filter((item) => item.status !== 'pass');
+            renderDetailCard(goldEvalSummary, [
+                `Cases: ${summary.case_count || items.length}`,
+                `Pass: ${summary.pass_count || 0}`,
+                `Fail: ${summary.fail_count || 0}`,
+            ]);
+            if (failing.length > 0) {
+                renderObjectList(goldEvalFailures, failing, (item) => `${item.question} | ${item.status.toUpperCase()} | missing ${item.missing_features.join(', ')}`);
+            } else {
+                renderReviewList(goldEvalFailures, ['All governed eval cases passed in the current local review run.']);
+            }
+            addLog(`Gold eval run completed: ${(summary.pass_count || 0)}/${summary.case_count || items.length} cases passed.`, 'success');
+        } catch (error) {
+            console.error(error);
+            renderDetailCard(goldEvalSummary, ['Gold eval run unavailable.']);
+            renderReviewList(goldEvalFailures, ['No eval detail available.']);
+            addLog('Failed to run gold eval suite.', 'error');
+        } finally {
+            runGoldEvalBtn.disabled = false;
+            runGoldEvalBtn.innerText = 'Run Gold Eval';
         }
     }
 
@@ -388,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             askPayload = await askResponse.json();
             latestRequestId = askPayload.request_id;
+            latestAuditRequestId = askPayload.request_id;
             addLog(`Audit Request ID: ${askPayload.request_id}`, 'system');
         } catch (error) {
             console.error(error);
@@ -442,11 +563,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     askBtn.addEventListener('click', executeQuery);
+    policyCheckBtn.addEventListener('click', runPolicyCheck);
+    useLatestSqlBtn.addEventListener('click', () => {
+        const requestId = latestRequestId || latestAuditRequestId;
+        if (requestId) {
+            loadQueryAuditDetail(requestId);
+        } else {
+            renderDetailCard(auditDetail, ['No audited request is available yet. Run a query or pick one from the audit feed.']);
+        }
+    });
+    runGoldEvalBtn.addEventListener('click', loadGoldEvalRun);
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
     });
+    policySqlInput.value = 'SELECT region, SUM(net_revenue) AS total_revenue FROM sales GROUP BY region ORDER BY total_revenue DESC LIMIT 5;';
+    renderDetailCard(policyVerdict, ['Run a policy preview on the seeded warehouse SQL before relying on the chart output.']);
+    renderDetailCard(goldEvalSummary, ['Run the deterministic NL2SQL suite to inspect governed baseline quality.']);
+    renderDetailCard(auditDetail, ['Select a recent audit request or run a governed query to inspect SQL, fallback usage, and retries.']);
     loadRuntimeBrief();
     loadReviewPack();
     loadWarehouseBrief();
     loadQueryAuditFeed();
+    loadGoldEvalRun();
 });
