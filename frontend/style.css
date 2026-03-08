@@ -22,8 +22,8 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-primary);
     font-family: var(--font-ui);
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow: auto;
     position: relative;
     display: flex;
     justify-content: center;
@@ -181,6 +181,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    min-width: 0;
 }
 
 .topbar {
@@ -194,6 +195,74 @@ body {
     font-size: 1.4rem;
     font-weight: 600;
     letter-spacing: -0.5px;
+}
+
+.readiness-panel {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.readiness-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.readiness-header h2 {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    max-width: 780px;
+}
+
+.brief-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.brief-card,
+.brief-list-card {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 0.95rem 1rem;
+}
+
+.brief-card strong {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.brief-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.brief-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.brief-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.brief-list-item {
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-size: 0.88rem;
 }
 
 .status-indicator {
@@ -236,6 +305,7 @@ body {
     align-items: center;
     padding: 2rem;
     position: relative;
+    min-height: 300px;
 }
 
 .empty-state {
@@ -338,4 +408,52 @@ canvas {
     color: white;
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 1280px) {
+    .app-container {
+        height: auto;
+        min-height: 90vh;
+    }
+
+    .brief-metrics,
+    .brief-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    body {
+        align-items: stretch;
+    }
+
+    .app-container {
+        width: 100%;
+        min-height: 100vh;
+        height: auto;
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-height: 260px;
+    }
+
+    .topbar,
+    .readiness-header,
+    .input-wrap,
+    .suggested-prompts {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .brief-metrics,
+    .brief-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .execute-btn {
+        min-height: 52px;
+    }
 }

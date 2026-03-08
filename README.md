@@ -44,6 +44,14 @@ uvicorn main:app --port 8000
 2. Ask a natural language SQL query such as *"Show me total net revenue by region grouped as a bar chart"*
 3. Watch the left **Thought Process Sidebar** as the AI Agents construct the SQL, test it against the Database, and dynamically render the chart for you.
 
+## Service-Grade Surfaces
+
+- `GET /health`: exposes runtime posture, demo readiness, and direct links to the review surfaces.
+- `GET /api/meta`: returns the core ops contract, capabilities, and service routes for reviewers.
+- `GET /api/runtime/brief`: summarizes the agent contract, retry budget, watchouts, and validation flow before a live demo.
+- `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
+- Frontend runtime brief: the landing screen now shows answer schema, model, warehouse readiness, review flow, operator rules, and agent responsibilities before a query is run.
+
 <!-- codex:local-verification:start -->
 ## Local Verification
 ```bash
