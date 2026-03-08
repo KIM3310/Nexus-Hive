@@ -219,13 +219,85 @@ def build_runtime_meta() -> Dict[str, Any]:
             "version": 1,
             "required_fields": ["service", "status", "diagnostics.next_action"],
         },
-        "routes": ["/health", "/api/meta", "/api/ask", "/api/stream"],
+        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/schema/answer", "/api/ask", "/api/stream"],
         "capabilities": [
             "natural-language-to-sql",
             "audit-safe-readonly-execution",
             "chart-config-generation",
             "sse-agent-trace-streaming",
+            "runtime-brief-surface",
+            "answer-schema-surface",
         ],
+    }
+
+
+def build_answer_schema() -> Dict[str, Any]:
+    return {
+        "schema": "nexus-hive-answer-v1",
+        "required_sections": [
+            "question",
+            "sql_query",
+            "chart_config",
+            "result_preview",
+            "agent_trace",
+            "runtime_posture",
+        ],
+        "operator_rules": [
+            "Only read-only SQL is allowed through the executor agent.",
+            "Chart configuration should be derived from result shape, not hard-coded assumptions.",
+            "If SQL fails, the self-correction loop retries up to 3 times before returning a controlled failure.",
+        ],
+    }
+
+
+def build_runtime_brief() -> Dict[str, Any]:
+    runtime_meta = build_runtime_meta()
+    diagnostics = runtime_meta["diagnostics"]
+    db_ready = diagnostics["db_ready"]
+
+    return {
+        "status": "ok" if db_ready else "degraded",
+        "service": "nexus-hive",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "readiness_contract": "nexus-hive-runtime-brief-v1",
+        "headline": (
+            "Federated BI copilot that turns executive questions into audited SQL, executes them safely, and renders chart-ready answers."
+        ),
+        "diagnostics": diagnostics,
+        "model": MODEL_NAME,
+        "report_contract": build_answer_schema(),
+        "evidence_counts": {
+            "agent_nodes": 3,
+            "retry_budget": 3,
+            "seeded_rows": 10000,
+            "runtime_routes": 6,
+        },
+        "review_flow": [
+            "Open /health to confirm database and model posture.",
+            "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
+            "Ask a question through /api/ask or the frontend to validate SQL, execution, and chart generation.",
+            "Inspect the streamed agent trace before trusting any rendered answer.",
+        ],
+        "watchouts": [
+            "The visualization agent uses the shape of returned rows; poor SQL still yields poor charts.",
+            "Ollama availability affects live demos, but the runtime brief remains available without it.",
+            "SQLite is used as a local warehouse stand-in, not a claim of production warehouse scale.",
+        ],
+        "agent_contract": [
+            {
+                "agent": "translator",
+                "responsibility": "Generate SQL from natural language and schema context.",
+            },
+            {
+                "agent": "executor",
+                "responsibility": "Block unsafe SQL and execute read-only analytics queries.",
+            },
+            {
+                "agent": "visualizer",
+                "responsibility": "Infer a Chart.js payload from the result shape.",
+            },
+        ],
+        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/schema/answer", "/api/ask", "/api/stream"],
     }
 
 async def run_agent_and_stream(question: str):
@@ -277,6 +349,8 @@ async def health_endpoint():
         "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
         "links": {
             "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "answer_schema": "/api/schema/answer",
             "ask": "/api/ask",
             "stream": "/api/stream",
         },
@@ -290,7 +364,24 @@ async def meta_endpoint():
     return {
         "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "readiness_contract": "nexus-hive-runtime-brief-v1",
+        "report_contract": build_answer_schema(),
         **runtime_meta,
+    }
+
+
+@app.get("/api/runtime/brief")
+async def runtime_brief_endpoint():
+    return build_runtime_brief()
+
+
+@app.get("/api/schema/answer")
+async def answer_schema_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        **build_answer_schema(),
     }
 
 
@@ -308,6 +399,10 @@ async def ask_endpoint(req: AskRequest, request: Request):
         "message": "Use the SSE stream endpoint to receive the full agent trace.",
         "question": question,
         "stream_url": f"{stream_url}?q={quote_plus(question)}",
+        "links": {
+            "runtime_brief": str(request.url_for("runtime_brief_endpoint")),
+            "answer_schema": str(request.url_for("answer_schema_endpoint")),
+        },
     }
 
 @app.get("/api/stream")
