@@ -2,6 +2,7 @@ let currentChart = null;
 let latestRequestId = null;
 let latestAuditRequestId = null;
 let latestReviewRoutes = [];
+let latestGoldEvalPayload = null;
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
+    const copyGoldEvalBtn = document.getElementById('copy-gold-eval-btn');
     const policyVerdict = document.getElementById('policy-verdict');
     const runGoldEvalBtn = document.getElementById('run-gold-eval-btn');
     const goldEvalSummary = document.getElementById('gold-eval-summary');
@@ -410,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`Gold eval run failed with ${response.status}`);
             }
             const payload = await response.json();
+            latestGoldEvalPayload = payload;
             const summary = payload.summary || {};
             const items = payload.items || [];
             const failing = items.filter((item) => item.status !== 'pass');
@@ -426,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Gold eval run completed: ${(summary.pass_count || 0)}/${summary.case_count || items.length} cases passed.`, 'success');
         } catch (error) {
             console.error(error);
+            latestGoldEvalPayload = null;
             renderDetailCard(goldEvalSummary, ['Gold eval run unavailable.']);
             renderReviewList(goldEvalFailures, ['No eval detail available.']);
             addLog('Failed to run gold eval suite.', 'error');
@@ -460,6 +464,26 @@ document.addEventListener('DOMContentLoaded', () => {
             'Run Policy Check to confirm wildcard projection is blocked before execution.'
         ]);
         addLog('Loaded deny-path SQL example for policy preview.', 'system');
+    }
+
+    async function copyGoldEvalSummary() {
+        const payload = latestGoldEvalPayload;
+        const summary = payload?.summary || {};
+        const items = payload?.items || [];
+        const failing = items.filter((item) => item.status !== 'pass');
+        const lines = [
+            'Nexus-Hive gold eval summary',
+            `Cases: ${summary.case_count || items.length || 0}`,
+            `Pass: ${summary.pass_count || 0}`,
+            `Fail: ${summary.fail_count || 0}`,
+            '',
+            'Failures',
+            ...(failing.length > 0
+                ? failing.map((item) => `- ${item.question} | ${String(item.status || 'unknown').toUpperCase()} | missing ${(item.missing_features || []).join(', ')}`)
+                : ['- All governed eval cases passed in the current local review run.']),
+        ];
+        const ok = await copyTextToClipboard(lines.join('\n'));
+        addLog(ok ? 'Copied gold eval summary.' : 'Failed to copy gold eval summary.', ok ? 'success' : 'error');
     }
 
     function renderChart(configData, dbData) {
@@ -635,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
     seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
+    copyGoldEvalBtn.addEventListener('click', copyGoldEvalSummary);
     runGoldEvalBtn.addEventListener('click', loadGoldEvalRun);
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
