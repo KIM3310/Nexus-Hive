@@ -49,9 +49,15 @@ uvicorn main:app --port 8000
 - `GET /health`: exposes runtime posture, demo readiness, and direct links to the review surfaces.
 - `GET /api/meta`: returns the core ops contract, capabilities, and service routes for reviewers.
 - `GET /api/runtime/brief`: summarizes the agent contract, retry budget, watchouts, and validation flow before a live demo.
+- `GET /api/runtime/warehouse-brief`: exposes warehouse mode, lineage, quality gate, policy examples, and recent audit volume.
 - `GET /api/review-pack`: ties executive promises, trust boundary, answer contract, and review routes into one reviewer surface.
 - `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
+- `GET /api/schema/lineage`: documents the semantic model and fact-to-dimension relationships.
+- `GET /api/schema/query-audit`: documents the append-only query audit contract keyed by `request_id`.
+- `GET /api/query-audit/recent`: shows the latest governed query requests with stage, SQL, retries, and row counts.
+- `POST /api/ask`: now issues a stable `request_id` and a stream URL so every question can be traced through the audit surface.
 - Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
+- Frontend governed analytics board: the landing screen now adds warehouse mode, lineage relations, quality checks, policy examples, and recent query audit history before a query is trusted.
 
 ## Platform Expansion
 
