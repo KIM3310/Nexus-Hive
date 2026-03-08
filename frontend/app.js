@@ -1,6 +1,7 @@
 let currentChart = null;
 let latestRequestId = null;
 let latestAuditRequestId = null;
+let latestReviewRoutes = [];
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -47,6 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const policySqlInput = document.getElementById('policy-sql-input');
     const policyCheckBtn = document.getElementById('policy-check-btn');
     const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
+    const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
+    const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
     const policyVerdict = document.getElementById('policy-verdict');
     const runGoldEvalBtn = document.getElementById('run-gold-eval-btn');
     const goldEvalSummary = document.getElementById('gold-eval-summary');
@@ -126,6 +130,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    async function copyTextToClipboard(text) {
+        if (!text) return false;
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch {
+            // Fallback below.
+        }
+
+        try {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(temp);
+            return Boolean(success);
+        } catch {
+            return false;
+        }
+    }
+
     async function loadRuntimeBrief() {
         try {
             const response = await fetch('/api/runtime/brief');
@@ -179,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Proof: ${item.label} -> ${item.href || item.path || '-'}`
             );
             const twoMinuteReview = (payload.two_minute_review || []).map((item) => `2-minute: ${item}`);
+            latestReviewRoutes = proofBundle.review_routes || [];
 
             reviewPackHeadline.innerText = payload.headline || 'Review pack available.';
             reviewPackBadge.innerText = (payload.status || 'unknown').toUpperCase();
@@ -193,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackWatchouts, payload.watchouts || []);
         } catch (error) {
             console.error(error);
+            latestReviewRoutes = [];
             reviewPackHeadline.innerText = 'Executive review pack unavailable.';
             reviewPackBadge.innerText = 'ERROR';
             reviewPackReady.innerText = 'Unknown';
@@ -402,6 +435,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyReviewRoutes() {
+        const routes = latestReviewRoutes.length > 0
+            ? latestReviewRoutes
+            : ['/health', '/api/runtime/brief', '/api/review-pack', '/api/query-audit/recent'];
+        const ok = await copyTextToClipboard(routes.join('\n'));
+        addLog(ok ? 'Copied reviewer route checklist.' : 'Failed to copy reviewer route checklist.', ok ? 'success' : 'error');
+    }
+
+    function focusLatestAudit() {
+        if (!latestAuditRequestId) {
+            renderDetailCard(auditDetail, ['Run a governed query or select a request from the audit feed first.']);
+            addLog('No recent audit request is available yet.', 'error');
+            return;
+        }
+        loadQueryAuditDetail(latestAuditRequestId);
+    }
+
+    function seedDeniedSql() {
+        policyRoleSelect.value = 'viewer';
+        policySqlInput.value = 'SELECT * FROM sales LIMIT 20;';
+        renderDetailCard(policyVerdict, [
+            'Seeded deny-path SQL.',
+            'Run Policy Check to confirm wildcard projection is blocked before execution.'
+        ]);
+        addLog('Loaded deny-path SQL example for policy preview.', 'system');
+    }
+
     function renderChart(configData, dbData) {
         if (!dbData || dbData.length === 0) {
             addLog("No records returned to visualize.", "error");
@@ -572,6 +632,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDetailCard(auditDetail, ['No audited request is available yet. Run a query or pick one from the audit feed.']);
         }
     });
+    copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
+    seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
     runGoldEvalBtn.addEventListener('click', loadGoldEvalRun);
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
