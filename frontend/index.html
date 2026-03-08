@@ -140,6 +140,54 @@
                 </div>
             </section>
 
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Governed Analytics</p>
+                        <h2 id="warehouse-headline">Loading warehouse and audit posture...</h2>
+                    </div>
+                    <span class="badge" id="warehouse-badge">LOADING</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Warehouse Mode</span>
+                        <strong id="warehouse-mode">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Modeled Tables</span>
+                        <strong id="warehouse-table-count">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Quality Gate</span>
+                        <strong id="warehouse-quality">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Recent Audits</span>
+                        <strong id="warehouse-audit-count">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Lineage Relations</span>
+                        <ul class="brief-list" id="warehouse-lineage"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Quality Checks</span>
+                        <ul class="brief-list" id="warehouse-quality-checks"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Policy Examples</span>
+                        <ul class="brief-list" id="warehouse-policies"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Query Audit Feed</span>
+                        <ul class="brief-list" id="warehouse-audit-feed"></ul>
+                    </section>
+                </div>
+            </section>
+
             <div class="visualization-area glass-panel">
                 <div class="empty-state" id="empty-state">
                     <h3>No Data Rendered</h3>
