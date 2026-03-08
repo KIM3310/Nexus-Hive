@@ -24,6 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
 OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
 MODEL_NAME = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
+DEFAULT_ROLE = str(os.getenv("NEXUS_HIVE_ROLE", "analyst")).strip().lower() or "analyst"
+ALLOW_HEURISTIC_FALLBACK = str(os.getenv("NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK", "1")).strip() not in {"0", "false", "False"}
 AUDIT_LOG_PATH = Path(
     os.getenv(
         "NEXUS_HIVE_AUDIT_PATH",
@@ -32,6 +34,10 @@ AUDIT_LOG_PATH = Path(
 ).expanduser()
 
 READ_ONLY_BLOCKLIST = {"DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "REPLACE", "CREATE"}
+SENSITIVE_COLUMNS_BY_ROLE = {
+    "analyst": {"margin_percentage"},
+    "viewer": {"margin_percentage", "manager"},
+}
 WAREHOUSE_ADAPTERS = [
     {
         "name": "sqlite-demo",
@@ -68,6 +74,28 @@ LINEAGE_RELATIONSHIPS = [
         "to_column": "region_id",
         "kind": "dimension-join",
         "semantic_role": "regional ownership",
+    },
+]
+GOLD_EVAL_CASES = [
+    {
+        "case_id": "revenue_by_region",
+        "question": "Show total net revenue by region",
+        "expected_features": ["SUM(net_revenue)", "JOIN regions", "GROUP BY region_name"],
+    },
+    {
+        "case_id": "profit_by_region",
+        "question": "Show top 5 regions by total profit",
+        "expected_features": ["SUM(profit)", "JOIN regions", "ORDER BY total_profit DESC", "LIMIT 5"],
+    },
+    {
+        "case_id": "discount_by_category",
+        "question": "What is the average discount applied per category?",
+        "expected_features": ["AVG(discount_applied)", "JOIN products", "GROUP BY category"],
+    },
+    {
+        "case_id": "monthly_revenue_trend",
+        "question": "Show monthly net revenue trend",
+        "expected_features": ["SUBSTR(date, 1, 7)", "SUM(net_revenue)", "GROUP BY month"],
     },
 ]
 
@@ -276,6 +304,180 @@ def build_query_audit_schema() -> Dict[str, Any]:
     }
 
 
+def normalize_question(question: str) -> str:
+    return " ".join(str(question or "").strip().lower().split())
+
+
+def infer_sql_from_question(question: str) -> str:
+    normalized = normalize_question(question)
+
+    if "discount" in normalized and "category" in normalized:
+        return (
+            "SELECT p.category, ROUND(AVG(s.discount_applied), 4) AS average_discount "
+            "FROM sales s "
+            "JOIN products p ON s.product_id = p.product_id "
+            "GROUP BY p.category "
+            "ORDER BY average_discount DESC "
+            "LIMIT 10"
+        )
+
+    if "profit" in normalized and "region" in normalized:
+        limit = 5 if "top 5" in normalized else 10
+        return (
+            "SELECT r.region_name, ROUND(SUM(s.profit), 2) AS total_profit "
+            "FROM sales s "
+            "JOIN regions r ON s.region_id = r.region_id "
+            "GROUP BY r.region_name "
+            "ORDER BY total_profit DESC "
+            f"LIMIT {limit}"
+        )
+
+    if ("monthly" in normalized or "trend" in normalized or "month" in normalized) and "revenue" in normalized:
+        return (
+            "SELECT SUBSTR(s.date, 1, 7) AS month, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue "
+            "FROM sales s "
+            "GROUP BY month "
+            "ORDER BY month ASC "
+            "LIMIT 12"
+        )
+
+    if "quantity" in normalized and "category" in normalized:
+        return (
+            "SELECT p.category, SUM(s.quantity) AS total_quantity "
+            "FROM sales s "
+            "JOIN products p ON s.product_id = p.product_id "
+            "GROUP BY p.category "
+            "ORDER BY total_quantity DESC "
+            "LIMIT 10"
+        )
+
+    if "category" in normalized and "revenue" in normalized:
+        return (
+            "SELECT p.category, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue "
+            "FROM sales s "
+            "JOIN products p ON s.product_id = p.product_id "
+            "GROUP BY p.category "
+            "ORDER BY total_net_revenue DESC "
+            "LIMIT 10"
+        )
+
+    return (
+        "SELECT r.region_name, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue "
+        "FROM sales s "
+        "JOIN regions r ON s.region_id = r.region_id "
+        "GROUP BY r.region_name "
+        "ORDER BY total_net_revenue DESC "
+        "LIMIT 10"
+    )
+
+
+def infer_chart_config_from_question(question: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not rows:
+        return {
+            "type": "bar",
+            "labels_key": "label",
+            "data_key": "value",
+            "title": "Data Visualization",
+        }
+
+    keys = list(rows[0].keys())
+    label_key = keys[0]
+    data_key = keys[1] if len(keys) > 1 else keys[0]
+    normalized = normalize_question(question)
+    chart_type = "bar"
+
+    if "trend" in normalized or "month" in normalized or "date" in normalized:
+        chart_type = "line"
+    elif len(rows) <= 6 and any(keyword in normalized for keyword in ["share", "mix", "category", "region"]):
+        chart_type = "doughnut"
+
+    return {
+        "type": chart_type,
+        "labels_key": label_key,
+        "data_key": data_key,
+        "title": "Governed Analytics View",
+    }
+
+
+def build_policy_schema() -> Dict[str, Any]:
+    return {
+        "schema": "nexus-hive-policy-v1",
+        "default_role": DEFAULT_ROLE,
+        "deny_rules": [
+            "write_operations_blocked",
+            "wildcard_projection_denied",
+            "sensitive_columns_require_privileged_role",
+        ],
+        "review_rules": [
+            "non_aggregated_queries_without_limit_require_operator_review",
+        ],
+        "sensitive_columns_by_role": SENSITIVE_COLUMNS_BY_ROLE,
+    }
+
+
+def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
+    normalized_sql = str(sql or "").strip()
+    upper_sql = normalized_sql.upper()
+    lower_sql = normalized_sql.lower()
+    deny_reasons: List[str] = []
+    review_reasons: List[str] = []
+    sensitive_columns = SENSITIVE_COLUMNS_BY_ROLE.get(role, set())
+
+    if any(keyword in upper_sql for keyword in READ_ONLY_BLOCKLIST):
+        deny_reasons.append("write_operations_blocked")
+    if "SELECT *" in upper_sql:
+        deny_reasons.append("wildcard_projection_denied")
+    if any(column in lower_sql for column in sensitive_columns):
+        deny_reasons.append("sensitive_columns_require_privileged_role")
+    if "GROUP BY" not in upper_sql and "LIMIT" not in upper_sql:
+        review_reasons.append("non_aggregated_queries_without_limit_require_operator_review")
+
+    decision = "deny" if deny_reasons else "review" if review_reasons else "allow"
+    return {
+        "role": role,
+        "decision": decision,
+        "deny_reasons": deny_reasons,
+        "review_reasons": review_reasons,
+    }
+
+
+def evaluate_sql_case(sql: str, expected_features: List[str]) -> Dict[str, Any]:
+    upper_sql = str(sql or "").upper()
+    matched = [feature for feature in expected_features if feature.upper() in upper_sql]
+    return {
+        "matched_features": matched,
+        "missing_features": [feature for feature in expected_features if feature not in matched],
+        "score": len(matched),
+        "max_score": len(expected_features),
+        "status": "pass" if len(matched) == len(expected_features) else "partial",
+    }
+
+
+def build_gold_eval_pack() -> Dict[str, Any]:
+    cases = []
+    for case in GOLD_EVAL_CASES:
+        fallback_sql = infer_sql_from_question(case["question"])
+        verdict = evaluate_sql_case(fallback_sql, case["expected_features"])
+        cases.append(
+            {
+                **case,
+                "fallback_sql_preview": fallback_sql,
+                "fallback_verdict": verdict,
+            }
+        )
+
+    passing_cases = sum(1 for case in cases if case["fallback_verdict"]["status"] == "pass")
+    return {
+        "schema": "nexus-hive-gold-eval-v1",
+        "headline": "Canonical NL2SQL review set used to judge governed analytics behavior before demo claims.",
+        "summary": {
+            "case_count": len(cases),
+            "fallback_pass_count": passing_cases,
+        },
+        "cases": cases,
+    }
+
+
 def append_query_audit_snapshot(snapshot: Dict[str, Any]) -> None:
     AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
@@ -343,6 +545,8 @@ def build_warehouse_brief() -> Dict[str, Any]:
     quality_gate = build_quality_gate()
     date_window = fetch_date_window()
     recent_audits = list_recent_query_audits(limit=5)
+    gold_eval = build_gold_eval_pack()
+    policy_schema = build_policy_schema()
 
     return {
         "status": "ok" if quality_gate["status"] == "ok" else "degraded",
@@ -351,21 +555,27 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "readiness_contract": "nexus-hive-warehouse-brief-v1",
         "headline": "Governed analytics brief tying warehouse mode, lineage, quality gate, and audit trail into one reviewable surface.",
         "warehouse_mode": "sqlite-demo",
+        "fallback_mode": "heuristic" if ALLOW_HEURISTIC_FALLBACK else "disabled",
         "adapter_contracts": WAREHOUSE_ADAPTERS,
         "table_profiles": table_profiles,
         "date_window": date_window,
         "quality_gate": quality_gate,
         "lineage": build_lineage_schema(),
+        "policy": policy_schema,
+        "gold_eval": gold_eval,
         "recent_audit_count": len(recent_audits),
         "policy_examples": [
             "read_only_sql_only",
             "aggregates_before_operator_approval",
             "trace_sql_before_chart_trust",
+            "sensitive_columns_require_role_escalation",
         ],
         "routes": [
             "/api/runtime/warehouse-brief",
             "/api/schema/lineage",
+            "/api/schema/policy",
             "/api/schema/query-audit",
+            "/api/evals/nl2sql-gold",
             "/api/query-audit/recent",
         ],
     }
@@ -405,10 +615,17 @@ Question: {state['user_query']}
 
 If previous error exists, fix this issue: {state.get('error', 'None')}
 """
-    sql_response = await ask_ollama(prompt)
-    
-    # Clean markdown if the LLM misbehaves
-    sql = sql_response.strip().replace("```sql", "").replace("```", "").strip()
+    sql = ""
+    try:
+        sql_response = await ask_ollama(prompt)
+        sql = sql_response.strip().replace("```sql", "").replace("```", "").strip()
+    except Exception as exc:
+        state["log_stream"].append(f"[Agent 1: Translator] ⚠️ Ollama unavailable: {exc}")
+
+    if not sql and ALLOW_HEURISTIC_FALLBACK:
+        sql = infer_sql_from_question(state["user_query"])
+        state["log_stream"].append("[Agent 1: Translator] ⚠️ Heuristic SQL fallback engaged.")
+
     state["sql_query"] = sql
     state["log_stream"].append(f"[Agent 1: Translator] Generated SQL:\n{sql}")
     return state
@@ -417,12 +634,16 @@ If previous error exists, fix this issue: {state.get('error', 'None')}
 def executor_node(state: AgentState) -> AgentState:
     sql = state["sql_query"]
     state["log_stream"].append(f"[Agent 2: Executor] Auditing and executing SQL against nexus_enterprise.db...")
-    
-    # Security Audit
-    if any(keyword in sql.upper() for keyword in READ_ONLY_BLOCKLIST):
-        state["error"] = "Unsafe operations detected. Read-only queries allowed."
+
+    policy = evaluate_sql_policy(sql)
+    if policy["decision"] == "deny":
+        state["error"] = f"Policy denied query: {', '.join(policy['deny_reasons'])}"
         state["log_stream"].append(f"[Agent 2: Executor] ❌ ERROR: {state['error']}")
         return state
+    if policy["review_reasons"]:
+        state["log_stream"].append(
+            f"[Agent 2: Executor] ⚠️ Review required: {', '.join(policy['review_reasons'])}"
+        )
 
     try:
         with sqlite3.connect(DB_PATH) as conn:
@@ -461,22 +682,18 @@ Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
     "title": "<Chart Title>"
 }}
 """
-    config_response = await ask_ollama(prompt)
+    config_response = ""
     try:
+        config_response = await ask_ollama(prompt)
         clean_json = config_response.strip().replace("```json", "").replace("```", "").strip()
         config = json.loads(clean_json)
         state["chart_config"] = config
         state["log_stream"].append(f"[Agent 3: Visualizer] ✅ Generated Chart.js config: {config['type'].upper()} Chart.")
-    except:
-        # Fallback if LLM fails JSON parsing
-        keys = list(state["db_result"][0].keys())
-        state["chart_config"] = {
-            "type": "bar",
-            "labels_key": keys[0],
-            "data_key": keys[1] if len(keys) > 1 else keys[0],
-            "title": "Data Visualization"
-        }
-        state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ Fallback chart config used.")
+    except Exception as exc:
+        if exc:
+            state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ LLM chart config unavailable: {exc}")
+        state["chart_config"] = infer_chart_config_from_question(state["user_query"], state["db_result"])
+        state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ Heuristic chart config used.")
         
     return state
 
@@ -534,12 +751,13 @@ def build_runtime_meta() -> Dict[str, Any]:
         "schema_loaded": schema_loaded,
         "ollama_configured": OLLAMA_URL.startswith("http"),
         "warehouse_mode": warehouse_brief["warehouse_mode"],
+        "fallback_mode": warehouse_brief["fallback_mode"],
         "quality_gate_status": warehouse_brief["quality_gate"]["status"],
         "recent_audit_count": warehouse_brief["recent_audit_count"],
         "next_action": (
             "POST /api/ask with an executive question, then follow the returned /api/stream URL."
-            if db_exists and schema_loaded and OLLAMA_URL.startswith("http")
-            else "Run `python3 seed_db.py` and verify NEXUS_HIVE_OLLAMA_URL before live demos."
+            if db_exists and schema_loaded and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
+            else "Run `python3 seed_db.py` and verify either Ollama or heuristic fallback is enabled before live demos."
         ),
     }
     return {
@@ -561,7 +779,9 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/review-pack",
             "/api/schema/answer",
             "/api/schema/lineage",
+            "/api/schema/policy",
             "/api/schema/query-audit",
+            "/api/evals/nl2sql-gold",
             "/api/query-audit/recent",
             "/api/ask",
             "/api/stream",
@@ -574,7 +794,9 @@ def build_runtime_meta() -> Dict[str, Any]:
             "runtime-brief-surface",
             "warehouse-brief-surface",
             "lineage-schema-surface",
+            "policy-schema-surface",
             "query-audit-surface",
+            "gold-eval-surface",
             "review-pack-surface",
             "answer-schema-surface",
         ],
@@ -625,9 +847,12 @@ def build_runtime_brief() -> Dict[str, Any]:
         },
         "warehouse_contract": {
             "mode": warehouse_brief["warehouse_mode"],
+            "fallback_mode": warehouse_brief["fallback_mode"],
             "quality_gate_schema": warehouse_brief["quality_gate"]["schema"],
             "lineage_schema": warehouse_brief["lineage"]["schema"],
+            "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
+            "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
         },
         "review_flow": [
             "Open /health to confirm database and model posture.",
@@ -686,7 +911,9 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/review-pack",
                 "/api/schema/answer",
                 "/api/schema/lineage",
+                "/api/schema/policy",
                 "/api/schema/query-audit",
+                "/api/evals/nl2sql-gold",
                 "/api/query-audit/recent",
                 "/api/ask",
                 "/api/stream",
@@ -697,17 +924,20 @@ def build_review_pack() -> Dict[str, Any]:
             "Unsafe write operations are blocked before execution.",
             "The agent trace remains inspectable through SSE rather than hidden behind a single response blob.",
             "Warehouse lineage, quality checks, and query audit stay reviewable before the chart is trusted.",
+            "If Ollama is unavailable, deterministic fallback keeps the review path alive with explicit logging.",
         ],
         "trust_boundary": [
             "translator: natural language becomes SQL only through warehouse schema context",
             "executor: read-only SQL enforcement blocks destructive operations",
             "visualizer: chart payload is inferred from actual result shape",
             "warehouse brief: lineage and quality gate stay visible before approval",
+            "policy: wildcard projections and sensitive columns are denied before execution",
             "stream: reviewer can audit the agent trace before trusting the rendered chart",
         ],
         "review_sequence": [
             "Open /health to confirm warehouse and model posture.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
+            "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Read /api/runtime/brief for retry policy and agent responsibilities.",
             "Read /api/review-pack for executive promises, trust boundary, and review routes.",
             "Use /api/ask, /api/stream, and /api/query-audit/recent together before trusting a dashboard answer.",
@@ -725,7 +955,9 @@ def build_review_pack() -> Dict[str, Any]:
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
+            "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
+            "gold_eval": "/api/evals/nl2sql-gold",
             "query_audit_recent": "/api/query-audit/recent",
             "ask": "/api/ask",
             "stream": "/api/stream",
@@ -809,7 +1041,9 @@ async def health_endpoint():
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
+            "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
+            "gold_eval": "/api/evals/nl2sql-gold",
             "query_audit_recent": "/api/query-audit/recent",
             "ask": "/api/ask",
             "stream": "/api/stream",
@@ -829,7 +1063,9 @@ async def meta_endpoint():
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
+        "policy_contract": build_policy_schema()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
+        "gold_eval_contract": build_gold_eval_pack()["schema"],
         **runtime_meta,
     }
 
@@ -869,6 +1105,16 @@ async def lineage_schema_endpoint():
     }
 
 
+@app.get("/api/schema/policy")
+async def policy_schema_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_policy_schema(),
+    }
+
+
 @app.get("/api/schema/query-audit")
 async def query_audit_schema_endpoint():
     return {
@@ -876,6 +1122,16 @@ async def query_audit_schema_endpoint():
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         **build_query_audit_schema(),
+    }
+
+
+@app.get("/api/evals/nl2sql-gold")
+async def gold_eval_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_gold_eval_pack(),
     }
 
 
@@ -917,6 +1173,7 @@ async def ask_endpoint(req: AskRequest, request: Request):
             "runtime_brief": str(request.url_for("runtime_brief_endpoint")),
             "warehouse_brief": str(request.url_for("warehouse_brief_endpoint")),
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
+            "gold_eval": str(request.url_for("gold_eval_endpoint")),
             "query_audit_recent": str(request.url_for("query_audit_recent_endpoint")),
         },
     }

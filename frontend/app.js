@@ -192,8 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = await response.json();
             warehouseHeadline.innerText = payload.headline || 'Warehouse brief available.';
             warehouseBadge.innerText = (payload.status || 'unknown').toUpperCase();
-            warehouseMode.innerText = payload.warehouse_mode || 'Unavailable';
-            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables`;
+            const evalSummary = payload.gold_eval?.summary || {};
+            warehouseMode.innerText = `${payload.warehouse_mode || 'Unavailable'} / ${payload.fallback_mode || 'unknown'}`;
+            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables / ${evalSummary.case_count || 0} evals`;
             warehouseQuality.innerText = (payload.quality_gate?.status || 'unknown').toUpperCase();
             warehouseAuditCount.innerText = `${payload.recent_audit_count || 0} requests`;
 
@@ -203,7 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderObjectList(warehouseQualityChecks, payload.quality_gate?.checks || [], (item) =>
                 `${item.name}: ${item.status.toUpperCase()} (${item.violations} violations)`
             );
-            renderReviewList(warehousePolicies, payload.policy_examples || []);
+            const policyRules = [
+                ...(payload.policy?.deny_rules || []).map((item) => `DENY: ${item}`),
+                ...(payload.policy?.review_rules || []).map((item) => `REVIEW: ${item}`),
+                ...(payload.policy_examples || []).map((item) => `FLOW: ${item}`),
+            ];
+            renderReviewList(warehousePolicies, policyRules);
         } catch (error) {
             console.error(error);
             warehouseHeadline.innerText = 'Warehouse brief unavailable.';
