@@ -1,6 +1,7 @@
 let currentChart = null;
 let latestRequestId = null;
 let latestAuditRequestId = null;
+let latestAuditDetailPayload = null;
 let latestReviewRoutes = [];
 let latestGoldEvalPayload = null;
 
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const policyCheckBtn = document.getElementById('policy-check-btn');
     const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const copyLatestAuditBtn = document.getElementById('copy-latest-audit-btn');
     const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
     const copyGoldEvalBtn = document.getElementById('copy-gold-eval-btn');
@@ -335,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const latest = payload.latest || {};
             const policyDecision = latest.policy_decision || 'unknown';
             const fallback = latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no';
+            latestAuditDetailPayload = payload;
             latestAuditRequestId = payload.request_id;
             if (latest.sql_query) {
                 policySqlInput.value = latest.sql_query;
@@ -355,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         } catch (error) {
             console.error(error);
+            latestAuditDetailPayload = null;
             addLog('Failed to load query audit detail.', 'error');
             renderDetailCard(auditDetail, ['Audit detail unavailable.']);
         }
@@ -484,6 +488,30 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         const ok = await copyTextToClipboard(lines.join('\n'));
         addLog(ok ? 'Copied gold eval summary.' : 'Failed to copy gold eval summary.', ok ? 'success' : 'error');
+    }
+
+    async function copyLatestAuditSnapshot() {
+        if (!latestAuditDetailPayload?.latest) {
+            renderDetailCard(auditDetail, ['Run a governed query or focus a recent request before copying audit detail.']);
+            addLog('No audit detail is loaded yet.', 'error');
+            return;
+        }
+        const latest = latestAuditDetailPayload.latest || {};
+        const history = latestAuditDetailPayload.history || [];
+        const lines = [
+            'Nexus-Hive latest audit snapshot',
+            `Request ID: ${latestAuditDetailPayload.request_id || '-'}`,
+            `Decision: ${String(latest.policy_decision || 'unknown').toUpperCase()}`,
+            `Stage: ${String(latest.stage || 'unknown').toUpperCase()}`,
+            `Rows: ${latest.row_count || 0}`,
+            `Retries: ${latest.retry_count || 0}`,
+            `Chart: ${latest.chart_type || 'n/a'}`,
+            `History entries: ${history.length}`,
+            `Fallback: ${latest.fallback_sql_used || latest.fallback_chart_used ? 'yes' : 'no'}`,
+            `SQL: ${latest.sql_query || 'not captured yet'}`,
+        ];
+        const ok = await copyTextToClipboard(lines.join('\n'));
+        addLog(ok ? 'Copied latest audit snapshot.' : 'Failed to copy latest audit snapshot.', ok ? 'success' : 'error');
     }
 
     function renderChart(configData, dbData) {
@@ -657,6 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    copyLatestAuditBtn.addEventListener('click', copyLatestAuditSnapshot);
     focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
     seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
     copyGoldEvalBtn.addEventListener('click', copyGoldEvalSummary);
