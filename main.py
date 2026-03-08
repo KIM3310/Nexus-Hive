@@ -64,7 +64,7 @@ async def ask_ollama(prompt: str) -> str:
 async def translator_node(state: AgentState) -> AgentState:
     state["log_stream"].append(f"[Agent 1: Translator] Analyzing prompt: '{state['user_query']}'")
     
-    prompt = f"""You are a senior Databricks Database Administrator.
+    prompt = f"""You are a senior analytics engineer for governed data platforms.
 Translate the following executive question into a valid SQL query for SQLite.
 Use only the tables provided in the schema. Return ONLY the SQL query, nothing else (no markdown blocks, no explanations).
 

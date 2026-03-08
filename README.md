@@ -53,13 +53,13 @@ uvicorn main:app --port 8000
 - `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
 - Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
 
-## Target Platform Expansion
+## Platform Expansion
 
-Nexus-Hive is also the best anchor repo to grow into a stronger `Snowflake / Databricks / Palantir` proof.
+Nexus-Hive is also the best anchor repo to grow into a stronger governed analytics system.
 
 - current proof: natural language -> audited SQL -> chart -> agent trace
 - next proof: warehouse adapters, lineage, data-quality gates, policy simulation, and governed NL2SQL evaluation
-- working spec: `DATA_PLATFORM_FLAGSHIP_SPEC.ko.md`
+- working spec: `GOVERNED_ANALYTICS_FLAGSHIP_SPEC.ko.md`
 
 <!-- codex:local-verification:start -->
 ## Local Verification
