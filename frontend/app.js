@@ -31,6 +31,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewPackBoundary = document.getElementById('reviewpack-boundary');
     const reviewPackSequence = document.getElementById('reviewpack-sequence');
     const reviewPackWatchouts = document.getElementById('reviewpack-watchouts');
+    const warehouseHeadline = document.getElementById('warehouse-headline');
+    const warehouseBadge = document.getElementById('warehouse-badge');
+    const warehouseMode = document.getElementById('warehouse-mode');
+    const warehouseTableCount = document.getElementById('warehouse-table-count');
+    const warehouseQuality = document.getElementById('warehouse-quality');
+    const warehouseAuditCount = document.getElementById('warehouse-audit-count');
+    const warehouseLineage = document.getElementById('warehouse-lineage');
+    const warehouseQualityChecks = document.getElementById('warehouse-quality-checks');
+    const warehousePolicies = document.getElementById('warehouse-policies');
+    const warehouseAuditFeed = document.getElementById('warehouse-audit-feed');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -81,6 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const listItem = document.createElement('li');
             listItem.className = 'brief-list-item';
             listItem.innerText = item;
+            container.appendChild(listItem);
+        });
+    }
+
+    function renderObjectList(container, items, formatter) {
+        container.innerHTML = '';
+        items.forEach((item) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'brief-list-item';
+            listItem.innerText = formatter(item);
             container.appendChild(listItem);
         });
     }
@@ -159,6 +179,71 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackSequence, ['Review /api/runtime/brief and /api/meta when the backend becomes available.']);
             renderReviewList(reviewPackWatchouts, ['The backend review pack could not be loaded.']);
             addLog('Failed to load executive review pack surface.', 'error');
+        }
+    }
+
+    async function loadWarehouseBrief() {
+        try {
+            const response = await fetch('/api/runtime/warehouse-brief');
+            if (!response.ok) {
+                throw new Error(`Warehouse brief request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            warehouseHeadline.innerText = payload.headline || 'Warehouse brief available.';
+            warehouseBadge.innerText = (payload.status || 'unknown').toUpperCase();
+            warehouseMode.innerText = payload.warehouse_mode || 'Unavailable';
+            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables`;
+            warehouseQuality.innerText = (payload.quality_gate?.status || 'unknown').toUpperCase();
+            warehouseAuditCount.innerText = `${payload.recent_audit_count || 0} requests`;
+
+            renderObjectList(warehouseLineage, payload.lineage?.relationships || [], (item) =>
+                `${item.from_table}.${item.from_column} -> ${item.to_table}.${item.to_column} (${item.semantic_role})`
+            );
+            renderObjectList(warehouseQualityChecks, payload.quality_gate?.checks || [], (item) =>
+                `${item.name}: ${item.status.toUpperCase()} (${item.violations} violations)`
+            );
+            renderReviewList(warehousePolicies, payload.policy_examples || []);
+        } catch (error) {
+            console.error(error);
+            warehouseHeadline.innerText = 'Warehouse brief unavailable.';
+            warehouseBadge.innerText = 'ERROR';
+            warehouseMode.innerText = 'Unavailable';
+            warehouseTableCount.innerText = 'Unavailable';
+            warehouseQuality.innerText = 'Unavailable';
+            warehouseAuditCount.innerText = 'Unavailable';
+            renderReviewList(warehouseLineage, ['Lineage surface unavailable.']);
+            renderReviewList(warehouseQualityChecks, ['Quality gate unavailable.']);
+            renderReviewList(warehousePolicies, ['Policy examples unavailable.']);
+            addLog('Failed to load warehouse brief surface.', 'error');
+        }
+    }
+
+    async function loadQueryAuditFeed() {
+        try {
+            const response = await fetch('/api/query-audit/recent');
+            if (!response.ok) {
+                throw new Error(`Query audit request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            const items = payload.items || [];
+            if (items.length === 0) {
+                renderReviewList(warehouseAuditFeed, ['No governed query requests recorded yet.']);
+                warehouseAuditCount.innerText = '0 requests';
+                return;
+            }
+
+            renderObjectList(warehouseAuditFeed, items, (item) => {
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const rowPart = Number.isFinite(item.row_count) ? ` | ${item.row_count} rows` : '';
+                return `${item.stage.toUpperCase()} | ${item.request_id}${chartPart}${rowPart} | ${item.question}`;
+            });
+            warehouseAuditCount.innerText = `${items.length} requests`;
+        } catch (error) {
+            console.error(error);
+            renderReviewList(warehouseAuditFeed, ['Query audit feed unavailable.']);
+            addLog('Failed to load query audit feed.', 'error');
         }
     }
 
@@ -251,9 +336,34 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear old state safely
         agentLogs.innerHTML = '';
         addLog(`User Query: "${query}"`, 'system');
+        let askPayload;
+
+        try {
+            const askResponse = await fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: query })
+            });
+
+            if (!askResponse.ok) {
+                throw new Error(`Ask request failed with ${askResponse.status}`);
+            }
+
+            askPayload = await askResponse.json();
+            addLog(`Audit Request ID: ${askPayload.request_id}`, 'system');
+        } catch (error) {
+            console.error(error);
+            addLog('Failed to register governed query request.', 'error');
+            askBtn.disabled = false;
+            nlInput.disabled = false;
+            askBtn.innerText = "EXECUTE";
+            return;
+        }
 
         // Connect to SSE Endpoint
-        const eventSource = new EventSource(`/api/stream?q=${encodeURIComponent(query)}`);
+        const eventSource = new EventSource(askPayload.stream_url);
 
         eventSource.onmessage = function (event) {
             const data = JSON.parse(event.data);
@@ -272,6 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             else if (data.type === 'done') {
                 eventSource.close();
+                loadWarehouseBrief();
+                loadQueryAuditFeed();
                 askBtn.disabled = false;
                 nlInput.disabled = false;
                 nlInput.focus();
@@ -283,6 +395,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("EventSource failed:", err);
             addLog("Lost connection to the LangGraph Hive Engine.", "error");
             eventSource.close();
+            loadWarehouseBrief();
+            loadQueryAuditFeed();
             askBtn.disabled = false;
             nlInput.disabled = false;
             askBtn.innerText = "EXECUTE";
@@ -295,4 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     loadRuntimeBrief();
     loadReviewPack();
+    loadWarehouseBrief();
+    loadQueryAuditFeed();
 });
