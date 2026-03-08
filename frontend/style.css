@@ -252,6 +252,10 @@ body {
     gap: 0.75rem;
 }
 
+.governance-grid {
+    grid-template-columns: 1.15fr 0.85fr 1fr;
+}
+
 .brief-list {
     list-style: none;
     display: flex;
@@ -263,6 +267,98 @@ body {
     color: var(--text-primary);
     line-height: 1.5;
     font-size: 0.88rem;
+}
+
+.interactive-item {
+    cursor: pointer;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.interactive-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--panel-border);
+    transform: translateY(-1px);
+}
+
+.form-stack {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.control-select,
+.control-textarea,
+.control-button {
+    font: inherit;
+}
+
+.control-select,
+.control-textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+    padding: 0.8rem 0.9rem;
+}
+
+.control-textarea {
+    resize: vertical;
+    min-height: 132px;
+}
+
+.control-button {
+    height: 2.4rem;
+    padding: 0 0.95rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent-glow);
+    background: rgba(94, 106, 210, 0.12);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.control-button.secondary {
+    border-color: var(--panel-border);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.control-button:hover {
+    background: rgba(94, 106, 210, 0.2);
+}
+
+.control-button.secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.control-button:disabled {
+    cursor: wait;
+    opacity: 0.7;
+}
+
+.detail-card {
+    margin-top: 0.9rem;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(0, 0, 0, 0.24);
+    display: grid;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    line-height: 1.45;
+    font-size: 0.88rem;
+}
+
+.detail-line {
+    color: var(--text-primary);
 }
 
 .status-indicator {
@@ -416,6 +512,7 @@ canvas {
         min-height: 90vh;
     }
 
+    .governance-grid,
     .brief-metrics,
     .brief-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -448,6 +545,7 @@ canvas {
         align-items: stretch;
     }
 
+    .governance-grid,
     .brief-metrics,
     .brief-grid {
         grid-template-columns: minmax(0, 1fr);

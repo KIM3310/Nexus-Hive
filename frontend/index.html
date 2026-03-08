@@ -188,6 +188,57 @@
                 </div>
             </section>
 
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Governance Workbench</p>
+                        <h2>Preview SQL policy, run the gold eval suite, and inspect audit detail before trusting an answer.</h2>
+                    </div>
+                    <span class="badge">REVIEWER TOOLS</span>
+                </div>
+
+                <div class="brief-grid governance-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Policy Preview</span>
+                        <div class="form-stack">
+                            <label class="brief-label" for="policy-role-select">Role</label>
+                            <select id="policy-role-select" class="control-select">
+                                <option value="analyst">analyst</option>
+                                <option value="viewer">viewer</option>
+                            </select>
+                            <label class="brief-label" for="policy-sql-input">SQL Draft</label>
+                            <textarea
+                                id="policy-sql-input"
+                                class="control-textarea"
+                                rows="6"
+                                placeholder="SELECT region, SUM(net_revenue) AS total_revenue FROM sales GROUP BY region ORDER BY total_revenue DESC LIMIT 5;"
+                            ></textarea>
+                            <div class="action-row">
+                                <button id="policy-check-btn" class="control-button" type="button">Run Policy Check</button>
+                                <button id="use-latest-sql-btn" class="control-button secondary" type="button">Load Latest SQL</button>
+                            </div>
+                        </div>
+                        <div id="policy-verdict" class="detail-card">Policy verdict will appear here.</div>
+                    </section>
+
+                    <section class="brief-list-card">
+                        <span class="brief-label">Gold Eval Runner</span>
+                        <div class="action-row">
+                            <button id="run-gold-eval-btn" class="control-button" type="button">Run Gold Eval</button>
+                        </div>
+                        <div id="gold-eval-summary" class="detail-card">Gold eval summary will appear here.</div>
+                        <ul class="brief-list" id="gold-eval-failures"></ul>
+                    </section>
+
+                    <section class="brief-list-card">
+                        <span class="brief-label">Audit Detail</span>
+                        <div id="audit-detail" class="detail-card">
+                            Select a recent audit request or run a question to inspect request-level trace and SQL posture.
+                        </div>
+                    </section>
+                </div>
+            </section>
+
             <div class="visualization-area glass-panel">
                 <div class="empty-state" id="empty-state">
                     <h3>No Data Rendered</h3>
