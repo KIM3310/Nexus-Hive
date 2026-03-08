@@ -39,6 +39,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     query_audit_schema = client.get("/api/schema/query-audit")
     lineage_schema = client.get("/api/schema/lineage")
     gold_eval = client.get("/api/evals/nl2sql-gold")
+    gold_eval_run = client.get("/api/evals/nl2sql-gold/run")
     recent_query_audit = client.get("/api/query-audit/recent")
 
     assert health.status_code == 200
@@ -137,6 +138,11 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert gold_eval_payload["schema"] == "nexus-hive-gold-eval-v1"
     assert gold_eval_payload["summary"]["case_count"] == 4
 
+    assert gold_eval_run.status_code == 200
+    gold_eval_run_payload = gold_eval_run.json()
+    assert gold_eval_run_payload["schema"] == "nexus-hive-gold-eval-run-v1"
+    assert gold_eval_run_payload["summary"]["case_count"] == 4
+
     assert recent_query_audit.status_code == 200
     recent_query_audit_payload = recent_query_audit.json()
     assert recent_query_audit_payload["schema"] == "nexus-hive-query-audit-v1"
@@ -159,6 +165,7 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["links"]["answer_schema"].endswith("/api/schema/answer")
     assert payload["links"]["gold_eval"].endswith("/api/evals/nl2sql-gold")
     assert payload["links"]["query_audit_recent"].endswith("/api/query-audit/recent")
+    assert payload["links"]["query_audit_detail"].endswith(f"/api/query-audit/{payload['request_id']}")
 
     audit_response = client.get("/api/query-audit/recent")
     assert audit_response.status_code == 200
@@ -169,6 +176,53 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
         and item["stage"] == "accepted"
         for item in audit_payload["items"]
     )
+
+
+def test_stream_completion_writes_query_audit_detail(monkeypatch) -> None:
+    async def fail_ollama(_: str) -> str:
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(APP_MODULE, "ask_ollama", fail_ollama)
+    client = TestClient(APP_MODULE.app)
+
+    accepted = client.post("/api/ask", json={"question": "Show total revenue by region"})
+    assert accepted.status_code == 200
+    accepted_payload = accepted.json()
+    request_id = accepted_payload["request_id"]
+
+    stream_response = client.get(f"/api/stream?q=Show%20total%20revenue%20by%20region&rid={request_id}")
+    assert stream_response.status_code == 200
+    assert '"type": "done"' in stream_response.text
+
+    detail_response = client.get(f"/api/query-audit/{request_id}")
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()
+    assert detail_payload["request_id"] == request_id
+    assert detail_payload["latest"]["status"] == "completed"
+    assert detail_payload["latest"]["policy_decision"] in {"allow", "review"}
+    assert detail_payload["latest"]["fallback_sql_used"] is True
+    assert detail_payload["latest"]["fallback_chart_used"] is True
+    assert detail_payload["latest"]["row_count"] > 0
+    assert len(detail_payload["history"]) >= 2
+
+
+def test_policy_preview_and_gold_eval_run_surfaces() -> None:
+    client = TestClient(APP_MODULE.app)
+
+    denied = client.post("/api/policy/check", json={"sql": "SELECT * FROM sales", "role": "analyst"})
+    assert denied.status_code == 200
+    denied_payload = denied.json()
+    assert denied_payload["schema"] == "nexus-hive-policy-v1"
+    assert denied_payload["verdict"]["decision"] == "deny"
+    assert "wildcard_projection_denied" in denied_payload["verdict"]["deny_reasons"]
+
+    runnable = client.get("/api/evals/nl2sql-gold/run")
+    assert runnable.status_code == 200
+    runnable_payload = runnable.json()
+    assert runnable_payload["schema"] == "nexus-hive-gold-eval-run-v1"
+    assert runnable_payload["summary"]["case_count"] == 4
+    assert len(runnable_payload["items"]) == 4
+    assert all("policy_verdict" in item for item in runnable_payload["items"])
 
 
 def test_policy_and_fallback_path(monkeypatch) -> None:

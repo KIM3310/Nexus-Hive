@@ -293,6 +293,9 @@ def build_query_audit_schema() -> Dict[str, Any]:
             "sql_query",
             "row_count",
             "retry_count",
+            "policy_decision",
+            "fallback_sql_used",
+            "fallback_chart_used",
             "updated_at",
         ],
         "stages": ["accepted", "completed", "failed"],
@@ -478,6 +481,79 @@ def build_gold_eval_pack() -> Dict[str, Any]:
     }
 
 
+def execute_sql_preview(sql: str) -> Dict[str, Any]:
+    started_at = datetime.now(timezone.utc)
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query(sql, conn)
+    elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+    rows = df.head(5).to_dict(orient="records")
+    return {
+        "row_count": int(len(df.index)),
+        "preview": rows,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
+def run_gold_eval_suite(strategy: str = "heuristic") -> Dict[str, Any]:
+    items = []
+    passed = 0
+
+    for case in GOLD_EVAL_CASES:
+        sql = infer_sql_from_question(case["question"])
+        feature_verdict = evaluate_sql_case(sql, case["expected_features"])
+        policy_verdict = evaluate_sql_policy(sql)
+        execution = None
+        execution_error = ""
+
+        if policy_verdict["decision"] != "deny":
+            try:
+                execution = execute_sql_preview(sql)
+            except Exception as exc:
+                execution_error = str(exc)
+        else:
+            execution_error = "policy denied"
+
+        status = "pass"
+        if feature_verdict["status"] != "pass":
+            status = "partial"
+        if policy_verdict["decision"] == "deny" or execution_error:
+            status = "fail"
+
+        if status == "pass":
+            passed += 1
+
+        items.append(
+            {
+                "case_id": case["case_id"],
+                "question": case["question"],
+                "strategy": strategy,
+                "sql": sql,
+                "feature_verdict": feature_verdict,
+                "policy_verdict": policy_verdict,
+                "execution": execution
+                or {
+                    "row_count": 0,
+                    "preview": [],
+                    "elapsed_ms": 0,
+                },
+                "error": execution_error,
+                "status": status,
+            }
+        )
+
+    return {
+        "schema": "nexus-hive-gold-eval-run-v1",
+        "headline": "Runnable gold eval suite that checks SQL features, policy verdicts, and executable previews.",
+        "strategy": strategy,
+        "summary": {
+            "case_count": len(items),
+            "pass_count": passed,
+            "fail_count": len([item for item in items if item["status"] == "fail"]),
+        },
+        "items": items,
+    }
+
+
 def append_query_audit_snapshot(snapshot: Dict[str, Any]) -> None:
     AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
@@ -495,6 +571,10 @@ def write_query_audit_snapshot(
     retry_count: int = 0,
     chart_type: str = "",
     error: str = "",
+    policy_decision: str = "",
+    policy_reasons: Optional[List[str]] = None,
+    fallback_sql_used: bool = False,
+    fallback_chart_used: bool = False,
 ) -> None:
     timestamp = utc_now_iso()
     append_query_audit_snapshot(
@@ -509,6 +589,10 @@ def write_query_audit_snapshot(
             "retry_count": retry_count,
             "chart_type": chart_type,
             "error": error,
+            "policy_decision": policy_decision,
+            "policy_reasons": policy_reasons or [],
+            "fallback_sql_used": fallback_sql_used,
+            "fallback_chart_used": fallback_chart_used,
             "updated_at": timestamp,
         }
     )
@@ -540,12 +624,33 @@ def list_recent_query_audits(limit: int = 5) -> List[Dict[str, Any]]:
     )[: max(1, min(limit, 20))]
 
 
+def get_query_audit_history(request_id: str) -> List[Dict[str, Any]]:
+    if not AUDIT_LOG_PATH.exists():
+        return []
+
+    history: List[Dict[str, Any]] = []
+    with AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if str(payload.get("request_id") or "").strip() == request_id:
+                history.append(payload)
+
+    return sorted(history, key=lambda item: item.get("updated_at", ""))
+
+
 def build_warehouse_brief() -> Dict[str, Any]:
     table_profiles = build_table_profiles()
     quality_gate = build_quality_gate()
     date_window = fetch_date_window()
     recent_audits = list_recent_query_audits(limit=5)
     gold_eval = build_gold_eval_pack()
+    gold_eval_run = run_gold_eval_suite()
     policy_schema = build_policy_schema()
 
     return {
@@ -563,6 +668,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "lineage": build_lineage_schema(),
         "policy": policy_schema,
         "gold_eval": gold_eval,
+        "gold_eval_run": gold_eval_run,
         "recent_audit_count": len(recent_audits),
         "policy_examples": [
             "read_only_sql_only",
@@ -588,6 +694,9 @@ class AgentState(TypedDict):
     chart_config: Dict[str, Any]
     error: str
     retry_count: int
+    fallback_sql_used: bool
+    fallback_chart_used: bool
+    policy_verdict: Dict[str, Any]
     log_stream: Annotated[List[str], operator.add] # Accumulates logs across nodes
 
 # --- AI Helper Function ---
@@ -624,6 +733,7 @@ If previous error exists, fix this issue: {state.get('error', 'None')}
 
     if not sql and ALLOW_HEURISTIC_FALLBACK:
         sql = infer_sql_from_question(state["user_query"])
+        state["fallback_sql_used"] = True
         state["log_stream"].append("[Agent 1: Translator] ⚠️ Heuristic SQL fallback engaged.")
 
     state["sql_query"] = sql
@@ -636,6 +746,7 @@ def executor_node(state: AgentState) -> AgentState:
     state["log_stream"].append(f"[Agent 2: Executor] Auditing and executing SQL against nexus_enterprise.db...")
 
     policy = evaluate_sql_policy(sql)
+    state["policy_verdict"] = policy
     if policy["decision"] == "deny":
         state["error"] = f"Policy denied query: {', '.join(policy['deny_reasons'])}"
         state["log_stream"].append(f"[Agent 2: Executor] ❌ ERROR: {state['error']}")
@@ -693,6 +804,7 @@ Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
         if exc:
             state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ LLM chart config unavailable: {exc}")
         state["chart_config"] = infer_chart_config_from_question(state["user_query"], state["db_result"])
+        state["fallback_chart_used"] = True
         state["log_stream"].append(f"[Agent 3: Visualizer] ⚠️ Heuristic chart config used.")
         
     return state
@@ -782,7 +894,10 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/schema/policy",
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
+            "/api/evals/nl2sql-gold/run",
+            "/api/policy/check",
             "/api/query-audit/recent",
+            "/api/query-audit/{request_id}",
             "/api/ask",
             "/api/stream",
         ],
@@ -797,6 +912,8 @@ def build_runtime_meta() -> Dict[str, Any]:
             "policy-schema-surface",
             "query-audit-surface",
             "gold-eval-surface",
+            "policy-preview-surface",
+            "query-audit-detail-surface",
             "review-pack-surface",
             "answer-schema-surface",
         ],
@@ -853,6 +970,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
+            "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
         },
         "review_flow": [
             "Open /health to confirm database and model posture.",
@@ -903,6 +1021,7 @@ def build_review_pack() -> Dict[str, Any]:
             "quality_gate_status": warehouse_brief["quality_gate"]["status"],
             "lineage_edges": len(warehouse_brief["lineage"]["relationships"]),
             "recent_audit_count": warehouse_brief["recent_audit_count"],
+            "gold_eval_pass_count": warehouse_brief["gold_eval_run"]["summary"]["pass_count"],
             "review_routes": [
                 "/health",
                 "/api/meta",
@@ -914,7 +1033,10 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/schema/policy",
                 "/api/schema/query-audit",
                 "/api/evals/nl2sql-gold",
+                "/api/evals/nl2sql-gold/run",
+                "/api/policy/check",
                 "/api/query-audit/recent",
+                "/api/query-audit/{request_id}",
                 "/api/ask",
                 "/api/stream",
             ],
@@ -938,9 +1060,10 @@ def build_review_pack() -> Dict[str, Any]:
             "Open /health to confirm warehouse and model posture.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
+            "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
             "Read /api/runtime/brief for retry policy and agent responsibilities.",
             "Read /api/review-pack for executive promises, trust boundary, and review routes.",
-            "Use /api/ask, /api/stream, and /api/query-audit/recent together before trusting a dashboard answer.",
+            "Use /api/ask, /api/stream, /api/query-audit/recent, and /api/query-audit/{request_id} together before trusting a dashboard answer.",
         ],
         "answer_contract": {
             "schema": report_contract["schema"],
@@ -958,7 +1081,10 @@ def build_review_pack() -> Dict[str, Any]:
             "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
             "gold_eval": "/api/evals/nl2sql-gold",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+            "policy_check": "/api/policy/check",
             "query_audit_recent": "/api/query-audit/recent",
+            "query_audit_detail": "/api/query-audit/{request_id}",
             "ask": "/api/ask",
             "stream": "/api/stream",
         },
@@ -972,6 +1098,9 @@ async def run_agent_and_stream(question: str, request_id: str):
         "chart_config": {},
         "error": "",
         "retry_count": 0,
+        "fallback_sql_used": False,
+        "fallback_chart_used": False,
+        "policy_verdict": {},
         "log_stream": []
     }
     
@@ -1009,6 +1138,11 @@ async def run_agent_and_stream(question: str, request_id: str):
             retry_count=state.get("retry_count", 0),
             chart_type=state.get("chart_config", {}).get("type", ""),
             error=state.get("error", ""),
+            policy_decision=state.get("policy_verdict", {}).get("decision", ""),
+            policy_reasons=state.get("policy_verdict", {}).get("deny_reasons", [])
+            + state.get("policy_verdict", {}).get("review_reasons", []),
+            fallback_sql_used=state.get("fallback_sql_used", False),
+            fallback_chart_used=state.get("fallback_chart_used", False),
         )
     else:
         write_query_audit_snapshot(
@@ -1021,12 +1155,22 @@ async def run_agent_and_stream(question: str, request_id: str):
             retry_count=state.get("retry_count", 0),
             chart_type=state.get("chart_config", {}).get("type", ""),
             error=state.get("error", ""),
+            policy_decision=state.get("policy_verdict", {}).get("decision", ""),
+            policy_reasons=state.get("policy_verdict", {}).get("deny_reasons", [])
+            + state.get("policy_verdict", {}).get("review_reasons", []),
+            fallback_sql_used=state.get("fallback_sql_used", False),
+            fallback_chart_used=state.get("fallback_chart_used", False),
         )
 
     yield "data: {\"type\": \"done\"}\n\n"
 
 class AskRequest(BaseModel):
     question: str
+
+
+class PolicyCheckRequest(BaseModel):
+    sql: str
+    role: str = DEFAULT_ROLE
 
 
 @app.get("/health")
@@ -1044,7 +1188,10 @@ async def health_endpoint():
             "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
             "gold_eval": "/api/evals/nl2sql-gold",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+            "policy_check": "/api/policy/check",
             "query_audit_recent": "/api/query-audit/recent",
+            "query_audit_detail": "/api/query-audit/{request_id}",
             "ask": "/api/ask",
             "stream": "/api/stream",
         },
@@ -1135,6 +1282,33 @@ async def gold_eval_endpoint():
     }
 
 
+@app.get("/api/evals/nl2sql-gold/run")
+async def gold_eval_run_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **run_gold_eval_suite(),
+    }
+
+
+@app.post("/api/policy/check")
+async def policy_check_endpoint(req: PolicyCheckRequest):
+    sql = str(req.sql or "").strip()
+    role = str(req.role or DEFAULT_ROLE).strip().lower() or DEFAULT_ROLE
+    if not sql:
+        raise HTTPException(status_code=400, detail="sql is required")
+    verdict = evaluate_sql_policy(sql, role=role)
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": build_policy_schema()["schema"],
+        "sql": sql,
+        "verdict": verdict,
+    }
+
+
 @app.get("/api/query-audit/recent")
 async def query_audit_recent_endpoint(limit: int = 5):
     items = list_recent_query_audits(limit=limit)
@@ -1144,6 +1318,24 @@ async def query_audit_recent_endpoint(limit: int = 5):
         "generated_at": utc_now_iso(),
         "schema": build_query_audit_schema()["schema"],
         "items": items,
+    }
+
+
+@app.get("/api/query-audit/{request_id}")
+async def query_audit_detail_endpoint(request_id: str):
+    history = get_query_audit_history(request_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="request_id not found")
+
+    latest = history[-1]
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": build_query_audit_schema()["schema"],
+        "request_id": request_id,
+        "latest": latest,
+        "history": history,
     }
 
 
@@ -1161,6 +1353,10 @@ async def ask_endpoint(req: AskRequest, request: Request):
         question=question,
         status="accepted",
         stage="accepted",
+        policy_decision="pending",
+        policy_reasons=[],
+        fallback_sql_used=False,
+        fallback_chart_used=False,
     )
     stream_url = str(request.url_for("stream_endpoint"))
     return {
@@ -1175,6 +1371,7 @@ async def ask_endpoint(req: AskRequest, request: Request):
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
             "gold_eval": str(request.url_for("gold_eval_endpoint")),
             "query_audit_recent": str(request.url_for("query_audit_recent_endpoint")),
+            "query_audit_detail": str(request.url_for("query_audit_detail_endpoint", request_id=request_id)),
         },
     }
 

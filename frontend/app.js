@@ -1,4 +1,5 @@
 let currentChart = null;
+let latestRequestId = null;
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -192,9 +193,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = await response.json();
             warehouseHeadline.innerText = payload.headline || 'Warehouse brief available.';
             warehouseBadge.innerText = (payload.status || 'unknown').toUpperCase();
-            const evalSummary = payload.gold_eval?.summary || {};
+            const evalSummary = payload.gold_eval_run?.summary || payload.gold_eval?.summary || {};
             warehouseMode.innerText = `${payload.warehouse_mode || 'Unavailable'} / ${payload.fallback_mode || 'unknown'}`;
-            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables / ${evalSummary.case_count || 0} evals`;
+            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables / ${evalSummary.pass_count || 0}/${evalSummary.case_count || 0} evals`;
             warehouseQuality.innerText = (payload.quality_gate?.status || 'unknown').toUpperCase();
             warehouseAuditCount.innerText = `${payload.recent_audit_count || 0} requests`;
 
@@ -243,13 +244,37 @@ document.addEventListener('DOMContentLoaded', () => {
             renderObjectList(warehouseAuditFeed, items, (item) => {
                 const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
                 const rowPart = Number.isFinite(item.row_count) ? ` | ${item.row_count} rows` : '';
-                return `${item.stage.toUpperCase()} | ${item.request_id}${chartPart}${rowPart} | ${item.question}`;
+                const policyPart = item.policy_decision ? ` | ${item.policy_decision}` : '';
+                const fallbackPart = item.fallback_sql_used || item.fallback_chart_used ? ' | fallback' : '';
+                return `${item.stage.toUpperCase()} | ${item.request_id}${policyPart}${chartPart}${rowPart}${fallbackPart} | ${item.question}`;
             });
             warehouseAuditCount.innerText = `${items.length} requests`;
         } catch (error) {
             console.error(error);
             renderReviewList(warehouseAuditFeed, ['Query audit feed unavailable.']);
             addLog('Failed to load query audit feed.', 'error');
+        }
+    }
+
+    async function loadQueryAuditDetail(requestId) {
+        if (!requestId) return;
+        try {
+            const response = await fetch(`/api/query-audit/${encodeURIComponent(requestId)}`);
+            if (!response.ok) {
+                throw new Error(`Query audit detail request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            const latest = payload.latest || {};
+            const policyDecision = latest.policy_decision || 'unknown';
+            const fallback = latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no';
+            addLog(
+                `Audit detail ${payload.request_id}: ${policyDecision.toUpperCase()} | ${latest.row_count || 0} rows | ${fallback}`,
+                policyDecision === 'deny' ? 'error' : 'system'
+            );
+        } catch (error) {
+            console.error(error);
+            addLog('Failed to load query audit detail.', 'error');
         }
     }
 
@@ -358,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             askPayload = await askResponse.json();
+            latestRequestId = askPayload.request_id;
             addLog(`Audit Request ID: ${askPayload.request_id}`, 'system');
         } catch (error) {
             console.error(error);
@@ -390,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 eventSource.close();
                 loadWarehouseBrief();
                 loadQueryAuditFeed();
+                loadQueryAuditDetail(latestRequestId);
                 askBtn.disabled = false;
                 nlInput.disabled = false;
                 nlInput.focus();
@@ -403,6 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             eventSource.close();
             loadWarehouseBrief();
             loadQueryAuditFeed();
+            loadQueryAuditDetail(latestRequestId);
             askBtn.disabled = false;
             nlInput.disabled = false;
             askBtn.innerText = "EXECUTE";
