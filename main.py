@@ -1065,6 +1065,18 @@ def build_review_pack() -> Dict[str, Any]:
             "Read /api/review-pack for executive promises, trust boundary, and review routes.",
             "Use /api/ask, /api/stream, /api/query-audit/recent, and /api/query-audit/{request_id} together before trusting a dashboard answer.",
         ],
+        "two_minute_review": [
+            "Open /health to confirm database posture and review links.",
+            "Read /api/runtime/warehouse-brief for quality-gate, lineage, and policy posture.",
+            "Read /api/evals/nl2sql-gold/run before making correctness claims.",
+            "Use /api/ask plus /api/query-audit/{request_id} to inspect one governed answer end to end.",
+        ],
+        "proof_assets": [
+            {"label": "Health Surface", "href": "/health", "kind": "route"},
+            {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
+            {"label": "Gold Eval Run", "href": "/api/evals/nl2sql-gold/run", "kind": "route"},
+            {"label": "Query Audit Detail", "href": "/api/query-audit/{request_id}", "kind": "route"},
+        ],
         "answer_contract": {
             "schema": report_contract["schema"],
             "required_sections": report_contract["required_sections"],

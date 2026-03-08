@@ -65,6 +65,20 @@ uvicorn main:app --port 8000
 - Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
 - Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, runnable eval status, recent query audit history, and request-level audit summaries before a query is trusted.
 
+## 2-Minute Review Path
+
+1. Open `/health` to confirm database posture and review links.
+2. Read `/api/runtime/warehouse-brief` for quality-gate, lineage, and policy posture.
+3. Open `/api/evals/nl2sql-gold/run` before making correctness claims.
+4. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
+
+## Proof Assets
+
+- `/health`
+- `/api/runtime/warehouse-brief`
+- `/api/evals/nl2sql-gold/run`
+- `/api/query-audit/{request_id}`
+
 ## Platform Expansion
 
 Nexus-Hive is also the best anchor repo to grow into a stronger governed analytics system.
