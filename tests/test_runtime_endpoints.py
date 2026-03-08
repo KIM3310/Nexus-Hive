@@ -24,11 +24,15 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
 
     health = client.get("/health")
     meta = client.get("/api/meta")
+    runtime_brief = client.get("/api/runtime/brief")
+    answer_schema = client.get("/api/schema/answer")
 
     assert health.status_code == 200
     health_payload = health.json()
     assert health_payload["service"] == "nexus-hive"
     assert health_payload["links"]["meta"] == "/api/meta"
+    assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
+    assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["diagnostics"]["db_ready"] is True
     assert health_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health_payload["diagnostics"]
@@ -38,7 +42,22 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["service"] == "nexus-hive"
     assert meta_payload["diagnostics"]["schema_loaded"] is True
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
+    assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
+    assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/ask" in meta_payload["routes"]
+    assert "/api/runtime/brief" in meta_payload["routes"]
+    assert "/api/schema/answer" in meta_payload["routes"]
+
+    assert runtime_brief.status_code == 200
+    brief_payload = runtime_brief.json()
+    assert brief_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
+    assert brief_payload["evidence_counts"]["agent_nodes"] == 3
+    assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
+
+    assert answer_schema.status_code == 200
+    schema_payload = answer_schema.json()
+    assert schema_payload["schema"] == "nexus-hive-answer-v1"
+    assert "sql_query" in schema_payload["required_sections"]
 
 
 def test_ask_endpoint_returns_stream_pointer() -> None:
@@ -51,3 +70,5 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["status"] == "accepted"
     assert payload["question"] == "Show total revenue by region"
     assert "/api/stream?q=Show+total+revenue+by+region" in payload["stream_url"]
+    assert payload["links"]["runtime_brief"].endswith("/api/runtime/brief")
+    assert payload["links"]["answer_schema"].endswith("/api/schema/answer")

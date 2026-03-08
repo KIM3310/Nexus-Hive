@@ -44,6 +44,54 @@
                 </div>
             </header>
 
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Runtime Brief</p>
+                        <h2 id="brief-headline">Loading runtime posture...</h2>
+                    </div>
+                    <span class="badge" id="brief-badge">LOADING</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Answer Schema</span>
+                        <strong id="brief-schema">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Model</span>
+                        <strong id="brief-model">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Warehouse Ready</span>
+                        <strong id="brief-db-ready">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Retry Budget</span>
+                        <strong id="brief-retry-budget">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid">
+                    <section class="brief-list-card">
+                        <span class="brief-label">Review Flow</span>
+                        <ul class="brief-list" id="brief-review-flow"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Operator Rules</span>
+                        <ul class="brief-list" id="brief-operator-rules"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Agent Contract</span>
+                        <ul class="brief-list" id="brief-agent-contract"></ul>
+                    </section>
+                    <section class="brief-list-card">
+                        <span class="brief-label">Watchouts</span>
+                        <ul class="brief-list" id="brief-watchouts"></ul>
+                    </section>
+                </div>
+            </section>
+
             <div class="visualization-area glass-panel">
                 <div class="empty-state" id="empty-state">
                     <h3>No Data Rendered</h3>

@@ -11,6 +11,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const agentLogs = document.getElementById('agent-logs');
     const emptyState = document.getElementById('empty-state');
     const canvas = document.getElementById('biChart');
+    const briefHeadline = document.getElementById('brief-headline');
+    const briefBadge = document.getElementById('brief-badge');
+    const briefSchema = document.getElementById('brief-schema');
+    const briefModel = document.getElementById('brief-model');
+    const briefDbReady = document.getElementById('brief-db-ready');
+    const briefRetryBudget = document.getElementById('brief-retry-budget');
+    const briefReviewFlow = document.getElementById('brief-review-flow');
+    const briefOperatorRules = document.getElementById('brief-operator-rules');
+    const briefAgentContract = document.getElementById('brief-agent-contract');
+    const briefWatchouts = document.getElementById('brief-watchouts');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -33,6 +43,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
         agentLogs.appendChild(div);
         agentLogs.scrollTop = agentLogs.scrollHeight;
+    }
+
+    function renderBriefList(container, items) {
+        container.innerHTML = '';
+        items.forEach((item) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'brief-list-item';
+            listItem.innerText = item;
+            container.appendChild(listItem);
+        });
+    }
+
+    function renderAgentContract(container, items) {
+        container.innerHTML = '';
+        items.forEach((item) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'brief-list-item';
+            listItem.innerText = `${item.agent}: ${item.responsibility}`;
+            container.appendChild(listItem);
+        });
+    }
+
+    async function loadRuntimeBrief() {
+        try {
+            const response = await fetch('/api/runtime/brief');
+            if (!response.ok) {
+                throw new Error(`Runtime brief request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            const diagnostics = payload.diagnostics || {};
+            const reportContract = payload.report_contract || {};
+            const evidenceCounts = payload.evidence_counts || {};
+
+            briefHeadline.innerText = payload.headline || 'Runtime brief available.';
+            briefBadge.innerText = (payload.status || 'unknown').toUpperCase();
+            briefSchema.innerText = reportContract.schema || 'Unavailable';
+            briefModel.innerText = payload.model || 'Unavailable';
+            briefDbReady.innerText = diagnostics.db_ready ? 'Ready' : 'Degraded';
+            briefRetryBudget.innerText = `${evidenceCounts.retry_budget || 0} retries`;
+
+            renderBriefList(briefReviewFlow, payload.review_flow || []);
+            renderBriefList(briefOperatorRules, reportContract.operator_rules || []);
+            renderAgentContract(briefAgentContract, payload.agent_contract || []);
+            renderBriefList(briefWatchouts, payload.watchouts || []);
+        } catch (error) {
+            console.error(error);
+            briefHeadline.innerText = 'Runtime brief unavailable.';
+            briefBadge.innerText = 'ERROR';
+            briefSchema.innerText = 'Unavailable';
+            briefModel.innerText = 'Unavailable';
+            briefDbReady.innerText = 'Unknown';
+            briefRetryBudget.innerText = 'Unknown';
+            renderBriefList(briefReviewFlow, ['Review /health and /api/meta when the backend becomes available.']);
+            renderBriefList(briefOperatorRules, ['No runtime rules loaded.']);
+            renderAgentContract(briefAgentContract, []);
+            renderBriefList(briefWatchouts, ['The backend runtime brief could not be loaded.']);
+            addLog('Failed to load runtime brief surface.', 'error');
+        }
     }
 
     function renderChart(configData, dbData) {
@@ -166,4 +235,5 @@ document.addEventListener('DOMContentLoaded', () => {
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
     });
+    loadRuntimeBrief();
 });
