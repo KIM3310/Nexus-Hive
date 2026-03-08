@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import os
 import tempfile
@@ -34,8 +35,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     warehouse_brief = client.get("/api/runtime/warehouse-brief")
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
+    policy_schema = client.get("/api/schema/policy")
     query_audit_schema = client.get("/api/schema/query-audit")
     lineage_schema = client.get("/api/schema/lineage")
+    gold_eval = client.get("/api/evals/nl2sql-gold")
     recent_query_audit = client.get("/api/query-audit/recent")
 
     assert health.status_code == 200
@@ -63,14 +66,18 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
+    assert meta_payload["policy_contract"] == "nexus-hive-policy-v1"
     assert meta_payload["query_audit_contract"] == "nexus-hive-query-audit-v1"
+    assert meta_payload["gold_eval_contract"] == "nexus-hive-gold-eval-v1"
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
     assert "/api/schema/lineage" in meta_payload["routes"]
+    assert "/api/schema/policy" in meta_payload["routes"]
     assert "/api/schema/query-audit" in meta_payload["routes"]
+    assert "/api/evals/nl2sql-gold" in meta_payload["routes"]
     assert "/api/query-audit/recent" in meta_payload["routes"]
 
     assert runtime_brief.status_code == 200
@@ -79,15 +86,21 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["evidence_counts"]["agent_nodes"] == 3
     assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"
+    assert brief_payload["warehouse_contract"]["fallback_mode"] in {"heuristic", "disabled"}
     assert brief_payload["warehouse_contract"]["lineage_schema"] == "nexus-hive-lineage-v1"
+    assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
+    assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
 
     assert warehouse_brief.status_code == 200
     warehouse_payload = warehouse_brief.json()
     assert warehouse_payload["readiness_contract"] == "nexus-hive-warehouse-brief-v1"
     assert warehouse_payload["warehouse_mode"] == "sqlite-demo"
+    assert warehouse_payload["fallback_mode"] in {"heuristic", "disabled"}
     assert warehouse_payload["quality_gate"]["schema"] == "nexus-hive-quality-gate-v1"
     assert warehouse_payload["lineage"]["schema"] == "nexus-hive-lineage-v1"
+    assert warehouse_payload["policy"]["schema"] == "nexus-hive-policy-v1"
+    assert warehouse_payload["gold_eval"]["schema"] == "nexus-hive-gold-eval-v1"
     assert isinstance(warehouse_payload["table_profiles"], list)
 
     assert review_pack.status_code == 200
@@ -96,6 +109,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
+    assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
 
     assert answer_schema.status_code == 200
@@ -108,10 +122,20 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert query_audit_schema_payload["schema"] == "nexus-hive-query-audit-v1"
     assert "request_id" in query_audit_schema_payload["required_fields"]
 
+    assert policy_schema.status_code == 200
+    policy_schema_payload = policy_schema.json()
+    assert policy_schema_payload["schema"] == "nexus-hive-policy-v1"
+    assert "wildcard_projection_denied" in policy_schema_payload["deny_rules"]
+
     assert lineage_schema.status_code == 200
     lineage_payload = lineage_schema.json()
     assert lineage_payload["schema"] == "nexus-hive-lineage-v1"
     assert len(lineage_payload["relationships"]) == 2
+
+    assert gold_eval.status_code == 200
+    gold_eval_payload = gold_eval.json()
+    assert gold_eval_payload["schema"] == "nexus-hive-gold-eval-v1"
+    assert gold_eval_payload["summary"]["case_count"] == 4
 
     assert recent_query_audit.status_code == 200
     recent_query_audit_payload = recent_query_audit.json()
@@ -133,6 +157,7 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["links"]["runtime_brief"].endswith("/api/runtime/brief")
     assert payload["links"]["warehouse_brief"].endswith("/api/runtime/warehouse-brief")
     assert payload["links"]["answer_schema"].endswith("/api/schema/answer")
+    assert payload["links"]["gold_eval"].endswith("/api/evals/nl2sql-gold")
     assert payload["links"]["query_audit_recent"].endswith("/api/query-audit/recent")
 
     audit_response = client.get("/api/query-audit/recent")
@@ -144,3 +169,43 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
         and item["stage"] == "accepted"
         for item in audit_payload["items"]
     )
+
+
+def test_policy_and_fallback_path(monkeypatch) -> None:
+    async def fail_ollama(_: str) -> str:
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(APP_MODULE, "ask_ollama", fail_ollama)
+
+    state = {
+        "user_query": "Show total net revenue by region",
+        "sql_query": "",
+        "db_result": [],
+        "chart_config": {},
+        "error": "",
+        "retry_count": 0,
+        "log_stream": [],
+    }
+
+    translated = asyncio.run(APP_MODULE.translator_node(state))
+    assert "SELECT" in translated["sql_query"]
+    assert any("Heuristic SQL fallback engaged." in log for log in translated["log_stream"])
+
+    executed = APP_MODULE.executor_node(translated)
+    assert executed["error"] == ""
+    assert executed["db_result"]
+
+    visualized = asyncio.run(APP_MODULE.visualizer_node(executed))
+    assert visualized["chart_config"]["type"] in {"bar", "line", "doughnut"}
+    assert any("Heuristic chart config used." in log for log in visualized["log_stream"])
+
+    wildcard_policy = APP_MODULE.evaluate_sql_policy("SELECT * FROM sales")
+    sensitive_policy = APP_MODULE.evaluate_sql_policy("SELECT margin_percentage FROM products")
+    review_policy = APP_MODULE.evaluate_sql_policy("SELECT transaction_id FROM sales")
+
+    assert wildcard_policy["decision"] == "deny"
+    assert "wildcard_projection_denied" in wildcard_policy["deny_reasons"]
+    assert sensitive_policy["decision"] == "deny"
+    assert "sensitive_columns_require_privileged_role" in sensitive_policy["deny_reasons"]
+    assert review_policy["decision"] == "review"
+    assert "non_aggregated_queries_without_limit_require_operator_review" in review_policy["review_reasons"]
