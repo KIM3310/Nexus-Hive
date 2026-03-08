@@ -49,8 +49,9 @@ uvicorn main:app --port 8000
 - `GET /health`: exposes runtime posture, demo readiness, and direct links to the review surfaces.
 - `GET /api/meta`: returns the core ops contract, capabilities, and service routes for reviewers.
 - `GET /api/runtime/brief`: summarizes the agent contract, retry budget, watchouts, and validation flow before a live demo.
+- `GET /api/review-pack`: ties executive promises, trust boundary, answer contract, and review routes into one reviewer surface.
 - `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
-- Frontend runtime brief: the landing screen now shows answer schema, model, warehouse readiness, review flow, operator rules, and agent responsibilities before a query is run.
+- Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
 
 <!-- codex:local-verification:start -->
 ## Local Verification

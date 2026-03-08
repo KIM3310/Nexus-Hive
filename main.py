@@ -219,13 +219,14 @@ def build_runtime_meta() -> Dict[str, Any]:
             "version": 1,
             "required_fields": ["service", "status", "diagnostics.next_action"],
         },
-        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/schema/answer", "/api/ask", "/api/stream"],
+        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/review-pack", "/api/schema/answer", "/api/ask", "/api/stream"],
         "capabilities": [
             "natural-language-to-sql",
             "audit-safe-readonly-execution",
             "chart-config-generation",
             "sse-agent-trace-streaming",
             "runtime-brief-surface",
+            "review-pack-surface",
             "answer-schema-surface",
         ],
     }
@@ -270,7 +271,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "agent_nodes": 3,
             "retry_budget": 3,
             "seeded_rows": 10000,
-            "runtime_routes": 6,
+            "runtime_routes": 7,
         },
         "review_flow": [
             "Open /health to confirm database and model posture.",
@@ -297,7 +298,66 @@ def build_runtime_brief() -> Dict[str, Any]:
                 "responsibility": "Infer a Chart.js payload from the result shape.",
             },
         ],
-        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/schema/answer", "/api/ask", "/api/stream"],
+        "routes": ["/health", "/api/meta", "/api/runtime/brief", "/api/review-pack", "/api/schema/answer", "/api/ask", "/api/stream"],
+    }
+
+
+def build_review_pack() -> Dict[str, Any]:
+    runtime_brief = build_runtime_brief()
+    diagnostics = runtime_brief["diagnostics"]
+    report_contract = runtime_brief["report_contract"]
+
+    return {
+        "status": runtime_brief["status"],
+        "service": "nexus-hive",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "readiness_contract": "nexus-hive-review-pack-v1",
+        "headline": "Executive BI review pack tying question, safe SQL, chart output, and agent trace into one audited workflow.",
+        "proof_bundle": {
+            "warehouse_ready": diagnostics["db_ready"],
+            "agent_nodes": runtime_brief["evidence_counts"]["agent_nodes"],
+            "retry_budget": runtime_brief["evidence_counts"]["retry_budget"],
+            "review_routes": [
+                "/health",
+                "/api/meta",
+                "/api/runtime/brief",
+                "/api/review-pack",
+                "/api/schema/answer",
+                "/api/ask",
+                "/api/stream",
+            ],
+        },
+        "executive_promises": [
+            "Every answer keeps the SQL layer visible before the chart layer.",
+            "Unsafe write operations are blocked before execution.",
+            "The agent trace remains inspectable through SSE rather than hidden behind a single response blob.",
+        ],
+        "trust_boundary": [
+            "translator: natural language becomes SQL only through warehouse schema context",
+            "executor: read-only SQL enforcement blocks destructive operations",
+            "visualizer: chart payload is inferred from actual result shape",
+            "stream: reviewer can audit the agent trace before trusting the rendered chart",
+        ],
+        "review_sequence": [
+            "Open /health to confirm warehouse and model posture.",
+            "Read /api/runtime/brief for retry policy and agent responsibilities.",
+            "Read /api/review-pack for executive promises, trust boundary, and review routes.",
+            "Use /api/ask and /api/stream together before trusting a dashboard answer.",
+        ],
+        "answer_contract": {
+            "schema": report_contract["schema"],
+            "required_sections": report_contract["required_sections"],
+        },
+        "watchouts": runtime_brief["watchouts"],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "review_pack": "/api/review-pack",
+            "answer_schema": "/api/schema/answer",
+            "ask": "/api/ask",
+            "stream": "/api/stream",
+        },
     }
 
 async def run_agent_and_stream(question: str):
@@ -350,6 +410,7 @@ async def health_endpoint():
         "links": {
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "ask": "/api/ask",
             "stream": "/api/stream",
@@ -365,6 +426,7 @@ async def meta_endpoint():
         "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "readiness_contract": "nexus-hive-runtime-brief-v1",
+        "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         **runtime_meta,
     }
@@ -373,6 +435,11 @@ async def meta_endpoint():
 @app.get("/api/runtime/brief")
 async def runtime_brief_endpoint():
     return build_runtime_brief()
+
+
+@app.get("/api/review-pack")
+async def review_pack_endpoint():
+    return build_review_pack()
 
 
 @app.get("/api/schema/answer")

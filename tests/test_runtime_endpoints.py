@@ -25,6 +25,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     health = client.get("/health")
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
+    review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
 
     assert health.status_code == 200
@@ -32,6 +33,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["service"] == "nexus-hive"
     assert health_payload["links"]["meta"] == "/api/meta"
     assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
+    assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["diagnostics"]["db_ready"] is True
     assert health_payload["ops_contract"]["schema"] == "ops-envelope-v1"
@@ -43,9 +45,11 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["diagnostics"]["schema_loaded"] is True
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
+    assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
+    assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
 
     assert runtime_brief.status_code == 200
@@ -53,6 +57,13 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert brief_payload["evidence_counts"]["agent_nodes"] == 3
     assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
+
+    assert review_pack.status_code == 200
+    pack_payload = review_pack.json()
+    assert pack_payload["readiness_contract"] == "nexus-hive-review-pack-v1"
+    assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
+    assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
+    assert isinstance(pack_payload["executive_promises"], list)
 
     assert answer_schema.status_code == 200
     schema_payload = answer_schema.json()
