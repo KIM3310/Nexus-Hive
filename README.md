@@ -56,11 +56,14 @@ uvicorn main:app --port 8000
 - `GET /api/schema/policy`: documents deny/review rules, role-sensitive columns, and current policy posture.
 - `GET /api/schema/query-audit`: documents the append-only query audit contract keyed by `request_id`.
 - `GET /api/evals/nl2sql-gold`: exposes the canonical NL2SQL review set and fallback verdicts for each question.
+- `GET /api/evals/nl2sql-gold/run`: executes the deterministic review suite against the local warehouse and reports pass/fail status.
+- `POST /api/policy/check`: previews SQL policy decisions before execution.
 - `GET /api/query-audit/recent`: shows the latest governed query requests with stage, SQL, retries, and row counts.
+- `GET /api/query-audit/{request_id}`: returns the latest audit record and event history for one governed query.
 - `POST /api/ask`: now issues a stable `request_id` and a stream URL so every question can be traced through the audit surface.
 - Deterministic fallback: if Ollama is unavailable, heuristic SQL and chart inference keep the governed review path alive with explicit logs.
 - Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
-- Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, gold eval hints, and recent query audit history before a query is trusted.
+- Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, runnable eval status, recent query audit history, and request-level audit summaries before a query is trusted.
 
 ## Platform Expansion
 
