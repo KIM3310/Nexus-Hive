@@ -112,6 +112,8 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
+    assert len(pack_payload["two_minute_review"]) == 4
+    assert pack_payload["proof_assets"][0]["href"] == "/health"
 
     assert answer_schema.status_code == 200
     schema_payload = answer_schema.json()

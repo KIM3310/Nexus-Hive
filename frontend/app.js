@@ -155,6 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = await response.json();
             const proofBundle = payload.proof_bundle || {};
             const answerContract = payload.answer_contract || {};
+            const proofAssets = (payload.proof_assets || []).map((item) =>
+                `Proof: ${item.label} -> ${item.href || item.path || '-'}`
+            );
+            const twoMinuteReview = (payload.two_minute_review || []).map((item) => `2-minute: ${item}`);
 
             reviewPackHeadline.innerText = payload.headline || 'Review pack available.';
             reviewPackBadge.innerText = (payload.status || 'unknown').toUpperCase();
@@ -163,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
             reviewPackSchema.innerText = answerContract.schema || 'Unavailable';
             reviewPackRetry.innerText = `${proofBundle.retry_budget || 0} retries`;
 
-            renderReviewList(reviewPackPromises, payload.executive_promises || []);
+            renderReviewList(reviewPackPromises, [...(payload.executive_promises || []), ...proofAssets]);
             renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
-            renderReviewList(reviewPackSequence, payload.review_sequence || []);
+            renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
             renderReviewList(reviewPackWatchouts, payload.watchouts || []);
         } catch (error) {
             console.error(error);
