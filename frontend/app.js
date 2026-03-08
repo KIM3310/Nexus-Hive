@@ -21,6 +21,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const briefOperatorRules = document.getElementById('brief-operator-rules');
     const briefAgentContract = document.getElementById('brief-agent-contract');
     const briefWatchouts = document.getElementById('brief-watchouts');
+    const reviewPackHeadline = document.getElementById('reviewpack-headline');
+    const reviewPackBadge = document.getElementById('reviewpack-badge');
+    const reviewPackReady = document.getElementById('reviewpack-ready');
+    const reviewPackRoutes = document.getElementById('reviewpack-routes');
+    const reviewPackSchema = document.getElementById('reviewpack-schema');
+    const reviewPackRetry = document.getElementById('reviewpack-retry');
+    const reviewPackPromises = document.getElementById('reviewpack-promises');
+    const reviewPackBoundary = document.getElementById('reviewpack-boundary');
+    const reviewPackSequence = document.getElementById('reviewpack-sequence');
+    const reviewPackWatchouts = document.getElementById('reviewpack-watchouts');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -65,6 +75,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderReviewList(container, items) {
+        container.innerHTML = '';
+        items.forEach((item) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'brief-list-item';
+            listItem.innerText = item;
+            container.appendChild(listItem);
+        });
+    }
+
     async function loadRuntimeBrief() {
         try {
             const response = await fetch('/api/runtime/brief');
@@ -101,6 +121,44 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAgentContract(briefAgentContract, []);
             renderBriefList(briefWatchouts, ['The backend runtime brief could not be loaded.']);
             addLog('Failed to load runtime brief surface.', 'error');
+        }
+    }
+
+    async function loadReviewPack() {
+        try {
+            const response = await fetch('/api/review-pack');
+            if (!response.ok) {
+                throw new Error(`Review pack request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            const proofBundle = payload.proof_bundle || {};
+            const answerContract = payload.answer_contract || {};
+
+            reviewPackHeadline.innerText = payload.headline || 'Review pack available.';
+            reviewPackBadge.innerText = (payload.status || 'unknown').toUpperCase();
+            reviewPackReady.innerText = proofBundle.warehouse_ready ? 'Auditable' : 'Degraded';
+            reviewPackRoutes.innerText = `${(proofBundle.review_routes || []).length} routes`;
+            reviewPackSchema.innerText = answerContract.schema || 'Unavailable';
+            reviewPackRetry.innerText = `${proofBundle.retry_budget || 0} retries`;
+
+            renderReviewList(reviewPackPromises, payload.executive_promises || []);
+            renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
+            renderReviewList(reviewPackSequence, payload.review_sequence || []);
+            renderReviewList(reviewPackWatchouts, payload.watchouts || []);
+        } catch (error) {
+            console.error(error);
+            reviewPackHeadline.innerText = 'Executive review pack unavailable.';
+            reviewPackBadge.innerText = 'ERROR';
+            reviewPackReady.innerText = 'Unknown';
+            reviewPackRoutes.innerText = 'Unavailable';
+            reviewPackSchema.innerText = 'Unavailable';
+            reviewPackRetry.innerText = 'Unavailable';
+            renderReviewList(reviewPackPromises, ['No executive promises loaded.']);
+            renderReviewList(reviewPackBoundary, ['No trust boundary loaded.']);
+            renderReviewList(reviewPackSequence, ['Review /api/runtime/brief and /api/meta when the backend becomes available.']);
+            renderReviewList(reviewPackWatchouts, ['The backend review pack could not be loaded.']);
+            addLog('Failed to load executive review pack surface.', 'error');
         }
     }
 
@@ -236,4 +294,5 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') executeQuery();
     });
     loadRuntimeBrief();
+    loadReviewPack();
 });
