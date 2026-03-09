@@ -33,4 +33,3 @@
 
 - `docs/solution-architecture.md`
 - `docs/executive-one-pager.md`
-- `GOVERNED_ANALYTICS_FLAGSHIP_SPEC.ko.md`
