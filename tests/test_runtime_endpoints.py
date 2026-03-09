@@ -65,6 +65,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     meta_payload = meta.json()
     assert meta_payload["service"] == "nexus-hive"
     assert meta_payload["diagnostics"]["schema_loaded"] is True
+    assert meta_payload["auth"]["operator_token_enabled"] is False
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert meta_payload["warehouse_brief_contract"] == "nexus-hive-warehouse-brief-v1"
@@ -102,6 +103,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["query_audit_summary_schema"] == "nexus-hive-query-audit-summary-v1"
     assert brief_payload["warehouse_contract"]["governance_scorecard_schema"] == "nexus-hive-governance-scorecard-v1"
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
+    assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
 
     assert warehouse_brief.status_code == 200
     warehouse_payload = warehouse_brief.json()
@@ -255,6 +257,27 @@ def test_policy_preview_and_gold_eval_run_surfaces() -> None:
     assert runnable_payload["summary"]["case_count"] == 4
     assert len(runnable_payload["items"]) == 4
     assert all("policy_verdict" in item for item in runnable_payload["items"])
+
+
+def test_operator_token_can_guard_mutating_routes() -> None:
+    previous = os.environ.get("NEXUS_HIVE_OPERATOR_TOKEN")
+    os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = "nexus-token"
+    client = TestClient(APP_MODULE.app)
+    try:
+        denied = client.post("/api/ask", json={"question": "Show total revenue by region"})
+        assert denied.status_code == 403
+
+        allowed = client.post(
+            "/api/ask",
+            headers={"authorization": "Bearer nexus-token"},
+            json={"question": "Show total revenue by region"},
+        )
+        assert allowed.status_code == 200
+    finally:
+        if previous is None:
+            os.environ.pop("NEXUS_HIVE_OPERATOR_TOKEN", None)
+        else:
+            os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = previous
 
 
 def test_policy_and_fallback_path(monkeypatch) -> None:
