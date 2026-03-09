@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT_PATH = Path(tempfile.gettempdir()) / "nexus_hive_query_audit_test.jsonl"
-RUNTIME_STORE_PATH = Path(tempfile.gettempdir()) / "nexus_hive_runtime_store_test.jsonl"
+RUNTIME_STORE_PATH = Path(tempfile.gettempdir()) / "nexus_hive_runtime_store_test.db"
 os.environ["NEXUS_HIVE_AUDIT_PATH"] = str(AUDIT_PATH)
 os.environ["NEXUS_HIVE_RUNTIME_STORE_PATH"] = str(RUNTIME_STORE_PATH)
 if AUDIT_PATH.exists():
@@ -72,6 +72,8 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["service"] == "nexus-hive"
     assert meta_payload["diagnostics"]["schema_loaded"] is True
     assert meta_payload["auth"]["operator_token_enabled"] is False
+    assert meta_payload["auth"]["operator_required_roles"] == []
+    assert "x-operator-role" in meta_payload["auth"]["operator_role_headers"]
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert meta_payload["warehouse_brief_contract"] == "nexus-hive-warehouse-brief-v1"
@@ -133,6 +135,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert governance_payload["summary"]["warehouse_mode"] == "sqlite-demo"
     assert governance_payload["summary"]["persisted_event_count"] >= 1
     assert governance_payload["persistence"]["event_type_counts"]["scorecard_view"] >= 1
+    assert governance_payload["persistence"]["backend"] == "sqlite"
     assert governance_payload["operator_auth"]["enabled"] is False
     assert governance_payload["links"]["query_review_board"] == "/api/query-review-board"
     assert governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
@@ -288,15 +291,27 @@ def test_policy_preview_and_gold_eval_run_surfaces() -> None:
 
 def test_operator_token_can_guard_mutating_routes() -> None:
     previous = os.environ.get("NEXUS_HIVE_OPERATOR_TOKEN")
+    previous_roles = os.environ.get("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES")
     os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = "nexus-token"
+    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "reviewer"
     client = TestClient(APP_MODULE.app)
     try:
         denied = client.post("/api/ask", json={"question": "Show total revenue by region"})
         assert denied.status_code == 403
 
-        allowed = client.post(
+        denied_role = client.post(
             "/api/ask",
             headers={"authorization": "Bearer nexus-token"},
+            json={"question": "Show total revenue by region"},
+        )
+        assert denied_role.status_code == 403
+
+        allowed = client.post(
+            "/api/ask",
+            headers={
+                "authorization": "Bearer nexus-token",
+                "x-operator-role": "reviewer",
+            },
             json={"question": "Show total revenue by region"},
         )
         assert allowed.status_code == 200
@@ -305,6 +320,10 @@ def test_operator_token_can_guard_mutating_routes() -> None:
             os.environ.pop("NEXUS_HIVE_OPERATOR_TOKEN", None)
         else:
             os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = previous
+        if previous_roles is None:
+            os.environ.pop("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES", None)
+        else:
+            os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = previous_roles
 
 
 def test_policy_and_fallback_path(monkeypatch) -> None:
