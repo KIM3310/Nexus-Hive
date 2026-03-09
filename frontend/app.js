@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const policyCheckBtn = document.getElementById('policy-check-btn');
     const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const copyGovernedClaimBtn = document.getElementById('copy-governed-claim-btn');
     const copyLatestAuditBtn = document.getElementById('copy-latest-audit-btn');
     const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
@@ -451,6 +452,29 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(ok ? 'Copied reviewer route checklist.' : 'Failed to copy reviewer route checklist.', ok ? 'success' : 'error');
     }
 
+    async function copyGovernedClaim() {
+        const latestSummary = latestAuditDetailPayload?.latest || {};
+        const evalSummary = latestGoldEvalPayload?.summary || {};
+        const lines = [
+            'Nexus-Hive governed claim snapshot',
+            `Headline: ${reviewPackHeadline.innerText || '-'}`,
+            `Warehouse ready: ${reviewPackReady.innerText || '-'}`,
+            `Schema: ${reviewPackSchema.innerText || '-'}`,
+            `Audit requests: ${warehouseAuditCount.innerText || '-'}`,
+            `Gold eval: ${evalSummary.pass_count ?? 0}/${evalSummary.case_count ?? 0}`,
+            `Latest audit: ${latestSummary.request_id || latestAuditRequestId || '-'}`,
+            `Policy decision: ${latestSummary.policy_decision || 'unknown'}`,
+            `Fallback SQL: ${latestSummary.fallback_sql_used ? 'yes' : 'no'}`,
+            '',
+            'Fast routes',
+            ...((latestReviewRoutes.length > 0 ? latestReviewRoutes : ['/api/review-pack', '/api/evals/nl2sql-gold/run', '/api/query-audit/recent'])
+                .slice(0, 4)
+                .map((item) => `- ${item}`)),
+        ];
+        const ok = await copyTextToClipboard(lines.join('\n'));
+        addLog(ok ? 'Copied governed claim snapshot.' : 'Failed to copy governed claim snapshot.', ok ? 'success' : 'error');
+    }
+
     function focusLatestAudit() {
         if (!latestAuditRequestId) {
             renderDetailCard(auditDetail, ['Run a governed query or select a request from the audit feed first.']);
@@ -685,6 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    copyGovernedClaimBtn.addEventListener('click', copyGovernedClaim);
     copyLatestAuditBtn.addEventListener('click', copyLatestAuditSnapshot);
     focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
     seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
