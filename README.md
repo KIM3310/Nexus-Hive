@@ -74,6 +74,12 @@ uvicorn main:app --port 8000
 3. Use the governance workbench to run `/api/policy/check` and `/api/evals/nl2sql-gold/run` before making correctness claims.
 4. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
 
+## Role-Ready Artifacts
+
+- AI engineer: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- solutions architect: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- sales / solution consultant: [`docs/executive-one-pager.md`](docs/executive-one-pager.md), [`docs/discovery-guide.md`](docs/discovery-guide.md)
+
 ## Proof Assets
 
 - `/health`
