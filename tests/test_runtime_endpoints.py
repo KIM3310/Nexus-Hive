@@ -322,27 +322,35 @@ def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) ->
 
     client = TestClient(APP_MODULE.app)
 
-    summary = client.get("/api/query-audit/summary?limit=2")
+    summary = client.get("/api/query-audit/summary?limit=2&fallback_mode=any")
     assert summary.status_code == 200
     summary_payload = summary.json()
     assert summary_payload["schema"] == "nexus-hive-query-audit-summary-v1"
-    assert summary_payload["summary"]["total_requests"] == 3
-    assert summary_payload["summary"]["policy_decision_counts"]["allow"] == 1
+    assert summary_payload["filters"]["fallback_mode"] == "any"
+    assert summary_payload["summary"]["total_requests"] == 2
     assert summary_payload["summary"]["policy_decision_counts"]["review"] == 1
     assert summary_payload["summary"]["policy_decision_counts"]["deny"] == 1
     assert summary_payload["summary"]["fallback_sql_count"] == 1
     assert summary_payload["summary"]["fallback_chart_count"] == 1
-    assert summary_payload["top_questions"][0]["normalized_question"] == "show total revenue by region"
-    assert summary_payload["top_questions"][0]["count"] == 2
+    assert (
+        summary_payload["top_policy_reasons"][0]["reason"]
+        == "non_aggregated_queries_without_limit_require_operator_review"
+    )
+    assert {
+        item["normalized_question"] for item in summary_payload["top_questions"]
+    } == {"show total revenue by region", "show margin by manager"}
     assert len(summary_payload["recent_items"]) == 2
 
-    filtered_recent = client.get("/api/query-audit/recent?status=completed&policy_decision=review&limit=5")
+    filtered_recent = client.get(
+        "/api/query-audit/recent?status=completed&policy_decision=review&fallback_mode=sql&limit=5"
+    )
     assert filtered_recent.status_code == 200
     filtered_recent_payload = filtered_recent.json()
+    assert filtered_recent_payload["filters"]["fallback_mode"] == "sql"
     assert filtered_recent_payload["filters"]["status"] == "completed"
     assert filtered_recent_payload["filters"]["policy_decision"] == "review"
     assert len(filtered_recent_payload["items"]) == 1
     assert filtered_recent_payload["items"][0]["request_id"] == "req-review-1"
 
-    invalid_filter = client.get("/api/query-audit/summary?status=unknown")
+    invalid_filter = client.get("/api/query-audit/summary?fallback_mode=bad")
     assert invalid_filter.status_code == 400
