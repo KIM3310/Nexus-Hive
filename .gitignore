@@ -18,4 +18,5 @@ env/
 media/
 *.log
 nohup.out
+.runtime/
 .codex_runs/

@@ -25,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 from security import operator_token_enabled, require_operator_token
+from runtime_store import append_runtime_event, build_runtime_store_summary
 DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
 OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
 MODEL_NAME = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
@@ -837,6 +838,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
     quality_gate = build_quality_gate()
     gold_eval_run = run_gold_eval_suite()
     audit_summary = build_query_audit_summary(limit=10)
+    persisted = build_runtime_store_summary(10)
     latest_items = list_latest_query_audits()
     fallback_any_count = len(list_latest_query_audits(fallback_mode="any"))
     denied_items = list_recent_query_audits(limit=3, policy_decision="deny")
@@ -943,6 +945,13 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "error_rate_pct": error_rate_pct,
             "gold_eval_pass_rate_pct": gold_eval_pass_rate_pct,
             "latest_updated_at": audit_summary["summary"]["latest_updated_at"],
+            "persisted_event_count": persisted["persisted_count"],
+        },
+        "persistence": persisted,
+        "operator_auth": {
+            "enabled": operator_token_enabled(),
+            "protected_routes": ["/api/ask", "/api/policy/check"],
+            "accepted_headers": ["authorization: Bearer <token>", "x-operator-token"],
         },
         "score_bands": score_bands,
         "spotlight": spotlight,
@@ -1185,6 +1194,7 @@ def build_runtime_meta() -> Dict[str, Any]:
     db_size_bytes = DB_PATH.stat().st_size if db_exists else 0
     schema_loaded = bool(DB_SCHEMA.strip())
     warehouse_brief = build_warehouse_brief()
+    runtime_persistence = build_runtime_store_summary(5)
     diagnostics = {
         "db_ready": db_exists and schema_loaded,
         "db_size_bytes": db_size_bytes,
@@ -1194,6 +1204,7 @@ def build_runtime_meta() -> Dict[str, Any]:
         "fallback_mode": warehouse_brief["fallback_mode"],
         "quality_gate_status": warehouse_brief["quality_gate"]["status"],
         "recent_audit_count": warehouse_brief["recent_audit_count"],
+        "runtime_event_count": runtime_persistence["persisted_count"],
         "next_action": (
             "POST /api/ask with an executive question, then follow the returned /api/stream URL."
             if db_exists and schema_loaded and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
@@ -1277,6 +1288,7 @@ def build_answer_schema() -> Dict[str, Any]:
 def build_runtime_brief() -> Dict[str, Any]:
     runtime_meta = build_runtime_meta()
     warehouse_brief = build_warehouse_brief()
+    governance_scorecard = build_governance_scorecard("quality")
     diagnostics = runtime_meta["diagnostics"]
     db_ready = diagnostics["db_ready"]
 
@@ -1309,6 +1321,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
             "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
             "operator_auth_enabled": operator_token_enabled(),
+            "runtime_persistence_enabled": governance_scorecard["persistence"]["enabled"],
         },
         "review_flow": [
             "Open /health to confirm database and model posture.",
@@ -1343,6 +1356,7 @@ def build_runtime_brief() -> Dict[str, Any]:
 def build_review_pack() -> Dict[str, Any]:
     runtime_brief = build_runtime_brief()
     warehouse_brief = build_warehouse_brief()
+    governance_scorecard = build_governance_scorecard("quality")
     diagnostics = runtime_brief["diagnostics"]
     report_contract = runtime_brief["report_contract"]
 
@@ -1360,6 +1374,7 @@ def build_review_pack() -> Dict[str, Any]:
             "lineage_edges": len(warehouse_brief["lineage"]["relationships"]),
             "recent_audit_count": warehouse_brief["recent_audit_count"],
             "gold_eval_pass_count": warehouse_brief["gold_eval_run"]["summary"]["pass_count"],
+            "runtime_event_count": governance_scorecard["persistence"]["persisted_count"],
             "review_routes": [
                 "/health",
                 "/api/meta",
@@ -1499,6 +1514,20 @@ async def run_agent_and_stream(question: str, request_id: str):
             fallback_sql_used=state.get("fallback_sql_used", False),
             fallback_chart_used=state.get("fallback_chart_used", False),
         )
+        append_runtime_event(
+            {
+                "service": "nexus-hive",
+                "event_type": "stream_failed",
+                "method": "GET",
+                "path": "/api/stream",
+                "request_id": request_id,
+                "status": "failed",
+                "policy_decision": state.get("policy_verdict", {}).get("decision", ""),
+                "fallback_sql_used": state.get("fallback_sql_used", False),
+                "fallback_chart_used": state.get("fallback_chart_used", False),
+                "at": utc_now_iso(),
+            }
+        )
     else:
         write_query_audit_snapshot(
             request_id=request_id,
@@ -1515,6 +1544,20 @@ async def run_agent_and_stream(question: str, request_id: str):
             + state.get("policy_verdict", {}).get("review_reasons", []),
             fallback_sql_used=state.get("fallback_sql_used", False),
             fallback_chart_used=state.get("fallback_chart_used", False),
+        )
+        append_runtime_event(
+            {
+                "service": "nexus-hive",
+                "event_type": "stream_completed",
+                "method": "GET",
+                "path": "/api/stream",
+                "request_id": request_id,
+                "status": "completed",
+                "policy_decision": state.get("policy_verdict", {}).get("decision", ""),
+                "fallback_sql_used": state.get("fallback_sql_used", False),
+                "fallback_chart_used": state.get("fallback_chart_used", False),
+                "at": utc_now_iso(),
+            }
         )
 
     yield "data: {\"type\": \"done\"}\n\n"
@@ -1588,7 +1631,19 @@ async def warehouse_brief_endpoint():
 
 @app.get("/api/runtime/governance-scorecard")
 async def governance_scorecard_endpoint(focus: Optional[str] = None):
-    return build_governance_scorecard(focus or "quality")
+    normalized_focus = normalize_governance_focus(focus)
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "scorecard_view",
+            "method": "GET",
+            "path": "/api/runtime/governance-scorecard",
+            "status": "ok",
+            "focus": normalized_focus,
+            "at": utc_now_iso(),
+        }
+    )
+    return build_governance_scorecard(normalized_focus)
 
 
 @app.get("/api/review-pack")
@@ -1664,6 +1719,18 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
     if not sql:
         raise HTTPException(status_code=400, detail="sql is required")
     verdict = evaluate_sql_policy(sql, role=role)
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "policy_check",
+            "method": "POST",
+            "path": "/api/policy/check",
+            "status": "ok",
+            "role": role,
+            "policy_decision": verdict["decision"],
+            "at": utc_now_iso(),
+        }
+    )
     return {
         "status": "ok",
         "service": "nexus-hive",
@@ -1762,6 +1829,18 @@ async def ask_endpoint(req: AskRequest, request: Request):
         policy_reasons=[],
         fallback_sql_used=False,
         fallback_chart_used=False,
+    )
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "ask_accepted",
+            "method": "POST",
+            "path": "/api/ask",
+            "request_id": request_id,
+            "status": "accepted",
+            "question": question,
+            "at": utc_now_iso(),
+        }
     )
     stream_url = str(request.url_for("stream_endpoint"))
     return {

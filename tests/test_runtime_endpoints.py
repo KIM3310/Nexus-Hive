@@ -10,9 +10,13 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT_PATH = Path(tempfile.gettempdir()) / "nexus_hive_query_audit_test.jsonl"
+RUNTIME_STORE_PATH = Path(tempfile.gettempdir()) / "nexus_hive_runtime_store_test.jsonl"
 os.environ["NEXUS_HIVE_AUDIT_PATH"] = str(AUDIT_PATH)
+os.environ["NEXUS_HIVE_RUNTIME_STORE_PATH"] = str(RUNTIME_STORE_PATH)
 if AUDIT_PATH.exists():
     AUDIT_PATH.unlink()
+if RUNTIME_STORE_PATH.exists():
+    RUNTIME_STORE_PATH.unlink()
 
 
 def load_module(name: str, relative_path: str):
@@ -122,6 +126,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert governance_payload["schema"] == "nexus-hive-governance-scorecard-v1"
     assert governance_payload["focus"] == "quality"
     assert governance_payload["summary"]["warehouse_mode"] == "sqlite-demo"
+    assert governance_payload["summary"]["persisted_event_count"] >= 1
+    assert governance_payload["persistence"]["event_type_counts"]["scorecard_view"] >= 1
+    assert governance_payload["operator_auth"]["enabled"] is False
     assert governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
     assert isinstance(governance_payload["score_bands"], list)
 
@@ -257,6 +264,13 @@ def test_policy_preview_and_gold_eval_run_surfaces() -> None:
     assert runnable_payload["summary"]["case_count"] == 4
     assert len(runnable_payload["items"]) == 4
     assert all("policy_verdict" in item for item in runnable_payload["items"])
+
+    governance = client.get("/api/runtime/governance-scorecard?focus=policy")
+    assert governance.status_code == 200
+    governance_payload = governance.json()
+    assert governance_payload["focus"] == "policy"
+    assert governance_payload["persistence"]["event_type_counts"]["policy_check"] >= 1
+    assert governance_payload["persistence"]["event_type_counts"]["scorecard_view"] >= 1
 
 
 def test_operator_token_can_guard_mutating_routes() -> None:
