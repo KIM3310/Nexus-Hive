@@ -68,7 +68,7 @@ uvicorn main:app --port 8000
 - Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, runnable eval status, recent query audit history, and request-level audit summaries before a query is trusted.
 - Frontend governance workbench: reviewers can now run a live SQL policy preview, execute the deterministic gold eval suite, and inspect request-level audit detail from the landing screen without leaving the main demo surface.
 
-## Quick Review Path
+## Review Flow
 
 1. Open `/health` to confirm database posture and review links.
 2. Read `/api/runtime/warehouse-brief` for quality-gate, lineage, and policy posture.
