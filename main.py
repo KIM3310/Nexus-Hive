@@ -644,8 +644,32 @@ def normalize_policy_decision_filter(policy_decision: Optional[str]) -> Optional
     return normalized
 
 
+def normalize_fallback_mode_filter(fallback_mode: Optional[str]) -> Optional[str]:
+    normalized = str(fallback_mode or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized not in {"none", "sql", "chart", "any"}:
+        raise HTTPException(status_code=400, detail="invalid fallback_mode filter")
+    return normalized
+
+
+def matches_fallback_mode(item: Dict[str, Any], fallback_mode: Optional[str]) -> bool:
+    if fallback_mode is None:
+        return True
+    fallback_sql = bool(item.get("fallback_sql_used"))
+    fallback_chart = bool(item.get("fallback_chart_used"))
+    if fallback_mode == "sql":
+        return fallback_sql
+    if fallback_mode == "chart":
+        return fallback_chart
+    if fallback_mode == "any":
+        return fallback_sql or fallback_chart
+    return not fallback_sql and not fallback_chart
+
+
 def list_latest_query_audits(
     *,
+    fallback_mode: Optional[str] = None,
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
@@ -665,6 +689,8 @@ def list_latest_query_audits(
             for item in items
             if str(item.get("policy_decision") or "").strip().lower() == policy_decision
         ]
+    if fallback_mode:
+        items = [item for item in items if matches_fallback_mode(item, fallback_mode)]
 
     return sorted(
         items,
@@ -676,27 +702,39 @@ def list_latest_query_audits(
 def list_recent_query_audits(
     limit: int = 5,
     *,
+    fallback_mode: Optional[str] = None,
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    items = list_latest_query_audits(status=status, policy_decision=policy_decision)
+    items = list_latest_query_audits(
+        fallback_mode=fallback_mode,
+        status=status,
+        policy_decision=policy_decision,
+    )
     return items[:clamp_audit_limit(limit)]
 
 
 def build_query_audit_summary(
     *,
+    fallback_mode: Optional[str] = None,
     limit: int = 5,
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> Dict[str, Any]:
+    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
     status_filter = normalize_audit_status_filter(status)
     policy_filter = normalize_policy_decision_filter(policy_decision)
     recent_limit = clamp_audit_limit(limit, maximum=50)
-    latest_items = list_latest_query_audits(status=status_filter, policy_decision=policy_filter)
+    latest_items = list_latest_query_audits(
+        fallback_mode=fallback_filter,
+        status=status_filter,
+        policy_decision=policy_filter,
+    )
     recent_items = latest_items[:recent_limit]
 
     status_counts: Dict[str, int] = {}
     policy_counts: Dict[str, int] = {}
+    policy_reason_counts: Dict[str, int] = {}
     top_questions: Dict[str, Dict[str, Any]] = {}
     fallback_sql_count = 0
     fallback_chart_count = 0
@@ -714,6 +752,10 @@ def build_query_audit_summary(
         denied_count += 1 if item_policy == "deny" else 0
         review_count += 1 if item_policy == "review" else 0
         error_count += 1 if str(item.get("error") or "").strip() else 0
+        for reason in item.get("policy_reasons") or []:
+            normalized_reason = str(reason or "").strip().lower()
+            if normalized_reason:
+                policy_reason_counts[normalized_reason] = policy_reason_counts.get(normalized_reason, 0) + 1
 
         question = str(item.get("question") or "").strip()
         normalized_question = normalize_question(question)
@@ -736,10 +778,18 @@ def build_query_audit_summary(
         top_questions.values(),
         key=lambda item: (-int(item["count"]), str(item["question"]).lower()),
     )[:5]
+    top_policy_reasons = [
+        {"reason": reason, "count": count}
+        for reason, count in sorted(
+            policy_reason_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[:5]
+    ]
 
     return {
         "schema": "nexus-hive-query-audit-summary-v1",
         "filters": {
+            "fallback_mode": fallback_filter,
             "status": status_filter,
             "policy_decision": policy_filter,
             "limit": recent_limit,
@@ -755,6 +805,7 @@ def build_query_audit_summary(
             "error_count": error_count,
             "latest_updated_at": recent_items[0]["updated_at"] if recent_items else None,
         },
+        "top_policy_reasons": top_policy_reasons,
         "top_questions": sorted_top_questions,
         "recent_items": recent_items,
         "watchouts": [
@@ -1463,6 +1514,7 @@ async def policy_check_endpoint(req: PolicyCheckRequest):
 @app.get("/api/query-audit/summary")
 async def query_audit_summary_endpoint(
     limit: int = 5,
+    fallback_mode: Optional[str] = None,
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ):
@@ -1470,25 +1522,38 @@ async def query_audit_summary_endpoint(
         "status": "ok",
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
-        **build_query_audit_summary(limit=limit, status=status, policy_decision=policy_decision),
+        **build_query_audit_summary(
+            fallback_mode=fallback_mode,
+            limit=limit,
+            status=status,
+            policy_decision=policy_decision,
+        ),
     }
 
 
 @app.get("/api/query-audit/recent")
 async def query_audit_recent_endpoint(
     limit: int = 5,
+    fallback_mode: Optional[str] = None,
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ):
+    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
     status_filter = normalize_audit_status_filter(status)
     policy_filter = normalize_policy_decision_filter(policy_decision)
-    items = list_recent_query_audits(limit=limit, status=status_filter, policy_decision=policy_filter)
+    items = list_recent_query_audits(
+        limit=limit,
+        fallback_mode=fallback_filter,
+        status=status_filter,
+        policy_decision=policy_filter,
+    )
     return {
         "status": "ok",
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         "schema": build_query_audit_schema()["schema"],
         "filters": {
+            "fallback_mode": fallback_filter,
             "status": status_filter,
             "policy_decision": policy_filter,
             "limit": clamp_audit_limit(limit),
