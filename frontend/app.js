@@ -4,6 +4,7 @@ let latestAuditRequestId = null;
 let latestAuditDetailPayload = null;
 let latestReviewRoutes = [];
 let latestGoldEvalPayload = null;
+let latestSessionBoardPayload = null;
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -61,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const goldEvalSummary = document.getElementById('gold-eval-summary');
     const goldEvalFailures = document.getElementById('gold-eval-failures');
     const auditDetail = document.getElementById('audit-detail');
+    const sessionBoardSummary = document.getElementById('session-board-summary');
+    const sessionBoardList = document.getElementById('session-board-list');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -323,6 +326,51 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(error);
             renderReviewList(warehouseAuditFeed, ['Query audit feed unavailable.']);
             addLog('Failed to load query audit feed.', 'error');
+        }
+    }
+
+    async function loadQuerySessionBoard() {
+        try {
+            const response = await fetch('/api/query-session-board?limit=6');
+            if (!response.ok) {
+                throw new Error(`Query session board request failed with ${response.status}`);
+            }
+
+            const payload = await response.json();
+            latestSessionBoardPayload = payload;
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            renderDetailCard(sessionBoardSummary, [
+                `Sessions: ${summary.total_sessions || 0}`,
+                `Ready: ${summary.ready_count || 0}`,
+                `Attention: ${summary.attention_count || 0}`,
+                `Review: ${summary.review_count || 0}`,
+                `Compare: ${summary.compare_count || 0}`,
+            ]);
+
+            if (items.length === 0) {
+                renderReviewList(sessionBoardList, ['No saved governed sessions yet. Run a question to capture one.']);
+                return;
+            }
+
+            sessionBoardList.innerHTML = '';
+            items.forEach((item) => {
+                const fallbackPart = item.fallback_mode?.sql || item.fallback_mode?.chart ? ' | fallback' : '';
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${String(item.session_state || 'unknown').toUpperCase()} | ${item.request_id}${chartPart}${fallbackPart} | ${item.headline}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                sessionBoardList.appendChild(listItem);
+            });
+        } catch (error) {
+            console.error(error);
+            latestSessionBoardPayload = null;
+            renderDetailCard(sessionBoardSummary, ['Saved session posture is unavailable.']);
+            renderReviewList(sessionBoardList, ['Saved sessions are unavailable.']);
+            addLog('Failed to load saved session board.', 'error');
         }
     }
 
@@ -677,6 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 eventSource.close();
                 loadWarehouseBrief();
                 loadQueryAuditFeed();
+                loadQuerySessionBoard();
                 loadQueryAuditDetail(latestRequestId);
                 askBtn.disabled = false;
                 nlInput.disabled = false;
@@ -691,6 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
             eventSource.close();
             loadWarehouseBrief();
             loadQueryAuditFeed();
+            loadQuerySessionBoard();
             loadQueryAuditDetail(latestRequestId);
             askBtn.disabled = false;
             nlInput.disabled = false;
@@ -722,9 +772,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDetailCard(policyVerdict, ['Run a policy preview on the seeded warehouse SQL before relying on the chart output.']);
     renderDetailCard(goldEvalSummary, ['Run the deterministic NL2SQL suite to inspect governed baseline quality.']);
     renderDetailCard(auditDetail, ['Select a recent audit request or run a governed query to inspect SQL, fallback usage, and retries.']);
+    renderDetailCard(sessionBoardSummary, ['Saved sessions let you reopen completed or blocked analyst requests.']);
     loadRuntimeBrief();
     loadReviewPack();
     loadWarehouseBrief();
     loadQueryAuditFeed();
+    loadQuerySessionBoard();
     loadGoldEvalRun();
 });
