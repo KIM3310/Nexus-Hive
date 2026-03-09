@@ -24,7 +24,12 @@ from langchain_core.messages import HumanMessage, AIMessage
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
-from security import operator_token_enabled, require_operator_token
+from security import (
+    operator_auth_status,
+    operator_role_headers,
+    operator_token_enabled,
+    require_operator_token,
+)
 from runtime_store import append_runtime_event, build_runtime_store_summary
 DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
 OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
@@ -1061,9 +1066,8 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
         },
         "persistence": persisted,
         "operator_auth": {
-            "enabled": operator_token_enabled(),
+            **operator_auth_status(),
             "protected_routes": ["/api/ask", "/api/policy/check"],
-            "accepted_headers": ["authorization: Bearer <token>", "x-operator-token"],
         },
         "score_bands": score_bands,
         "spotlight": spotlight,
@@ -1333,6 +1337,8 @@ def build_runtime_meta() -> Dict[str, Any]:
         "diagnostics": diagnostics,
         "auth": {
             "operator_token_enabled": operator_token_enabled(),
+            "operator_required_roles": operator_auth_status()["required_roles"],
+            "operator_role_headers": operator_role_headers(),
         },
         "ops_contract": {
             "schema": "ops-envelope-v1",
@@ -1438,6 +1444,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
             "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
             "operator_auth_enabled": operator_token_enabled(),
+            "operator_required_roles": operator_auth_status()["required_roles"],
             "runtime_persistence_enabled": governance_scorecard["persistence"]["enabled"],
         },
         "review_flow": [
