@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexus-hive"
+version = "0.1.0"
+description = "Governed analytics copilot with audited NL2SQL, policy previews, and runtime review surfaces."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Kim", email = "kim@example.com" }]
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.30.0,<1.0.0",
+  "pandas>=2.2.0,<3.0.0",
+  "httpx>=0.27.0,<1.0.0",
+  "pydantic>=2.8.0,<3.0.0",
+  "langgraph>=0.2.0,<1.0.0",
+  "langchain-core>=0.3.0,<1.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0,<9.0.0"
+]
+
+[tool.setuptools]
+py-modules = ["main", "seed_db"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

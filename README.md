@@ -28,9 +28,10 @@ The entire backend is powered by **FastAPI** streaming **Server-Sent Events (SSE
 
 ### 2. Initialization & Data Seeding
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
 python3 seed_db.py  # Generates 10,000 realistic enterprise sales records
 ```
 
@@ -91,7 +92,12 @@ Nexus-Hive is also the best anchor repo to grow into a stronger governed analyti
 <!-- codex:local-verification:start -->
 ## Local Verification
 ```bash
-test -f README.md -o -f README
+/Library/Developer/CommandLineTools/usr/bin/python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
+python -m compileall -q main.py tests
+python -m pytest
 ```
 
 ## Repository Hygiene
