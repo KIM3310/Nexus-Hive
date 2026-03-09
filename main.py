@@ -6,6 +6,7 @@ from typing import TypedDict, Annotated, List, Dict, Any, Optional
 from urllib.parse import quote_plus
 from pathlib import Path
 from uuid import uuid4
+import sys
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -21,6 +22,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 # --- Configuration ---
 BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+from security import operator_token_enabled, require_operator_token
 DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
 OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
 MODEL_NAME = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
@@ -1202,6 +1206,9 @@ def build_runtime_meta() -> Dict[str, Any]:
         "ollama_url": OLLAMA_URL,
         "db_path": str(DB_PATH),
         "diagnostics": diagnostics,
+        "auth": {
+            "operator_token_enabled": operator_token_enabled(),
+        },
         "ops_contract": {
             "schema": "ops-envelope-v1",
             "version": 1,
@@ -1301,6 +1308,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "governance_scorecard_schema": GOVERNANCE_SCORECARD_SCHEMA,
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
             "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
+            "operator_auth_enabled": operator_token_enabled(),
         },
         "review_flow": [
             "Open /health to confirm database and model posture.",
@@ -1649,7 +1657,8 @@ async def gold_eval_run_endpoint():
 
 
 @app.post("/api/policy/check")
-async def policy_check_endpoint(req: PolicyCheckRequest):
+async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
+    require_operator_token(request)
     sql = str(req.sql or "").strip()
     role = str(req.role or DEFAULT_ROLE).strip().lower() or DEFAULT_ROLE
     if not sql:
@@ -1736,6 +1745,7 @@ async def query_audit_detail_endpoint(request_id: str):
 
 @app.post("/api/ask")
 async def ask_endpoint(req: AskRequest, request: Request):
+    require_operator_token(request)
     question = str(req.question or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="question is required")
