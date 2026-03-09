@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
-COPY main.py seed_db.py security.py ./
+COPY main.py seed_db.py security.py runtime_store.py ./
 COPY frontend ./frontend
 COPY nexus_enterprise.db ./nexus_enterprise.db
 
