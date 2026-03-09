@@ -76,13 +76,13 @@ uvicorn main:app --port 8000
 4. Open `/api/query-review-board` to inspect current failed, denied, and review-required requests.
 5. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
 
-## Role-Ready Artifacts
+## Further Reading
 
-- AI engineer: [`docs/solution-architecture.md`](docs/solution-architecture.md)
-- solutions architect: [`docs/solution-architecture.md`](docs/solution-architecture.md)
-- sales / solution consultant: [`docs/executive-one-pager.md`](docs/executive-one-pager.md), [`docs/discovery-guide.md`](docs/discovery-guide.md)
+- Architecture: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- Overview: [`docs/executive-one-pager.md`](docs/executive-one-pager.md)
+- Discovery notes: [`docs/discovery-guide.md`](docs/discovery-guide.md)
 
-## Proof Assets
+## Supporting Files
 
 - `/health`
 - `/api/runtime/warehouse-brief`
