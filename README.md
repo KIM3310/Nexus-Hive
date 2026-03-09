@@ -96,7 +96,6 @@ Nexus-Hive is also the best anchor repo to grow into a stronger governed analyti
 
 - current proof: natural language -> audited SQL -> chart -> agent trace
 - next proof: warehouse adapters, lineage, data-quality gates, policy simulation, and governed NL2SQL evaluation
-- working spec: `GOVERNED_ANALYTICS_FLAGSHIP_SPEC.ko.md`
 
 ## Local Verification
 ```bash
