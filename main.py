@@ -100,6 +100,8 @@ GOLD_EVAL_CASES = [
 ]
 AUDIT_STATUS_VALUES = {"accepted", "completed", "failed"}
 AUDIT_POLICY_DECISION_VALUES = {"pending", "allow", "review", "deny"}
+GOVERNANCE_SCORECARD_FOCUS_VALUES = {"throughput", "policy", "quality", "resilience"}
+GOVERNANCE_SCORECARD_SCHEMA = "nexus-hive-governance-scorecard-v1"
 
 import operator
 
@@ -816,6 +818,145 @@ def build_query_audit_summary(
     }
 
 
+def normalize_governance_focus(focus: Optional[str]) -> str:
+    normalized = str(focus or "").strip().lower()
+    if not normalized:
+        return "quality"
+    if normalized not in GOVERNANCE_SCORECARD_FOCUS_VALUES:
+        raise HTTPException(status_code=400, detail="invalid governance focus")
+    return normalized
+
+
+def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
+    normalized_focus = normalize_governance_focus(focus)
+    db_ready = DB_PATH.exists() and bool(DB_SCHEMA.strip())
+    quality_gate = build_quality_gate()
+    gold_eval_run = run_gold_eval_suite()
+    audit_summary = build_query_audit_summary(limit=10)
+    latest_items = list_latest_query_audits()
+    fallback_any_count = len(list_latest_query_audits(fallback_mode="any"))
+    denied_items = list_recent_query_audits(limit=3, policy_decision="deny")
+    review_items = list_recent_query_audits(limit=3, policy_decision="review")
+    failed_items = list_recent_query_audits(limit=3, status="failed")
+    total_requests = int(audit_summary["summary"]["total_requests"])
+    gold_case_count = int(gold_eval_run["summary"]["case_count"])
+    gold_pass_count = int(gold_eval_run["summary"]["pass_count"])
+    quality_failures = len(quality_gate["failed_checks"])
+    review_required_count = int(audit_summary["summary"]["review_required_count"])
+    denied_count = int(audit_summary["summary"]["denied_count"])
+    error_count = int(audit_summary["summary"]["error_count"])
+    fallback_rate_pct = round((fallback_any_count / total_requests) * 100, 1) if total_requests else 0.0
+    guarded_rate_pct = (
+        round(((review_required_count + denied_count) / total_requests) * 100, 1)
+        if total_requests
+        else 0.0
+    )
+    gold_eval_pass_rate_pct = round((gold_pass_count / gold_case_count) * 100, 1) if gold_case_count else 0.0
+    error_rate_pct = round((error_count / total_requests) * 100, 1) if total_requests else 0.0
+
+    score_bands = [
+        {
+            "id": "query-safety",
+            "label": "Query safety",
+            "score_pct": max(0.0, round(100.0 - error_rate_pct - quality_failures * 5, 1)),
+            "signal": "strong" if denied_count + review_required_count > 0 else "watch",
+            "evidence": "policy previews, deny rules, review-required counts",
+        },
+        {
+            "id": "resilience",
+            "label": "Resilience",
+            "score_pct": max(0.0, round(100.0 - error_rate_pct, 1)),
+            "signal": "strong" if error_count == 0 else "watch",
+            "evidence": "fallback ratio and runtime error rate",
+        },
+        {
+            "id": "quality",
+            "label": "Quality",
+            "score_pct": gold_eval_pass_rate_pct,
+            "signal": "strong" if quality_gate["status"] == "ok" and gold_eval_pass_rate_pct >= 75 else "watch",
+            "evidence": "gold eval run + modeled table quality gate",
+        },
+        {
+            "id": "throughput",
+            "label": "Throughput",
+            "score_pct": min(100.0, float(total_requests) * 10.0),
+            "signal": "strong" if total_requests >= 3 else "watch",
+            "evidence": "query audit volume and latest request activity",
+        },
+    ]
+
+    if normalized_focus == "policy":
+        spotlight = {
+            "headline": "Policy posture surfaces the main approval reasons before governed analytics claims are made.",
+            "top_policy_reasons": audit_summary["top_policy_reasons"],
+            "recent_denied": denied_items,
+            "recent_review_required": review_items,
+        }
+    elif normalized_focus == "resilience":
+        spotlight = {
+            "headline": "Resilience posture keeps fallback and runtime error pressure visible before demos.",
+            "fallback_any_count": fallback_any_count,
+            "error_rate_pct": error_rate_pct,
+            "recent_failed": failed_items,
+        }
+    elif normalized_focus == "throughput":
+        spotlight = {
+            "headline": "Throughput posture shows current audit volume and the latest governed questions.",
+            "total_requests": total_requests,
+            "latest_requests": latest_items[:5],
+        }
+    else:
+        spotlight = {
+            "headline": "Quality posture ties gold eval readiness, modeled-table integrity, and audit hygiene together.",
+            "gold_eval_failures": gold_case_count - gold_pass_count,
+            "quality_gate_failures": quality_gate["failed_checks"],
+            "recent_quality_reviews": review_items,
+        }
+
+    recommendations = [
+        None if db_ready else "Seed the warehouse and verify schema load before judging governed analytics quality.",
+        None if quality_gate["status"] == "ok" else "Resolve modeled-table quality gate failures before claiming governed SQL readiness.",
+        None if gold_eval_pass_rate_pct >= 75 else "Improve NL2SQL heuristics or prompt quality until the gold eval pass rate clears 75%.",
+        None if denied_count + review_required_count > 0 else "Exercise /api/policy/check with risky SQL so the policy boundary remains visible.",
+        None if error_count == 0 else "Inspect failed audit items before relying on live SSE walkthroughs during demos.",
+    ]
+
+    return {
+        "status": "ok" if db_ready else "degraded",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": GOVERNANCE_SCORECARD_SCHEMA,
+        "focus": normalized_focus,
+        "summary": {
+            "db_ready": db_ready,
+            "warehouse_mode": "sqlite-demo",
+            "fallback_mode": "heuristic" if ALLOW_HEURISTIC_FALLBACK else "disabled",
+            "quality_gate_status": quality_gate["status"],
+            "quality_gate_failures": quality_failures,
+            "total_requests": total_requests,
+            "guarded_rate_pct": guarded_rate_pct,
+            "fallback_rate_pct": fallback_rate_pct,
+            "error_rate_pct": error_rate_pct,
+            "gold_eval_pass_rate_pct": gold_eval_pass_rate_pct,
+            "latest_updated_at": audit_summary["summary"]["latest_updated_at"],
+        },
+        "score_bands": score_bands,
+        "spotlight": spotlight,
+        "recommendations": [item for item in recommendations if item],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "review_pack": "/api/review-pack",
+            "policy_check": "/api/policy/check",
+            "query_audit_summary": "/api/query-audit/summary",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
+        },
+    }
+
+
 def get_query_audit_history(request_id: str) -> List[Dict[str, Any]]:
     history: List[Dict[str, Any]] = []
     for payload in iter_query_audit_snapshots():
@@ -1071,6 +1212,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/warehouse-brief",
+            "/api/runtime/governance-scorecard",
             "/api/review-pack",
             "/api/schema/answer",
             "/api/schema/lineage",
@@ -1099,6 +1241,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "policy-preview-surface",
             "query-audit-summary-surface",
             "query-audit-detail-surface",
+            "governance-scorecard-surface",
             "review-pack-surface",
             "answer-schema-surface",
         ],
@@ -1155,6 +1298,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "query_audit_summary_schema": warehouse_brief["audit_summary"]["schema"],
+            "governance_scorecard_schema": GOVERNANCE_SCORECARD_SCHEMA,
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
             "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
         },
@@ -1213,6 +1357,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/meta",
                 "/api/runtime/brief",
                 "/api/runtime/warehouse-brief",
+                "/api/runtime/governance-scorecard",
                 "/api/review-pack",
                 "/api/schema/answer",
                 "/api/schema/lineage",
@@ -1261,6 +1406,7 @@ def build_review_pack() -> Dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
+            {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
             {"label": "Gold Eval Run", "href": "/api/evals/nl2sql-gold/run", "kind": "route"},
             {"label": "Query Audit Detail", "href": "/api/query-audit/{request_id}", "kind": "route"},
         ],
@@ -1274,6 +1420,7 @@ def build_review_pack() -> Dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
@@ -1382,6 +1529,7 @@ async def health_endpoint():
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
@@ -1408,6 +1556,7 @@ async def meta_endpoint():
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "readiness_contract": "nexus-hive-runtime-brief-v1",
         "warehouse_brief_contract": "nexus-hive-warehouse-brief-v1",
+        "governance_scorecard_contract": GOVERNANCE_SCORECARD_SCHEMA,
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
@@ -1427,6 +1576,11 @@ async def runtime_brief_endpoint():
 @app.get("/api/runtime/warehouse-brief")
 async def warehouse_brief_endpoint():
     return build_warehouse_brief()
+
+
+@app.get("/api/runtime/governance-scorecard")
+async def governance_scorecard_endpoint(focus: Optional[str] = None):
+    return build_governance_scorecard(focus or "quality")
 
 
 @app.get("/api/review-pack")
