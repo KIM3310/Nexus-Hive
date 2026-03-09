@@ -98,6 +98,8 @@ GOLD_EVAL_CASES = [
         "expected_features": ["SUBSTR(date, 1, 7)", "SUM(net_revenue)", "GROUP BY month"],
     },
 ]
+AUDIT_STATUS_VALUES = {"accepted", "completed", "failed"}
+AUDIT_POLICY_DECISION_VALUES = {"pending", "allow", "review", "deny"}
 
 import operator
 
@@ -598,11 +600,11 @@ def write_query_audit_snapshot(
     )
 
 
-def list_recent_query_audits(limit: int = 5) -> List[Dict[str, Any]]:
+def iter_query_audit_snapshots() -> List[Dict[str, Any]]:
     if not AUDIT_LOG_PATH.exists():
         return []
 
-    latest_by_request: Dict[str, Dict[str, Any]] = {}
+    snapshots: List[Dict[str, Any]] = []
     with AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.strip()
@@ -612,34 +614,162 @@ def list_recent_query_audits(limit: int = 5) -> List[Dict[str, Any]]:
                 payload = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            request_id = str(payload.get("request_id") or "").strip()
-            if not request_id:
-                continue
-            latest_by_request[request_id] = payload
+            if isinstance(payload, dict):
+                snapshots.append(payload)
+
+    return snapshots
+
+
+def clamp_audit_limit(limit: int, *, default: int = 5, maximum: int = 20) -> int:
+    if not isinstance(limit, int):
+        return default
+    return max(1, min(limit, maximum))
+
+
+def normalize_audit_status_filter(status: Optional[str]) -> Optional[str]:
+    normalized = str(status or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized not in AUDIT_STATUS_VALUES:
+        raise HTTPException(status_code=400, detail="invalid status filter")
+    return normalized
+
+
+def normalize_policy_decision_filter(policy_decision: Optional[str]) -> Optional[str]:
+    normalized = str(policy_decision or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized not in AUDIT_POLICY_DECISION_VALUES:
+        raise HTTPException(status_code=400, detail="invalid policy_decision filter")
+    return normalized
+
+
+def list_latest_query_audits(
+    *,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    latest_by_request: Dict[str, Dict[str, Any]] = {}
+    for payload in iter_query_audit_snapshots():
+        request_id = str(payload.get("request_id") or "").strip()
+        if not request_id:
+            continue
+        latest_by_request[request_id] = payload
+
+    items = list(latest_by_request.values())
+    if status:
+        items = [item for item in items if str(item.get("status") or "").strip().lower() == status]
+    if policy_decision:
+        items = [
+            item
+            for item in items
+            if str(item.get("policy_decision") or "").strip().lower() == policy_decision
+        ]
 
     return sorted(
-        latest_by_request.values(),
+        items,
         key=lambda item: item.get("updated_at", ""),
         reverse=True,
-    )[: max(1, min(limit, 20))]
+    )
+
+
+def list_recent_query_audits(
+    limit: int = 5,
+    *,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    items = list_latest_query_audits(status=status, policy_decision=policy_decision)
+    return items[:clamp_audit_limit(limit)]
+
+
+def build_query_audit_summary(
+    *,
+    limit: int = 5,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+) -> Dict[str, Any]:
+    status_filter = normalize_audit_status_filter(status)
+    policy_filter = normalize_policy_decision_filter(policy_decision)
+    recent_limit = clamp_audit_limit(limit, maximum=50)
+    latest_items = list_latest_query_audits(status=status_filter, policy_decision=policy_filter)
+    recent_items = latest_items[:recent_limit]
+
+    status_counts: Dict[str, int] = {}
+    policy_counts: Dict[str, int] = {}
+    top_questions: Dict[str, Dict[str, Any]] = {}
+    fallback_sql_count = 0
+    fallback_chart_count = 0
+    denied_count = 0
+    review_count = 0
+    error_count = 0
+
+    for item in latest_items:
+        item_status = str(item.get("status") or "unknown").strip().lower() or "unknown"
+        item_policy = str(item.get("policy_decision") or "unknown").strip().lower() or "unknown"
+        status_counts[item_status] = status_counts.get(item_status, 0) + 1
+        policy_counts[item_policy] = policy_counts.get(item_policy, 0) + 1
+        fallback_sql_count += 1 if item.get("fallback_sql_used") else 0
+        fallback_chart_count += 1 if item.get("fallback_chart_used") else 0
+        denied_count += 1 if item_policy == "deny" else 0
+        review_count += 1 if item_policy == "review" else 0
+        error_count += 1 if str(item.get("error") or "").strip() else 0
+
+        question = str(item.get("question") or "").strip()
+        normalized_question = normalize_question(question)
+        if not normalized_question:
+            continue
+        bucket = top_questions.setdefault(
+            normalized_question,
+            {
+                "question": question,
+                "normalized_question": normalized_question,
+                "count": 0,
+                "sample_request_ids": [],
+            },
+        )
+        bucket["count"] += 1
+        if len(bucket["sample_request_ids"]) < 3:
+            bucket["sample_request_ids"].append(str(item.get("request_id") or "").strip())
+
+    sorted_top_questions = sorted(
+        top_questions.values(),
+        key=lambda item: (-int(item["count"]), str(item["question"]).lower()),
+    )[:5]
+
+    return {
+        "schema": "nexus-hive-query-audit-summary-v1",
+        "filters": {
+            "status": status_filter,
+            "policy_decision": policy_filter,
+            "limit": recent_limit,
+        },
+        "summary": {
+            "total_requests": len(latest_items),
+            "status_counts": status_counts,
+            "policy_decision_counts": policy_counts,
+            "fallback_sql_count": fallback_sql_count,
+            "fallback_chart_count": fallback_chart_count,
+            "denied_count": denied_count,
+            "review_required_count": review_count,
+            "error_count": error_count,
+            "latest_updated_at": recent_items[0]["updated_at"] if recent_items else None,
+        },
+        "top_questions": sorted_top_questions,
+        "recent_items": recent_items,
+        "watchouts": [
+            "Query audit summary reflects the latest state per request_id, not every intermediate log line.",
+            "Fallback counters separate resilience posture from model quality posture.",
+            "Policy review and deny counts should be inspected before trusting a demo claim.",
+        ],
+    }
 
 
 def get_query_audit_history(request_id: str) -> List[Dict[str, Any]]:
-    if not AUDIT_LOG_PATH.exists():
-        return []
-
     history: List[Dict[str, Any]] = []
-    with AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line:
-                continue
-            try:
-                payload = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if str(payload.get("request_id") or "").strip() == request_id:
-                history.append(payload)
+    for payload in iter_query_audit_snapshots():
+        if str(payload.get("request_id") or "").strip() == request_id:
+            history.append(payload)
 
     return sorted(history, key=lambda item: item.get("updated_at", ""))
 
@@ -670,6 +800,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "gold_eval": gold_eval,
         "gold_eval_run": gold_eval_run,
         "recent_audit_count": len(recent_audits),
+        "audit_summary": build_query_audit_summary(limit=5),
         "policy_examples": [
             "read_only_sql_only",
             "aggregates_before_operator_approval",
@@ -682,6 +813,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
             "/api/schema/policy",
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
+            "/api/query-audit/summary",
             "/api/query-audit/recent",
         ],
     }
@@ -896,6 +1028,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/evals/nl2sql-gold",
             "/api/evals/nl2sql-gold/run",
             "/api/policy/check",
+            "/api/query-audit/summary",
             "/api/query-audit/recent",
             "/api/query-audit/{request_id}",
             "/api/ask",
@@ -913,6 +1046,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "query-audit-surface",
             "gold-eval-surface",
             "policy-preview-surface",
+            "query-audit-summary-surface",
             "query-audit-detail-surface",
             "review-pack-surface",
             "answer-schema-surface",
@@ -969,6 +1103,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "lineage_schema": warehouse_brief["lineage"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
+            "query_audit_summary_schema": warehouse_brief["audit_summary"]["schema"],
             "gold_eval_schema": warehouse_brief["gold_eval"]["schema"],
             "gold_eval_run_schema": warehouse_brief["gold_eval_run"]["schema"],
         },
@@ -1035,6 +1170,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/evals/nl2sql-gold",
                 "/api/evals/nl2sql-gold/run",
                 "/api/policy/check",
+                "/api/query-audit/summary",
                 "/api/query-audit/recent",
                 "/api/query-audit/{request_id}",
                 "/api/ask",
@@ -1095,6 +1231,7 @@ def build_review_pack() -> Dict[str, Any]:
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
             "policy_check": "/api/policy/check",
+            "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
             "query_audit_detail": "/api/query-audit/{request_id}",
             "ask": "/api/ask",
@@ -1202,6 +1339,7 @@ async def health_endpoint():
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
             "policy_check": "/api/policy/check",
+            "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
             "query_audit_detail": "/api/query-audit/{request_id}",
             "ask": "/api/ask",
@@ -1224,6 +1362,7 @@ async def meta_endpoint():
         "lineage_contract": build_lineage_schema()["schema"],
         "policy_contract": build_policy_schema()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
+        "query_audit_summary_contract": build_query_audit_summary()["schema"],
         "gold_eval_contract": build_gold_eval_pack()["schema"],
         **runtime_meta,
     }
@@ -1321,14 +1460,39 @@ async def policy_check_endpoint(req: PolicyCheckRequest):
     }
 
 
+@app.get("/api/query-audit/summary")
+async def query_audit_summary_endpoint(
+    limit: int = 5,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_audit_summary(limit=limit, status=status, policy_decision=policy_decision),
+    }
+
+
 @app.get("/api/query-audit/recent")
-async def query_audit_recent_endpoint(limit: int = 5):
-    items = list_recent_query_audits(limit=limit)
+async def query_audit_recent_endpoint(
+    limit: int = 5,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    status_filter = normalize_audit_status_filter(status)
+    policy_filter = normalize_policy_decision_filter(policy_decision)
+    items = list_recent_query_audits(limit=limit, status=status_filter, policy_decision=policy_filter)
     return {
         "status": "ok",
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         "schema": build_query_audit_schema()["schema"],
+        "filters": {
+            "status": status_filter,
+            "policy_decision": policy_filter,
+            "limit": clamp_audit_limit(limit),
+        },
         "items": items,
     }
 
@@ -1382,6 +1546,7 @@ async def ask_endpoint(req: AskRequest, request: Request):
             "warehouse_brief": str(request.url_for("warehouse_brief_endpoint")),
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
             "gold_eval": str(request.url_for("gold_eval_endpoint")),
+            "query_audit_summary": str(request.url_for("query_audit_summary_endpoint")),
             "query_audit_recent": str(request.url_for("query_audit_recent_endpoint")),
             "query_audit_detail": str(request.url_for("query_audit_detail_endpoint", request_id=request_id)),
         },
