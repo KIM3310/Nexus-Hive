@@ -56,6 +56,7 @@ uvicorn main:app --port 8000
 - `GET /api/schema/lineage`: documents the semantic model and fact-to-dimension relationships.
 - `GET /api/schema/policy`: documents deny/review rules, role-sensitive columns, and current policy posture.
 - `GET /api/schema/query-audit`: documents the append-only query audit contract keyed by `request_id`.
+- `GET /api/query-review-board`: prioritizes failed, denied, review-required, and fallback-heavy requests into one operator triage surface.
 - `GET /api/evals/nl2sql-gold`: exposes the canonical NL2SQL review set and fallback verdicts for each question.
 - `GET /api/evals/nl2sql-gold/run`: executes the deterministic review suite against the local warehouse and reports pass/fail status.
 - `POST /api/policy/check`: previews SQL policy decisions before execution.
@@ -72,7 +73,8 @@ uvicorn main:app --port 8000
 1. Open `/health` to confirm database posture and review links.
 2. Read `/api/runtime/warehouse-brief` for quality-gate, lineage, and policy posture.
 3. Use the governance workbench to run `/api/policy/check` and `/api/evals/nl2sql-gold/run` before making correctness claims.
-4. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
+4. Open `/api/query-review-board` to inspect current failed, denied, and review-required requests.
+5. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
 
 ## Role-Ready Artifacts
 
@@ -84,6 +86,7 @@ uvicorn main:app --port 8000
 
 - `/health`
 - `/api/runtime/warehouse-brief`
+- `/api/query-review-board`
 - `/api/evals/nl2sql-gold/run`
 - `/api/query-audit/{request_id}`
 
