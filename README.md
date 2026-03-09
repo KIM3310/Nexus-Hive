@@ -68,7 +68,7 @@ uvicorn main:app --port 8000
 - Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, runnable eval status, recent query audit history, and request-level audit summaries before a query is trusted.
 - Frontend governance workbench: reviewers can now run a live SQL policy preview, execute the deterministic gold eval suite, and inspect request-level audit detail from the landing screen without leaving the main demo surface.
 
-## 2-Minute Review Path
+## Quick Review Path
 
 1. Open `/health` to confirm database posture and review links.
 2. Read `/api/runtime/warehouse-brief` for quality-gate, lineage, and policy posture.
@@ -98,7 +98,6 @@ Nexus-Hive is also the best anchor repo to grow into a stronger governed analyti
 - next proof: warehouse adapters, lineage, data-quality gates, policy simulation, and governed NL2SQL evaluation
 - working spec: `GOVERNED_ANALYTICS_FLAGSHIP_SPEC.ko.md`
 
-<!-- codex:local-verification:start -->
 ## Local Verification
 ```bash
 /Library/Developer/CommandLineTools/usr/bin/python3 -m venv .venv
@@ -112,6 +111,3 @@ python -m pytest
 ## Repository Hygiene
 - Keep runtime artifacts out of commits (`.codex_runs/`, cache folders, temporary venvs).
 - Prefer running verification commands above before opening a PR.
-
-_Last updated: 2026-03-04_
-<!-- codex:local-verification:end -->
