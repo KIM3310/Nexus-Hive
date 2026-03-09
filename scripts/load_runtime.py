@@ -45,6 +45,8 @@ def main() -> None:
 
         scorecard = client.get("/api/runtime/governance-scorecard?focus=throughput")
         scorecard.raise_for_status()
+        review_board = client.get("/api/query-review-board?limit=3")
+        review_board.raise_for_status()
         payload = scorecard.json()
 
     print(
@@ -53,6 +55,7 @@ def main() -> None:
                 "summary": payload["summary"],
                 "persistence": payload["persistence"],
                 "operator_auth": payload["operator_auth"],
+                "review_board": review_board.json()["summary"],
             },
             indent=2,
         )
