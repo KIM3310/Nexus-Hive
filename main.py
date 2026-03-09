@@ -118,6 +118,7 @@ AUDIT_STATUS_VALUES = {"accepted", "completed", "failed"}
 AUDIT_POLICY_DECISION_VALUES = {"pending", "allow", "review", "deny"}
 GOVERNANCE_SCORECARD_FOCUS_VALUES = {"throughput", "policy", "quality", "resilience"}
 GOVERNANCE_SCORECARD_SCHEMA = "nexus-hive-governance-scorecard-v1"
+QUERY_SESSION_BOARD_SCHEMA = "nexus-hive-query-session-board-v1"
 
 import operator
 
@@ -969,6 +970,92 @@ def build_query_review_board(
     }
 
 
+def build_query_session_board(
+    *,
+    fallback_mode: Optional[str] = None,
+    limit: int = 6,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+) -> Dict[str, Any]:
+    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
+    status_filter = normalize_audit_status_filter(status)
+    policy_filter = normalize_policy_decision_filter(policy_decision)
+    session_limit = clamp_audit_limit(limit)
+    latest_items = list_latest_query_audits(
+        fallback_mode=fallback_filter,
+        status=status_filter,
+        policy_decision=policy_filter,
+    )[:session_limit]
+
+    def to_session_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        item_status = str(item.get("status") or "").strip().lower() or "unknown"
+        item_policy = str(item.get("policy_decision") or "").strip().lower() or "unknown"
+        uses_fallback = bool(item.get("fallback_sql_used")) or bool(item.get("fallback_chart_used"))
+        if item_status == "failed" or item_policy == "deny":
+            session_state = "attention"
+            next_action = "Reopen audit detail, fix the SQL path, and rerun before sharing."
+        elif item_policy == "review":
+            session_state = "review"
+            next_action = "Check escalation reasons and sensitive columns before approval."
+        elif uses_fallback:
+            session_state = "compare"
+            next_action = "Compare fallback output against the gold eval run before reuse."
+        else:
+            session_state = "ready"
+            next_action = "Spot-check SQL and row counts, then reuse this session as a reference."
+
+        request_id = str(item.get("request_id") or "").strip()
+        return {
+            "request_id": request_id,
+            "headline": str(item.get("question") or "Saved query session"),
+            "status": item_status,
+            "policy_decision": item_policy,
+            "session_state": session_state,
+            "updated_at": item.get("updated_at"),
+            "row_count": int(item.get("row_count") or 0),
+            "retry_count": int(item.get("retry_count") or 0),
+            "chart_type": str(item.get("chart_type") or "").strip() or None,
+            "fallback_mode": {
+                "sql": bool(item.get("fallback_sql_used")),
+                "chart": bool(item.get("fallback_chart_used")),
+            },
+            "review_url": f"/api/query-audit/{request_id}",
+            "next_action": next_action,
+        }
+
+    session_items = [to_session_item(item) for item in latest_items]
+    return {
+        "schema": QUERY_SESSION_BOARD_SCHEMA,
+        "filters": {
+            "fallback_mode": fallback_filter,
+            "status": status_filter,
+            "policy_decision": policy_filter,
+            "limit": session_limit,
+        },
+        "summary": {
+            "total_sessions": len(session_items),
+            "ready_count": sum(1 for item in session_items if item["session_state"] == "ready"),
+            "attention_count": sum(1 for item in session_items if item["session_state"] == "attention"),
+            "review_count": sum(1 for item in session_items if item["session_state"] == "review"),
+            "compare_count": sum(1 for item in session_items if item["session_state"] == "compare"),
+            "latest_updated_at": session_items[0]["updated_at"] if session_items else None,
+        },
+        "items": session_items,
+        "review_actions": [
+            "Open the saved session detail before reusing a generated chart or answer.",
+            "Keep attention and review sessions visible until their policy issues are resolved.",
+            "Promote ready sessions only after a quick SQL and row-count check.",
+        ],
+        "links": {
+            "query_session_board": "/api/query-session-board",
+            "query_review_board": "/api/query-review-board",
+            "query_audit_summary": "/api/query-audit/summary",
+            "query_audit_recent": "/api/query-audit/recent",
+            "query_audit_detail": "/api/query-audit/{request_id}",
+        },
+    }
+
+
 def normalize_governance_focus(focus: Optional[str]) -> str:
     normalized = str(focus or "").strip().lower()
     if not normalized:
@@ -1109,6 +1196,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "policy_check": "/api/policy/check",
+            "query_session_board": "/api/query-session-board",
             "query_review_board": "/api/query-review-board",
             "query_audit_summary": "/api/query-audit/summary",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
@@ -1165,6 +1253,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
             "/api/schema/policy",
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
+            "/api/query-session-board",
             "/api/query-review-board",
             "/api/query-audit/summary",
             "/api/query-audit/recent",
@@ -1440,6 +1529,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/evals/nl2sql-gold",
             "/api/evals/nl2sql-gold/run",
             "/api/policy/check",
+            "/api/query-session-board",
             "/api/query-review-board",
             "/api/query-audit/summary",
             "/api/query-audit/recent",
@@ -1459,6 +1549,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "query-audit-surface",
             "gold-eval-surface",
             "policy-preview-surface",
+            "query-session-board-surface",
             "query-review-board-surface",
             "query-audit-summary-surface",
             "query-audit-detail-surface",
@@ -1519,6 +1610,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "lineage_schema": warehouse_brief["lineage"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
+            "query_session_board_schema": QUERY_SESSION_BOARD_SCHEMA,
             "query_review_board_schema": build_query_review_board()["schema"],
             "query_audit_summary_schema": warehouse_brief["audit_summary"]["schema"],
             "governance_scorecard_schema": GOVERNANCE_SCORECARD_SCHEMA,
@@ -1532,6 +1624,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
+            "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
             "Ask a question through /api/ask or the frontend to validate SQL, execution, and chart generation.",
             "Inspect the streamed agent trace before trusting any rendered answer.",
         ],
@@ -1594,6 +1687,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/evals/nl2sql-gold",
                 "/api/evals/nl2sql-gold/run",
                 "/api/policy/check",
+                "/api/query-session-board",
                 "/api/query-review-board",
                 "/api/query-audit/summary",
                 "/api/query-audit/recent",
@@ -1622,6 +1716,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
+            "Use /api/query-session-board to reopen reusable governed query sessions before re-running them.",
             "Read /api/runtime/brief for retry policy and agent responsibilities.",
             "Read /api/review-pack for executive promises, trust boundary, and review routes.",
             "Use /api/query-review-board to prioritize failed, denied, and review-required requests before trusting output.",
@@ -1631,6 +1726,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Open /health to confirm database posture and review links.",
             "Read /api/runtime/warehouse-brief for quality-gate, lineage, and policy posture.",
             "Read /api/evals/nl2sql-gold/run before making correctness claims.",
+            "Open /api/query-session-board to inspect reusable governed sessions.",
             "Open /api/query-review-board to inspect current governed analytics risks.",
             "Use /api/ask plus /api/query-audit/{request_id} to inspect one governed answer end to end.",
         ],
@@ -1638,6 +1734,7 @@ def build_review_pack() -> Dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
+            {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
             {"label": "Query Review Board", "href": "/api/query-review-board", "kind": "route"},
             {"label": "Gold Eval Run", "href": "/api/evals/nl2sql-gold/run", "kind": "route"},
             {"label": "Query Audit Detail", "href": "/api/query-audit/{request_id}", "kind": "route"},
@@ -1659,6 +1756,7 @@ def build_review_pack() -> Dict[str, Any]:
             "lineage_schema": "/api/schema/lineage",
             "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
+            "query_session_board": "/api/query-session-board",
             "query_review_board": "/api/query-review-board",
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
@@ -1801,6 +1899,7 @@ async def health_endpoint():
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
             "policy_check": "/api/policy/check",
+            "query_session_board": "/api/query-session-board",
             "query_review_board": "/api/query-review-board",
             "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
@@ -1826,6 +1925,7 @@ async def meta_endpoint():
         "lineage_contract": build_lineage_schema()["schema"],
         "policy_contract": build_policy_schema()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
+        "query_session_board_contract": QUERY_SESSION_BOARD_SCHEMA,
         "query_review_board_contract": build_query_review_board()["schema"],
         "query_audit_summary_contract": build_query_audit_summary()["schema"],
         "gold_eval_contract": build_gold_eval_pack()["schema"],
@@ -2069,6 +2169,26 @@ async def query_review_board_endpoint(
     }
 
 
+@app.get("/api/query-session-board")
+async def query_session_board_endpoint(
+    limit: int = 6,
+    fallback_mode: Optional[str] = None,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_session_board(
+            fallback_mode=fallback_mode,
+            limit=limit,
+            status=status,
+            policy_decision=policy_decision,
+        ),
+    }
+
+
 @app.get("/api/query-audit/recent")
 async def query_audit_recent_endpoint(
     limit: int = 5,
@@ -2162,6 +2282,7 @@ async def ask_endpoint(req: AskRequest, request: Request):
             "warehouse_brief": str(request.url_for("warehouse_brief_endpoint")),
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
             "gold_eval": str(request.url_for("gold_eval_endpoint")),
+            "query_session_board": str(request.url_for("query_session_board_endpoint")),
             "query_audit_summary": str(request.url_for("query_audit_summary_endpoint")),
             "query_audit_recent": str(request.url_for("query_audit_recent_endpoint")),
             "query_audit_detail": str(request.url_for("query_audit_detail_endpoint", request_id=request_id)),
