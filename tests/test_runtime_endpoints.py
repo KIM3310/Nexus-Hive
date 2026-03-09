@@ -56,6 +56,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health_payload["links"]["warehouse_brief"] == "/api/runtime/warehouse-brief"
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
@@ -74,6 +75,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["auth"]["operator_token_enabled"] is False
     assert meta_payload["auth"]["operator_required_roles"] == []
     assert "x-operator-role" in meta_payload["auth"]["operator_role_headers"]
+    assert meta_payload["auth"]["operator_session_cookie"] == "nexus_hive_operator_session"
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert meta_payload["warehouse_brief_contract"] == "nexus-hive-warehouse-brief-v1"
@@ -90,6 +92,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
+    assert "/api/auth/session" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
     assert "/api/schema/lineage" in meta_payload["routes"]
@@ -137,8 +140,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert governance_payload["persistence"]["event_type_counts"]["scorecard_view"] >= 1
     assert governance_payload["persistence"]["backend"] == "sqlite"
     assert governance_payload["operator_auth"]["enabled"] is False
+    assert governance_payload["operator_auth"]["session_cookie"] == "nexus_hive_operator_session"
     assert governance_payload["links"]["query_review_board"] == "/api/query-review-board"
     assert governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    assert governance_payload["links"]["auth_session"] == "/api/auth/session"
     assert isinstance(governance_payload["score_bands"], list)
 
     assert review_pack.status_code == 200
@@ -233,6 +238,56 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
         and item["stage"] == "accepted"
         for item in audit_payload["items"]
     )
+
+
+def test_operator_session_cookie_reuses_token_for_protected_routes() -> None:
+    previous_token = os.environ.get("NEXUS_HIVE_OPERATOR_TOKEN")
+    previous_roles = os.environ.get("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES")
+    os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = "nexus-session-secret"
+    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "analyst"
+    client = TestClient(APP_MODULE.app)
+
+    try:
+        session_response = client.post(
+            "/api/auth/session",
+            json={
+                "credential": "nexus-session-secret",
+                "roles": ["analyst"],
+            },
+        )
+        assert session_response.status_code == 200
+        assert "nexus_hive_operator_session=" in str(
+            session_response.headers.get("set-cookie") or ""
+        )
+
+        session_payload = session_response.json()
+        assert session_payload["active"] is True
+        assert "analyst" in session_payload["session"]["roles"]
+
+        policy_response = client.post(
+            "/api/policy/check",
+            json={"sql": "SELECT region_name FROM regions", "role": "analyst"},
+        )
+        assert policy_response.status_code == 200
+
+        current_session = client.get("/api/auth/session")
+        assert current_session.status_code == 200
+        current_session_payload = current_session.json()
+        assert current_session_payload["active"] is True
+        assert current_session_payload["validation"]["ok"] is True
+
+        cleared = client.delete("/api/auth/session")
+        assert cleared.status_code == 200
+        assert "Max-Age=0" in str(cleared.headers.get("set-cookie") or "")
+    finally:
+        if previous_token is None:
+            os.environ.pop("NEXUS_HIVE_OPERATOR_TOKEN", None)
+        else:
+            os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = previous_token
+        if previous_roles is None:
+            os.environ.pop("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES", None)
+        else:
+            os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = previous_roles
 
 
 def test_stream_completion_writes_query_audit_detail(monkeypatch) -> None:

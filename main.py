@@ -7,7 +7,7 @@ from urllib.parse import quote_plus
 from pathlib import Path
 from uuid import uuid4
 import sys
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,9 +25,15 @@ BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 from security import (
+    apply_operator_session,
+    clear_operator_session_cookie,
+    create_operator_session_cookie,
+    operator_allowed_roles,
     operator_auth_status,
     operator_role_headers,
+    operator_session_cookie_name,
     operator_token_enabled,
+    read_operator_session,
     require_operator_token,
 )
 from runtime_store import append_runtime_event, build_runtime_store_summary
@@ -133,6 +139,29 @@ DB_SCHEMA = get_db_schema()
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def log_runtime_event(level: str, event: str, **payload: Any) -> None:
+    print(
+        json.dumps(
+            {
+                "at": utc_now_iso(),
+                "event": event,
+                "level": level,
+                "service": "nexus-hive",
+                **payload,
+            },
+            ensure_ascii=True,
+        )
+    )
+
+
+def normalize_operator_roles(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip().lower() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        return [item.strip().lower() for item in value.split(",") if item.strip()]
+    return []
 
 
 def run_scalar_query(sql: str) -> int:
@@ -1077,6 +1106,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "policy_check": "/api/policy/check",
             "query_review_board": "/api/query-review-board",
@@ -1307,6 +1337,55 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def session_and_logging_middleware(request: Request, call_next):
+    request_id = str(request.headers.get("x-request-id") or uuid4().hex[:12]).strip()
+    request.state.request_id = request_id
+    request.state.operator_session = apply_operator_session(request)
+    started = datetime.now(timezone.utc)
+    try:
+        response = await call_next(request)
+    except Exception as error:
+        elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+        log_runtime_event(
+            "error",
+            "request-failed",
+            elapsed_ms=elapsed_ms,
+            error=str(error),
+            method=request.method,
+            operator_auth_mode=(request.state.operator_session or {}).get("auth_mode")
+            if hasattr(request.state, "operator_session")
+            else None,
+            operator_roles=(request.state.operator_session or {}).get("roles", [])
+            if hasattr(request.state, "operator_session")
+            else [],
+            path=request.url.path,
+            request_id=request_id,
+        )
+        raise
+
+    response.headers["x-request-id"] = request_id
+    response.headers["cache-control"] = "no-store"
+    elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+    log_runtime_event(
+        "warn" if response.status_code >= 400 or elapsed_ms >= 4000 else "info",
+        "request-finished",
+        elapsed_ms=elapsed_ms,
+        method=request.method,
+        operator_auth_mode=(request.state.operator_session or {}).get("auth_mode")
+        if hasattr(request.state, "operator_session")
+        else None,
+        operator_roles=(request.state.operator_session or {}).get("roles", [])
+        if hasattr(request.state, "operator_session")
+        else [],
+        path=request.url.path,
+        request_id=request_id,
+        session_active=bool(getattr(request.state, "operator_session", None)),
+        status_code=response.status_code,
+    )
+    return response
+
+
 def build_runtime_meta() -> Dict[str, Any]:
     db_exists = DB_PATH.exists()
     db_size_bytes = DB_PATH.stat().st_size if db_exists else 0
@@ -1339,6 +1418,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "operator_token_enabled": operator_token_enabled(),
             "operator_required_roles": operator_auth_status()["required_roles"],
             "operator_role_headers": operator_role_headers(),
+            "operator_session_cookie": operator_session_cookie_name(),
         },
         "ops_contract": {
             "schema": "ops-envelope-v1",
@@ -1351,6 +1431,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/runtime/brief",
             "/api/runtime/warehouse-brief",
             "/api/runtime/governance-scorecard",
+            "/api/auth/session",
             "/api/review-pack",
             "/api/schema/answer",
             "/api/schema/lineage",
@@ -1572,6 +1653,7 @@ def build_review_pack() -> Dict[str, Any]:
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "governance_scorecard": "/api/runtime/governance-scorecard",
+            "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
@@ -1710,6 +1792,7 @@ async def health_endpoint():
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "governance_scorecard": "/api/runtime/governance-scorecard",
+            "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
@@ -1775,6 +1858,80 @@ async def governance_scorecard_endpoint(focus: Optional[str] = None):
         }
     )
     return build_governance_scorecard(normalized_focus)
+
+
+@app.get("/api/auth/session")
+async def auth_session_endpoint(request: Request):
+    session = read_operator_session(request)
+    validation = None
+    if session:
+        try:
+            require_operator_token(request)
+            validation = {"ok": True, "reason": None}
+        except HTTPException as error:
+            validation = {"ok": False, "reason": error.detail}
+    return {
+        "ok": True,
+        "active": bool(session and validation and validation["ok"]),
+        "cookie_name": operator_session_cookie_name(),
+        "session": session,
+        "validation": validation,
+    }
+
+
+@app.post("/api/auth/session")
+async def create_auth_session(request: Request, response: Response):
+    if not operator_token_enabled():
+        raise HTTPException(status_code=409, detail="operator auth is not configured for session login")
+
+    payload = await request.json()
+    credential = str(payload.get("credential") or "").strip() if isinstance(payload, dict) else ""
+    roles = normalize_operator_roles(payload.get("roles")) if isinstance(payload, dict) else []
+    if not credential:
+        raise HTTPException(status_code=400, detail="missing credential")
+
+    expected = str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip()
+    if credential != expected:
+        raise HTTPException(status_code=403, detail="missing or invalid operator token")
+
+    allowed_roles = operator_allowed_roles()
+    if allowed_roles and not any(role in allowed_roles for role in roles):
+        raise HTTPException(status_code=403, detail="missing required operator role")
+
+    cookie, session = create_operator_session_cookie(
+        credential=credential,
+        roles=roles or allowed_roles,
+        subject="token-operator",
+    )
+    response.headers["set-cookie"] = cookie
+    log_runtime_event(
+        "info",
+        "operator-session-created",
+        request_id=getattr(request.state, "request_id", None),
+        roles=session["roles"],
+        subject=session["subject"],
+    )
+    return {
+        "ok": True,
+        "active": True,
+        "cookie_name": operator_session_cookie_name(),
+        "session": session,
+    }
+
+
+@app.delete("/api/auth/session")
+async def clear_auth_session(request: Request, response: Response):
+    response.headers["set-cookie"] = clear_operator_session_cookie()
+    log_runtime_event(
+        "info",
+        "operator-session-cleared",
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return {
+        "ok": True,
+        "active": False,
+        "cookie_name": operator_session_cookie_name(),
+    }
 
 
 @app.get("/api/review-pack")
