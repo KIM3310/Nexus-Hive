@@ -26,7 +26,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "seed_db"]
+py-modules = ["main", "seed_db", "security"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
