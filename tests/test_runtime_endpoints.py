@@ -37,6 +37,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
     query_audit_schema = client.get("/api/schema/query-audit")
+    query_audit_summary = client.get("/api/query-audit/summary")
     lineage_schema = client.get("/api/schema/lineage")
     gold_eval = client.get("/api/evals/nl2sql-gold")
     gold_eval_run = client.get("/api/evals/nl2sql-gold/run")
@@ -52,6 +53,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
     assert health_payload["links"]["query_audit_schema"] == "/api/schema/query-audit"
+    assert health_payload["links"]["query_audit_summary"] == "/api/query-audit/summary"
     assert health_payload["links"]["query_audit_recent"] == "/api/query-audit/recent"
     assert health_payload["diagnostics"]["db_ready"] is True
     assert health_payload["ops_contract"]["schema"] == "ops-envelope-v1"
@@ -69,6 +71,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
     assert meta_payload["policy_contract"] == "nexus-hive-policy-v1"
     assert meta_payload["query_audit_contract"] == "nexus-hive-query-audit-v1"
+    assert meta_payload["query_audit_summary_contract"] == "nexus-hive-query-audit-summary-v1"
     assert meta_payload["gold_eval_contract"] == "nexus-hive-gold-eval-v1"
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
@@ -78,6 +81,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/schema/lineage" in meta_payload["routes"]
     assert "/api/schema/policy" in meta_payload["routes"]
     assert "/api/schema/query-audit" in meta_payload["routes"]
+    assert "/api/query-audit/summary" in meta_payload["routes"]
     assert "/api/evals/nl2sql-gold" in meta_payload["routes"]
     assert "/api/query-audit/recent" in meta_payload["routes"]
 
@@ -91,6 +95,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["lineage_schema"] == "nexus-hive-lineage-v1"
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
+    assert brief_payload["warehouse_contract"]["query_audit_summary_schema"] == "nexus-hive-query-audit-summary-v1"
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
 
     assert warehouse_brief.status_code == 200
@@ -101,6 +106,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert warehouse_payload["quality_gate"]["schema"] == "nexus-hive-quality-gate-v1"
     assert warehouse_payload["lineage"]["schema"] == "nexus-hive-lineage-v1"
     assert warehouse_payload["policy"]["schema"] == "nexus-hive-policy-v1"
+    assert warehouse_payload["audit_summary"]["schema"] == "nexus-hive-query-audit-summary-v1"
     assert warehouse_payload["gold_eval"]["schema"] == "nexus-hive-gold-eval-v1"
     assert isinstance(warehouse_payload["table_profiles"], list)
 
@@ -111,6 +117,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
+    assert "/api/query-audit/summary" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
     assert len(pack_payload["two_minute_review"]) == 4
     assert pack_payload["proof_assets"][0]["href"] == "/health"
@@ -124,6 +131,12 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     query_audit_schema_payload = query_audit_schema.json()
     assert query_audit_schema_payload["schema"] == "nexus-hive-query-audit-v1"
     assert "request_id" in query_audit_schema_payload["required_fields"]
+
+    assert query_audit_summary.status_code == 200
+    query_audit_summary_payload = query_audit_summary.json()
+    assert query_audit_summary_payload["schema"] == "nexus-hive-query-audit-summary-v1"
+    assert "total_requests" in query_audit_summary_payload["summary"]
+    assert isinstance(query_audit_summary_payload["top_questions"], list)
 
     assert policy_schema.status_code == 200
     policy_schema_payload = policy_schema.json()
@@ -148,6 +161,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert recent_query_audit.status_code == 200
     recent_query_audit_payload = recent_query_audit.json()
     assert recent_query_audit_payload["schema"] == "nexus-hive-query-audit-v1"
+    assert recent_query_audit_payload["filters"]["limit"] == 5
     assert recent_query_audit_payload["items"] == []
 
 
@@ -166,6 +180,7 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["links"]["warehouse_brief"].endswith("/api/runtime/warehouse-brief")
     assert payload["links"]["answer_schema"].endswith("/api/schema/answer")
     assert payload["links"]["gold_eval"].endswith("/api/evals/nl2sql-gold")
+    assert payload["links"]["query_audit_summary"].endswith("/api/query-audit/summary")
     assert payload["links"]["query_audit_recent"].endswith("/api/query-audit/recent")
     assert payload["links"]["query_audit_detail"].endswith(f"/api/query-audit/{payload['request_id']}")
 
@@ -265,3 +280,69 @@ def test_policy_and_fallback_path(monkeypatch) -> None:
     assert "sensitive_columns_require_privileged_role" in sensitive_policy["deny_reasons"]
     assert review_policy["decision"] == "review"
     assert "non_aggregated_queries_without_limit_require_operator_review" in review_policy["review_reasons"]
+
+
+def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) -> None:
+    audit_path = tmp_path / "query_audit.jsonl"
+    monkeypatch.setattr(APP_MODULE, "AUDIT_LOG_PATH", audit_path)
+
+    APP_MODULE.write_query_audit_snapshot(
+        request_id="req-allow-1",
+        question="Show total revenue by region",
+        status="completed",
+        stage="completed",
+        sql_query="SELECT region_name, SUM(net_revenue) FROM sales GROUP BY region_name LIMIT 10",
+        policy_decision="allow",
+        fallback_sql_used=False,
+        fallback_chart_used=False,
+    )
+    APP_MODULE.write_query_audit_snapshot(
+        request_id="req-review-1",
+        question="Show total revenue by region",
+        status="completed",
+        stage="completed",
+        sql_query="SELECT transaction_id FROM sales",
+        policy_decision="review",
+        policy_reasons=["non_aggregated_queries_without_limit_require_operator_review"],
+        fallback_sql_used=True,
+        fallback_chart_used=False,
+    )
+    APP_MODULE.write_query_audit_snapshot(
+        request_id="req-deny-1",
+        question="Show margin by manager",
+        status="failed",
+        stage="failed",
+        sql_query="SELECT * FROM sales",
+        policy_decision="deny",
+        policy_reasons=["wildcard_projection_denied"],
+        fallback_sql_used=False,
+        fallback_chart_used=True,
+        error="Policy denied query",
+    )
+
+    client = TestClient(APP_MODULE.app)
+
+    summary = client.get("/api/query-audit/summary?limit=2")
+    assert summary.status_code == 200
+    summary_payload = summary.json()
+    assert summary_payload["schema"] == "nexus-hive-query-audit-summary-v1"
+    assert summary_payload["summary"]["total_requests"] == 3
+    assert summary_payload["summary"]["policy_decision_counts"]["allow"] == 1
+    assert summary_payload["summary"]["policy_decision_counts"]["review"] == 1
+    assert summary_payload["summary"]["policy_decision_counts"]["deny"] == 1
+    assert summary_payload["summary"]["fallback_sql_count"] == 1
+    assert summary_payload["summary"]["fallback_chart_count"] == 1
+    assert summary_payload["top_questions"][0]["normalized_question"] == "show total revenue by region"
+    assert summary_payload["top_questions"][0]["count"] == 2
+    assert len(summary_payload["recent_items"]) == 2
+
+    filtered_recent = client.get("/api/query-audit/recent?status=completed&policy_decision=review&limit=5")
+    assert filtered_recent.status_code == 200
+    filtered_recent_payload = filtered_recent.json()
+    assert filtered_recent_payload["filters"]["status"] == "completed"
+    assert filtered_recent_payload["filters"]["policy_decision"] == "review"
+    assert len(filtered_recent_payload["items"]) == 1
+    assert filtered_recent_payload["items"][0]["request_id"] == "req-review-1"
+
+    invalid_filter = client.get("/api/query-audit/summary?status=unknown")
+    assert invalid_filter.status_code == 400
