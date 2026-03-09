@@ -33,6 +33,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     warehouse_brief = client.get("/api/runtime/warehouse-brief")
+    governance_scorecard = client.get("/api/runtime/governance-scorecard?focus=quality")
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
@@ -49,6 +50,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["meta"] == "/api/meta"
     assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health_payload["links"]["warehouse_brief"] == "/api/runtime/warehouse-brief"
+    assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
@@ -66,6 +68,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert meta_payload["warehouse_brief_contract"] == "nexus-hive-warehouse-brief-v1"
+    assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
@@ -76,6 +79,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
+    assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
     assert "/api/schema/lineage" in meta_payload["routes"]
@@ -96,6 +100,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
     assert brief_payload["warehouse_contract"]["query_audit_summary_schema"] == "nexus-hive-query-audit-summary-v1"
+    assert brief_payload["warehouse_contract"]["governance_scorecard_schema"] == "nexus-hive-governance-scorecard-v1"
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
 
     assert warehouse_brief.status_code == 200
@@ -110,17 +115,27 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert warehouse_payload["gold_eval"]["schema"] == "nexus-hive-gold-eval-v1"
     assert isinstance(warehouse_payload["table_profiles"], list)
 
+    assert governance_scorecard.status_code == 200
+    governance_payload = governance_scorecard.json()
+    assert governance_payload["schema"] == "nexus-hive-governance-scorecard-v1"
+    assert governance_payload["focus"] == "quality"
+    assert governance_payload["summary"]["warehouse_mode"] == "sqlite-demo"
+    assert governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    assert isinstance(governance_payload["score_bands"], list)
+
     assert review_pack.status_code == 200
     pack_payload = review_pack.json()
     assert pack_payload["readiness_contract"] == "nexus-hive-review-pack-v1"
     assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
+    assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-audit/summary" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
     assert len(pack_payload["two_minute_review"]) == 4
     assert pack_payload["proof_assets"][0]["href"] == "/health"
+    assert any(asset["href"] == "/api/runtime/governance-scorecard" for asset in pack_payload["proof_assets"])
 
     assert answer_schema.status_code == 200
     schema_payload = answer_schema.json()
