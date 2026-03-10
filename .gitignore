@@ -18,6 +18,8 @@ env/
 # Local artifacts
 media/
 *.log
+*.db-shm
+*.db-wal
 nohup.out
 .runtime/
 .codex_runs/

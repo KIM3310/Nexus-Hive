@@ -2,6 +2,8 @@
 
 **Nexus-Hive** is a governed BI copilot that turns a business question into a query, executes it against a warehouse, and returns a chart plus an audit trail that a reviewer can inspect.
 
+This repository is a personal demonstration project focused on **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and an executive-facing BI review flow.
+
 The repo is framed like an internal analytics product rather than a one-shot prompt demo: translation, query safety, execution, visualization, and review surfaces are split so the reasoning path stays legible.
 
 ---
@@ -54,6 +56,12 @@ uvicorn main:app --port 8000
 1. Navigate to **http://localhost:8000** in your browser.
 2. Ask a natural language SQL query such as *"Show me total net revenue by region grouped as a bar chart"*
 3. Watch the left **Thought Process Sidebar** as the AI Agents construct the SQL, test it against the Database, and dynamically render the chart for you.
+
+## Canonical runtime + artifact map
+- Canonical runtime: `uvicorn main:app` serves both the governed analytics API and the lightweight local frontend in `frontend/`.
+- `nexus_enterprise.db` is the seeded local demo warehouse checked in for reproducible review; `seed_db.py` regenerates it when needed.
+- `.runtime/` stores local query-audit and event artifacts for the review surfaces and should be treated as ephemeral runtime state.
+- `docs/` is explanatory context; the review APIs and local frontend are the canonical proof surfaces.
 
 ## Service-Grade Surfaces
 
