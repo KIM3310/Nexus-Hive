@@ -10,6 +10,12 @@ The repo is framed like an internal analytics product rather than a one-shot pro
 - Treat this repo as a governed BI copilot demo with synthetic/demo-safe warehouse posture.
 - Query audit, gold eval, and the review pack are the evidence layer for claims about reliability and governance.
 
+
+## Role signals
+- **AI engineer:** text-to-SQL, audit, policy checks, and eval surfaces show more than a prompt-to-chart demo.
+- **Solution architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
+- **Field / sales engineer:** the repo is set up for a fast executive question -> governed answer -> review-pack walkthrough.
+
 ## 🏗️ Architecture: The AI Federation
 
 Nexus-Hive replaces single-prompt LLMs with a **Stateful Multi-Agent Graph Architecture**.
