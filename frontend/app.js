@@ -53,10 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const copyGovernedClaimBtn = document.getElementById('copy-governed-claim-btn');
+    const copyReviewBundleBtn = document.getElementById('copy-review-bundle-btn');
     const copyLatestAuditBtn = document.getElementById('copy-latest-audit-btn');
     const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
     const copyGoldEvalBtn = document.getElementById('copy-gold-eval-btn');
+    const governanceHotkeys = document.getElementById('governanceHotkeys');
     const policyVerdict = document.getElementById('policy-verdict');
     const runGoldEvalBtn = document.getElementById('run-gold-eval-btn');
     const goldEvalSummary = document.getElementById('gold-eval-summary');
@@ -586,6 +588,22 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(ok ? 'Copied latest audit snapshot.' : 'Failed to copy latest audit snapshot.', ok ? 'success' : 'error');
     }
 
+    async function copyReviewBundle() {
+        const bundle = [
+            'Nexus-Hive review bundle',
+            `Headline: ${reviewPackHeadline.innerText || '-'}`,
+            `Routes: ${reviewPackRoutes.innerText || '-'}`,
+            `Schema: ${reviewPackSchema.innerText || '-'}`,
+            `Gold eval: ${goldEvalSummary.innerText || '-'}`,
+            '',
+            'Fast routes',
+            ...((latestReviewRoutes.length > 0 ? latestReviewRoutes : ['/api/review-pack', '/api/query-audit/recent', '/api/evals/nl2sql-gold/run'])
+                .map((route) => `- ${route}`)),
+        ];
+        const ok = await copyTextToClipboard(bundle.join('\n'));
+        addLog(ok ? 'Copied review bundle.' : 'Failed to copy review bundle.', ok ? 'success' : 'error');
+    }
+
     function renderChart(configData, dbData) {
         if (!dbData || dbData.length === 0) {
             addLog("No records returned to visualize.", "error");
@@ -760,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyGovernedClaimBtn.addEventListener('click', copyGovernedClaim);
+    copyReviewBundleBtn.addEventListener('click', copyReviewBundle);
     copyLatestAuditBtn.addEventListener('click', copyLatestAuditSnapshot);
     focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
     seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
@@ -773,6 +792,39 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDetailCard(goldEvalSummary, ['Run the deterministic NL2SQL suite to inspect governed baseline quality.']);
     renderDetailCard(auditDetail, ['Select a recent audit request or run a governed query to inspect SQL, fallback usage, and retries.']);
     renderDetailCard(sessionBoardSummary, ['Saved sessions let you reopen completed or blocked analyst requests.']);
+    document.addEventListener('keydown', (event) => {
+        const tag = String(event.target?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || event.metaKey || event.ctrlKey || event.altKey) {
+            return;
+        }
+        const key = event.key.toLowerCase();
+        if (key === '?') {
+            if (governanceHotkeys) {
+                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · B review bundle · A latest audit.';
+            }
+            return;
+        }
+        if (key === 'e') {
+            event.preventDefault();
+            askBtn.click();
+        }
+        if (key === 'p') {
+            event.preventDefault();
+            policyCheckBtn.click();
+        }
+        if (key === 'g') {
+            event.preventDefault();
+            copyGovernedClaimBtn.click();
+        }
+        if (key === 'b') {
+            event.preventDefault();
+            copyReviewBundleBtn.click();
+        }
+        if (key === 'a') {
+            event.preventDefault();
+            copyLatestAuditBtn.click();
+        }
+    });
     loadRuntimeBrief();
     loadReviewPack();
     loadWarehouseBrief();
