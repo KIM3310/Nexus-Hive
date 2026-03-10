@@ -1,10 +1,14 @@
 # ⬡ Nexus-Hive: Multi-Agent Federated BI Copilot
 
-**Nexus-Hive** is an autonomous Business Intelligence (BI) copilot designed to empower C-Level executives by instantly translating natural language business questions into complex SQL queries, securely executing them, and returning production-ready interactive charts (Chart.js) on a premium glassmorphic dashboard.
+**Nexus-Hive** is a governed BI copilot that turns a business question into a query, executes it against a warehouse, and returns a chart plus an audit trail that a reviewer can inspect.
 
-Architected by **Doeon Kim (AI Solutions Architect)**, this project demonstrates extreme proficiency in **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and **Enterprise Web UI/UX**.
+The repo is framed like an internal analytics product rather than a one-shot prompt demo: translation, query safety, execution, visualization, and review surfaces are split so the reasoning path stays legible.
 
 ---
+
+## Portfolio posture
+- Treat this repo as a governed BI copilot demo with synthetic/demo-safe warehouse posture.
+- Query audit, gold eval, and the review pack are the evidence layer for claims about reliability and governance.
 
 ## 🏗️ Architecture: The AI Federation
 
