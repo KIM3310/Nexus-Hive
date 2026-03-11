@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const useLatestSqlBtn = document.getElementById('use-latest-sql-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const copyGovernedClaimBtn = document.getElementById('copy-governed-claim-btn');
+    const copyQueryDecisionBtn = document.getElementById('copy-query-decision-btn');
     const copyReviewBundleBtn = document.getElementById('copy-review-bundle-btn');
     const copyLatestAuditBtn = document.getElementById('copy-latest-audit-btn');
     const focusLatestAuditBtn = document.getElementById('focus-latest-audit-btn');
@@ -529,6 +530,36 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(ok ? 'Copied governed claim snapshot.' : 'Failed to copy governed claim snapshot.', ok ? 'success' : 'error');
     }
 
+    async function copyQueryDecisionBrief() {
+        const latestSummary = latestAuditDetailPayload?.latest || {};
+        const history = latestAuditDetailPayload?.history || [];
+        const nextAction = latestSummary.next_action
+            || (latestSummary.policy_decision === 'deny'
+                ? 'Remove blocked SQL patterns and rerun after policy preview.'
+                : latestSummary.policy_decision === 'review'
+                    ? 'Inspect audit detail, lineage, and policy reasons before sharing output.'
+                    : 'Share the governed answer with audit detail attached.');
+        const lines = [
+            'Nexus-Hive query decision brief',
+            `Headline: ${reviewPackHeadline.innerText || '-'}`,
+            `Request ID: ${latestSummary.request_id || latestAuditRequestId || '-'}`,
+            `Policy decision: ${String(latestSummary.policy_decision || 'review-pending').toUpperCase()}`,
+            `Stage: ${String(latestSummary.stage || 'unknown').toUpperCase()}`,
+            `Rows: ${latestSummary.row_count || 0}`,
+            `Chart: ${latestSummary.chart_type || 'n/a'}`,
+            `Fallback: ${latestSummary.fallback_sql_used || latestSummary.fallback_chart_used ? 'yes' : 'no'}`,
+            `History entries: ${history.length}`,
+            `Next action: ${nextAction}`,
+            '',
+            'Fast routes',
+            ...((latestReviewRoutes.length > 0 ? latestReviewRoutes : ['/api/query-review-board', '/api/query-audit/recent', '/api/query-audit/{request_id}'])
+                .slice(0, 4)
+                .map((item) => `- ${item}`)),
+        ];
+        const ok = await copyTextToClipboard(lines.join('\n'));
+        addLog(ok ? 'Copied query decision brief.' : 'Failed to copy query decision brief.', ok ? 'success' : 'error');
+    }
+
     function focusLatestAudit() {
         if (!latestAuditRequestId) {
             renderDetailCard(auditDetail, ['Run a governed query or select a request from the audit feed first.']);
@@ -782,6 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyGovernedClaimBtn.addEventListener('click', copyGovernedClaim);
+    copyQueryDecisionBtn.addEventListener('click', copyQueryDecisionBrief);
     copyReviewBundleBtn.addEventListener('click', copyReviewBundle);
     copyLatestAuditBtn.addEventListener('click', copyLatestAuditSnapshot);
     focusLatestAuditBtn.addEventListener('click', focusLatestAudit);
@@ -804,7 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = event.key.toLowerCase();
         if (key === '?') {
             if (governanceHotkeys) {
-                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · B review bundle · A latest audit.';
+                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · D decision brief · B review bundle · A latest audit.';
             }
             return;
         }
@@ -819,6 +851,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (key === 'g') {
             event.preventDefault();
             copyGovernedClaimBtn.click();
+        }
+        if (key === 'd') {
+            event.preventDefault();
+            copyQueryDecisionBtn.click();
         }
         if (key === 'b') {
             event.preventDefault();
