@@ -180,7 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const evidenceCounts = payload.evidence_counts || {};
 
             briefHeadline.innerText = payload.headline || 'Runtime brief available.';
-            briefBadge.innerText = (payload.status || 'unknown').toUpperCase();
+            briefBadge.innerText = String(payload.status || 'review-pending')
+                .replace(/-/g, ' ')
+                .toUpperCase();
             briefSchema.innerText = reportContract.schema || 'Unavailable';
             briefModel.innerText = payload.model || 'Unavailable';
             briefDbReady.innerText = diagnostics.db_ready ? 'Ready' : 'Degraded';
@@ -223,7 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
             latestReviewRoutes = proofBundle.review_routes || [];
 
             reviewPackHeadline.innerText = payload.headline || 'Review pack available.';
-            reviewPackBadge.innerText = (payload.status || 'unknown').toUpperCase();
+            reviewPackBadge.innerText = String(payload.status || 'review-pending')
+                .replace(/-/g, ' ')
+                .toUpperCase();
             reviewPackReady.innerText = proofBundle.warehouse_ready ? 'Auditable' : 'Degraded';
             reviewPackRoutes.innerText = `${(proofBundle.review_routes || []).length} routes`;
             reviewPackSchema.innerText = answerContract.schema || 'Unavailable';
@@ -395,8 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderDetailCard(auditDetail, [
                 `Request ID: ${payload.request_id}`,
-                `Decision: ${policyDecision.toUpperCase()}`,
-                `Stage: ${(latest.stage || 'unknown').toUpperCase()}`,
+                `Decision: ${String(policyDecision || 'review-pending').replace(/-/g, ' ').toUpperCase()}`,
+                `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
                 `Rows: ${latest.row_count || 0}`,
                 `Retries: ${latest.retry_count || 0}`,
                 `Chart: ${latest.chart_type || 'n/a'}`,
@@ -513,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Audit requests: ${warehouseAuditCount.innerText || '-'}`,
             `Gold eval: ${evalSummary.pass_count ?? 0}/${evalSummary.case_count ?? 0}`,
             `Latest audit: ${latestSummary.request_id || latestAuditRequestId || '-'}`,
-            `Policy decision: ${latestSummary.policy_decision || 'unknown'}`,
+            `Policy decision: ${latestSummary.policy_decision || 'review-pending'}`,
             `Fallback SQL: ${latestSummary.fallback_sql_used ? 'yes' : 'no'}`,
             '',
             'Fast routes',

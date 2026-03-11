@@ -1,10 +1,10 @@
 # ⬡ Nexus-Hive: Multi-Agent Federated BI Copilot
 
-**Nexus-Hive** is a governed BI copilot that turns a business question into a query, executes it against a warehouse, and returns a chart plus an audit trail that a reviewer can inspect.
+**Nexus-Hive** is a governed BI copilot that turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail that a reviewer can inspect.
 
 This repository is a personal demonstration project focused on **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and an executive-facing BI review flow.
 
-The repo is framed like an internal analytics product rather than a one-shot prompt demo: translation, query safety, execution, visualization, and review surfaces are split so the reasoning path stays legible.
+The strongest proof path is straightforward: question -> governed SQL -> query audit -> visualization -> review pack. The repo is structured so that translation, policy checks, execution, and visual output stay inspectable instead of collapsing into one prompt-shaped black box.
 
 ---
 
