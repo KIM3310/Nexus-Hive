@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Governed analytics copilot with audited NL2SQL, policy previews, and runtime review surfaces."
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Kim", email = "kim@example.com" }]
+authors = [{ name = "Kim" }]
 license = { text = "MIT" }
 dependencies = [
   "fastapi>=0.115.0,<1.0.0",
