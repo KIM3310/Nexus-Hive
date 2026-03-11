@@ -2,7 +2,7 @@
 
 **Nexus-Hive** is a governed BI copilot that turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail that a reviewer can inspect.
 
-This repository is a personal demonstration project focused on **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and an executive-facing BI review flow.
+This portfolio project focuses on **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and an executive-facing BI review flow.
 
 The strongest proof path is straightforward: question -> governed SQL -> query audit -> visualization -> review pack. The repo is structured so that translation, policy checks, execution, and visual output stay inspectable instead of collapsing into one prompt-shaped black box.
 
@@ -15,7 +15,7 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 
 ## Role signals
 - **AI engineer:** text-to-SQL, audit, policy checks, and eval surfaces show more than a prompt-to-chart demo.
-- **Solution architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
+- **Solution / cloud architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
 - **Field / solutions engineer:** the repo is set up for a fast executive question -> governed answer -> review-pack walkthrough.
 
 ## 🏗️ Architecture: The AI Federation
