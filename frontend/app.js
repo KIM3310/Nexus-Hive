@@ -258,6 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const warehouseQualityChecks = document.getElementById('warehouse-quality-checks');
     const warehousePolicies = document.getElementById('warehouse-policies');
     const warehouseAuditFeed = document.getElementById('warehouse-audit-feed');
+    const storyboardHeadline = document.getElementById('storyboard-headline');
+    const storyboardBadge = document.getElementById('storyboard-badge');
+    const storyboardApproval = document.getElementById('storyboard-approval');
+    const storyboardChart = document.getElementById('storyboard-chart');
+    const storyboardSessions = document.getElementById('storyboard-sessions');
+    const storyboardRoutes = document.getElementById('storyboard-routes');
+    const storyboardClaim = document.getElementById('storyboard-claim');
+    const storyboardAudit = document.getElementById('storyboard-audit');
+    const storyboardNext = document.getElementById('storyboard-next');
     const policyRoleSelect = document.getElementById('policy-role-select');
     const policySqlInput = document.getElementById('policy-sql-input');
     const policyCheckBtn = document.getElementById('policy-check-btn');
@@ -373,6 +382,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderStoryboard() {
+        const reviewPack = RECORDED_REVIEW.reviewPack;
+        const latest = latestAuditDetailPayload?.latest || {};
+        const sessionSummary = latestSessionBoardPayload?.summary || {};
+        const evalSummary = latestGoldEvalPayload?.summary || {};
+        const reviewRoutes = latestReviewRoutes.length > 0
+            ? latestReviewRoutes
+            : (reviewPack.proof_bundle?.review_routes || []);
+        const effectiveRequestId = latest.request_id || latestAuditRequestId || 'review-pending';
+        const approvalDecision = String(latest.policy_decision || 'review').replace(/-/g, ' ').toUpperCase();
+        const chartState = latest.chart_type
+            ? `${latest.chart_type} · ${latest.row_count || 0} rows`
+            : 'Awaiting focused request';
+        const compareCount = sessionSummary.compare_count || 0;
+        const reviewCount = sessionSummary.review_count || 0;
+        const nextAction = latest.next_action
+            || (approvalDecision === 'DENY'
+                ? 'Keep the request on the approval board until the blocked SQL is rewritten.'
+                : 'Open the audit detail and query review board before sharing the chart claim.');
+        const fallbackLabel = latest.fallback_sql_used || latest.fallback_chart_used ? 'Fallback path used' : 'Fallback not used';
+
+        storyboardHeadline.innerText = recordedReviewActive
+            ? 'Follow one governed chart story from approval gate to audit trace before you present the answer.'
+            : 'Follow the current chart story from approval gate to audit trace before you present the answer.';
+        storyboardBadge.innerText = recordedReviewActive ? 'RECORDED STORY' : 'LIVE STORY';
+        storyboardApproval.innerText = approvalDecision;
+        storyboardChart.innerText = chartState;
+        storyboardSessions.innerText = `${reviewCount} review · ${compareCount} compare`;
+        storyboardRoutes.innerText = `${reviewRoutes.length} routes`;
+
+        renderDetailCard(storyboardClaim, [
+            `Request ID: ${effectiveRequestId}`,
+            `Question lane: ${latest.question || 'Use the latest audit or gold eval example.'}`,
+            `Claim posture: ${approvalDecision === 'DENY' ? 'blocked before chart sharing' : 'approval trace stays attached to the chart claim'}`,
+        ]);
+        renderDetailCard(storyboardAudit, [
+            `Audit proof: ${fallbackLabel}`,
+            `Gold eval: ${evalSummary.pass_count ?? 0}/${evalSummary.case_count ?? 0} cases`,
+            `Session posture: ${compareCount > 0 ? 'compare lane available for reviewer replay' : 'single governed path focused'}`,
+        ]);
+        renderDetailCard(storyboardNext, [
+            `Next reviewer move: ${nextAction}`,
+            `Fast path: ${(reviewRoutes[0] || '/api/query-approval-board')} → ${(reviewRoutes[1] || '/api/query-review-board')} → ${(reviewRoutes[2] || '/api/evals/nl2sql-gold/run')}`,
+            recordedReviewActive
+                ? 'Recorded mode proves approval, audit, and chart storytelling without claiming live warehouse latency.'
+                : 'Live mode should still keep the approval board and audit trace visible before external sharing.',
+        ]);
+    }
+
     async function copyTextToClipboard(text) {
         if (!text) return false;
         try {
@@ -474,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
             renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
             renderReviewList(reviewPackWatchouts, payload.watchouts || []);
+            renderStoryboard();
         } catch (error) {
             console.error(error);
             const payload = RECORDED_REVIEW.reviewPack;
@@ -495,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
             renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
             renderReviewList(reviewPackWatchouts, payload.watchouts || []);
+            renderStoryboard();
         }
     }
 
@@ -643,6 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 sessionBoardList.appendChild(listItem);
             });
+            renderStoryboard();
         } catch (error) {
             console.error(error);
             const payload = RECORDED_REVIEW.querySessionBoard;
@@ -669,6 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 sessionBoardList.appendChild(listItem);
             });
+            renderStoryboard();
         }
     }
 
@@ -703,6 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Audit detail ${payload.request_id}: ${policyDecision.toUpperCase()} | ${latest.row_count || 0} rows | ${fallback}`,
                 policyDecision === 'deny' ? 'error' : 'system'
             );
+            renderStoryboard();
         } catch (error) {
             console.error(error);
             const payload = RECORDED_REVIEW.auditDetails[requestId];
@@ -710,6 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 latestAuditDetailPayload = null;
                 addLog('Failed to load query audit detail.', 'error');
                 renderDetailCard(auditDetail, ['Audit detail unavailable.']);
+                renderStoryboard();
                 return;
             }
             activateRecordedReview('audit detail');
@@ -730,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Fallback: ${latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no'}`,
                 `SQL: ${latest.sql_query || 'not captured yet'}`,
             ]);
+            renderStoryboard();
         }
     }
 
@@ -800,6 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderReviewList(goldEvalFailures, ['All governed eval cases passed in the current local review run.']);
             }
             addLog(`Gold eval run completed: ${(summary.pass_count || 0)}/${summary.case_count || items.length} cases passed.`, 'success');
+            renderStoryboard();
         } catch (error) {
             console.error(error);
             const payload = RECORDED_REVIEW.goldEval;
@@ -818,6 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local recruiter review run.']);
             }
+            renderStoryboard();
         } finally {
             runGoldEvalBtn.disabled = false;
             runGoldEvalBtn.innerText = 'Run Gold Eval';
@@ -1189,6 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDetailCard(goldEvalSummary, ['Run the deterministic NL2SQL suite to inspect governed baseline quality.']);
     renderDetailCard(auditDetail, ['Select a recent audit request or run a governed query to inspect SQL, fallback usage, and retries.']);
     renderDetailCard(sessionBoardSummary, ['Saved sessions let you reopen completed or blocked analyst requests.']);
+    renderStoryboard();
     document.addEventListener('keydown', (event) => {
         const tag = String(event.target?.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || event.metaKey || event.ctrlKey || event.altKey) {
