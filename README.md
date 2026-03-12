@@ -9,7 +9,7 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 ---
 
 ## Portfolio posture
-- Treat this repo as a governed analytics desk for executive questions, not as a free-form text-to-chart demo.
+- Read this repo like a governed analytics desk for executive questions, not like a free-form text-to-chart demo.
 - Query audit, gold eval, approval board, and review pack are the evidence chain behind any claim of trustworthy BI automation.
 
 
