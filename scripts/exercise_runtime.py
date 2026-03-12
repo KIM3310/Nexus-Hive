@@ -48,6 +48,7 @@ def request_json(path: str, method: str = "GET", payload: dict | None = None) ->
 def main() -> None:
     accepted = request_json("/api/ask", "POST", {"question": "Show total revenue by region"})
     scorecard = request_json("/api/runtime/governance-scorecard?focus=quality")
+    approval_board = request_json("/api/query-approval-board?limit=3")
     review_board = request_json("/api/query-review-board?limit=3")
     audit = request_json("/api/query-audit/recent?limit=1")
     print(
@@ -58,6 +59,7 @@ def main() -> None:
                     "stream_url": accepted["stream_url"],
                 },
                 "scorecard": scorecard["summary"],
+                "approval_board": approval_board["summary"],
                 "review_board": review_board["summary"],
                 "recent_audit": audit["items"],
             },

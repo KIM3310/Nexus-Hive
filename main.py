@@ -119,6 +119,7 @@ AUDIT_POLICY_DECISION_VALUES = {"pending", "allow", "review", "deny"}
 GOVERNANCE_SCORECARD_FOCUS_VALUES = {"throughput", "policy", "quality", "resilience"}
 GOVERNANCE_SCORECARD_SCHEMA = "nexus-hive-governance-scorecard-v1"
 QUERY_SESSION_BOARD_SCHEMA = "nexus-hive-query-session-board-v1"
+QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
 
 import operator
 
@@ -485,6 +486,22 @@ def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
         "decision": decision,
         "deny_reasons": deny_reasons,
         "review_reasons": review_reasons,
+    }
+
+
+def build_policy_approval_bundle(verdict: Dict[str, Any]) -> Dict[str, Any]:
+    review_reasons = list(verdict.get("review_reasons") or [])
+    approval_required = str(verdict.get("decision") or "").strip().lower() == "review"
+    return {
+        "approval_required": approval_required,
+        "approval_actions": [
+            "Confirm the SQL scope is intentional before executing a reviewer-sensitive query.",
+            "Use /api/query-approval-board to see whether similar review-required queries are already waiting.",
+            "Run /api/evals/nl2sql-gold/run if fallback or broad row access makes the request harder to trust.",
+        ]
+        if approval_required
+        else [],
+        "review_rationale": review_reasons,
     }
 
 
@@ -960,6 +977,7 @@ def build_query_review_board(
             "Run /api/evals/nl2sql-gold/run when fallback or review-required items appear.",
         ],
         "links": {
+            "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
             "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
@@ -1052,6 +1070,58 @@ def build_query_session_board(
             "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
             "query_audit_detail": "/api/query-audit/{request_id}",
+        },
+    }
+
+
+def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
+    board_limit = clamp_audit_limit(limit)
+    pending_items = list_recent_query_audits(limit=board_limit, policy_decision="review")
+
+    def to_approval_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        request_id = str(item.get("request_id") or "").strip()
+        return {
+            "request_id": request_id,
+            "question": str(item.get("question") or ""),
+            "sql_query": str(item.get("sql_query") or ""),
+            "status": str(item.get("status") or "").strip().lower() or "unknown",
+            "stage": str(item.get("stage") or ""),
+            "updated_at": item.get("updated_at"),
+            "policy_reasons": item.get("policy_reasons") or [],
+            "fallback_mode": {
+                "sql": bool(item.get("fallback_sql_used")),
+                "chart": bool(item.get("fallback_chart_used")),
+            },
+            "next_action": "Review the SQL scope, rerun /api/policy/check if needed, then inspect /api/query-audit/{request_id} before trusting the answer.",
+            "review_url": f"/api/query-audit/{request_id}",
+        }
+
+    items = [to_approval_item(item) for item in pending_items]
+    return {
+        "schema": QUERY_APPROVAL_BOARD_SCHEMA,
+        "filters": {
+            "limit": board_limit,
+            "policy_decision": "review",
+        },
+        "summary": {
+            "pending_count": len(items),
+            "fallback_count": sum(
+                1 for item in items if item["fallback_mode"]["sql"] or item["fallback_mode"]["chart"]
+            ),
+            "latest_updated_at": items[0]["updated_at"] if items else None,
+        },
+        "items": items,
+        "review_actions": [
+            "Keep review-required queries separate from healthy completed traffic.",
+            "Use /api/policy/check to restate why the SQL needs a human look.",
+            "Open /api/query-audit/{request_id} before approving the chart or answer.",
+        ],
+        "links": {
+            "query_approval_board": "/api/query-approval-board",
+            "query_review_board": "/api/query-review-board",
+            "query_audit_detail": "/api/query-audit/{request_id}",
+            "policy_check": "/api/policy/check",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
         },
     }
 
@@ -1197,6 +1267,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "review_pack": "/api/review-pack",
             "policy_check": "/api/policy/check",
             "query_session_board": "/api/query-session-board",
+            "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
             "query_audit_summary": "/api/query-audit/summary",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
@@ -1254,6 +1325,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
             "/api/query-session-board",
+            "/api/query-approval-board",
             "/api/query-review-board",
             "/api/query-audit/summary",
             "/api/query-audit/recent",
@@ -1530,6 +1602,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/evals/nl2sql-gold/run",
             "/api/policy/check",
             "/api/query-session-board",
+            "/api/query-approval-board",
             "/api/query-review-board",
             "/api/query-audit/summary",
             "/api/query-audit/recent",
@@ -1611,6 +1684,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "query_session_board_schema": QUERY_SESSION_BOARD_SCHEMA,
+            "query_approval_board_schema": QUERY_APPROVAL_BOARD_SCHEMA,
             "query_review_board_schema": build_query_review_board()["schema"],
             "query_audit_summary_schema": warehouse_brief["audit_summary"]["schema"],
             "governance_scorecard_schema": GOVERNANCE_SCORECARD_SCHEMA,
@@ -1688,6 +1762,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/evals/nl2sql-gold/run",
                 "/api/policy/check",
                 "/api/query-session-board",
+                "/api/query-approval-board",
                 "/api/query-review-board",
                 "/api/query-audit/summary",
                 "/api/query-audit/recent",
@@ -1735,6 +1810,7 @@ def build_review_pack() -> Dict[str, Any]:
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
             {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
+            {"label": "Query Approval Board", "href": "/api/query-approval-board", "kind": "route"},
             {"label": "Query Review Board", "href": "/api/query-review-board", "kind": "route"},
             {"label": "Gold Eval Run", "href": "/api/evals/nl2sql-gold/run", "kind": "route"},
             {"label": "Query Audit Detail", "href": "/api/query-audit/{request_id}", "kind": "route"},
@@ -1757,6 +1833,7 @@ def build_review_pack() -> Dict[str, Any]:
             "policy_schema": "/api/schema/policy",
             "query_audit_schema": "/api/schema/query-audit",
             "query_session_board": "/api/query-session-board",
+            "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
@@ -1900,6 +1977,7 @@ async def health_endpoint():
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
             "policy_check": "/api/policy/check",
             "query_session_board": "/api/query-session-board",
+            "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
             "query_audit_summary": "/api/query-audit/summary",
             "query_audit_recent": "/api/query-audit/recent",
@@ -1926,6 +2004,7 @@ async def meta_endpoint():
         "policy_contract": build_policy_schema()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
         "query_session_board_contract": QUERY_SESSION_BOARD_SCHEMA,
+        "query_approval_board_contract": QUERY_APPROVAL_BOARD_SCHEMA,
         "query_review_board_contract": build_query_review_board()["schema"],
         "query_audit_summary_contract": build_query_audit_summary()["schema"],
         "gold_eval_contract": build_gold_eval_pack()["schema"],
@@ -2107,6 +2186,7 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
     if not sql:
         raise HTTPException(status_code=400, detail="sql is required")
     verdict = evaluate_sql_policy(sql, role=role)
+    approval_bundle = build_policy_approval_bundle(verdict)
     append_runtime_event(
         {
             "service": "nexus-hive",
@@ -2126,6 +2206,15 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
         "schema": build_policy_schema()["schema"],
         "sql": sql,
         "verdict": verdict,
+        "approval_required": approval_bundle["approval_required"],
+        "approval_actions": approval_bundle["approval_actions"],
+        "review_rationale": approval_bundle["review_rationale"],
+        "links": {
+            "query_approval_board": "/api/query-approval-board",
+            "query_review_board": "/api/query-review-board",
+            "query_audit_detail": "/api/query-audit/{request_id}",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+        },
     }
 
 
@@ -2186,6 +2275,16 @@ async def query_session_board_endpoint(
             status=status,
             policy_decision=policy_decision,
         ),
+    }
+
+
+@app.get("/api/query-approval-board")
+async def query_approval_board_endpoint(limit: int = 5):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_approval_board(limit=limit),
     }
 
 
@@ -2283,6 +2382,7 @@ async def ask_endpoint(req: AskRequest, request: Request):
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
             "gold_eval": str(request.url_for("gold_eval_endpoint")),
             "query_session_board": str(request.url_for("query_session_board_endpoint")),
+            "query_approval_board": str(request.url_for("query_approval_board_endpoint")),
             "query_audit_summary": str(request.url_for("query_audit_summary_endpoint")),
             "query_audit_recent": str(request.url_for("query_audit_recent_endpoint")),
             "query_audit_detail": str(request.url_for("query_audit_detail_endpoint", request_id=request_id)),

@@ -43,6 +43,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     policy_schema = client.get("/api/schema/policy")
     query_audit_schema = client.get("/api/schema/query-audit")
     query_session_board = client.get("/api/query-session-board")
+    query_approval_board = client.get("/api/query-approval-board")
     query_review_board = client.get("/api/query-review-board")
     query_audit_summary = client.get("/api/query-audit/summary")
     lineage_schema = client.get("/api/schema/lineage")
@@ -63,6 +64,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
     assert health_payload["links"]["query_audit_schema"] == "/api/schema/query-audit"
     assert health_payload["links"]["query_session_board"] == "/api/query-session-board"
+    assert health_payload["links"]["query_approval_board"] == "/api/query-approval-board"
     assert health_payload["links"]["query_review_board"] == "/api/query-review-board"
     assert health_payload["links"]["query_audit_summary"] == "/api/query-audit/summary"
     assert health_payload["links"]["query_audit_recent"] == "/api/query-audit/recent"
@@ -88,6 +90,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["policy_contract"] == "nexus-hive-policy-v1"
     assert meta_payload["query_audit_contract"] == "nexus-hive-query-audit-v1"
     assert meta_payload["query_session_board_contract"] == "nexus-hive-query-session-board-v1"
+    assert meta_payload["query_approval_board_contract"] == "nexus-hive-query-approval-board-v1"
     assert meta_payload["query_review_board_contract"] == "nexus-hive-query-review-board-v1"
     assert meta_payload["query_audit_summary_contract"] == "nexus-hive-query-audit-summary-v1"
     assert meta_payload["gold_eval_contract"] == "nexus-hive-gold-eval-v1"
@@ -102,6 +105,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/schema/policy" in meta_payload["routes"]
     assert "/api/schema/query-audit" in meta_payload["routes"]
     assert "/api/query-session-board" in meta_payload["routes"]
+    assert "/api/query-approval-board" in meta_payload["routes"]
     assert "/api/query-review-board" in meta_payload["routes"]
     assert "/api/query-audit/summary" in meta_payload["routes"]
     assert "/api/evals/nl2sql-gold" in meta_payload["routes"]
@@ -118,6 +122,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
     assert brief_payload["warehouse_contract"]["query_session_board_schema"] == "nexus-hive-query-session-board-v1"
+    assert brief_payload["warehouse_contract"]["query_approval_board_schema"] == "nexus-hive-query-approval-board-v1"
     assert brief_payload["warehouse_contract"]["query_review_board_schema"] == "nexus-hive-query-review-board-v1"
     assert brief_payload["warehouse_contract"]["query_audit_summary_schema"] == "nexus-hive-query-audit-summary-v1"
     assert brief_payload["warehouse_contract"]["governance_scorecard_schema"] == "nexus-hive-governance-scorecard-v1"
@@ -186,6 +191,11 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert query_session_board_payload["schema"] == "nexus-hive-query-session-board-v1"
     assert query_session_board_payload["summary"]["total_sessions"] == 0
 
+    assert query_approval_board.status_code == 200
+    query_approval_board_payload = query_approval_board.json()
+    assert query_approval_board_payload["schema"] == "nexus-hive-query-approval-board-v1"
+    assert query_approval_board_payload["summary"]["pending_count"] == 0
+
     assert query_review_board.status_code == 200
     query_review_board_payload = query_review_board.json()
     assert query_review_board_payload["schema"] == "nexus-hive-query-review-board-v1"
@@ -240,6 +250,7 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["links"]["answer_schema"].endswith("/api/schema/answer")
     assert payload["links"]["gold_eval"].endswith("/api/evals/nl2sql-gold")
     assert payload["links"]["query_session_board"].endswith("/api/query-session-board")
+    assert payload["links"]["query_approval_board"].endswith("/api/query-approval-board")
     assert payload["links"]["query_audit_summary"].endswith("/api/query-audit/summary")
     assert payload["links"]["query_audit_recent"].endswith("/api/query-audit/recent")
     assert payload["links"]["query_audit_detail"].endswith(f"/api/query-audit/{payload['request_id']}")
@@ -259,6 +270,43 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     session_board_payload = session_board_response.json()
     assert session_board_payload["summary"]["total_sessions"] >= 1
     assert any(item["request_id"] == payload["request_id"] for item in session_board_payload["items"])
+
+
+def test_policy_check_exposes_approval_bundle_for_review_queries() -> None:
+    client = TestClient(APP_MODULE.app)
+
+    response = client.post(
+        "/api/policy/check",
+        json={"sql": "SELECT transaction_id FROM sales", "role": "analyst"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["verdict"]["decision"] == "review"
+    assert payload["approval_required"] is True
+    assert "non_aggregated_queries_without_limit_require_operator_review" in payload["verdict"]["review_reasons"]
+    assert payload["links"]["query_approval_board"] == "/api/query-approval-board"
+    assert len(payload["approval_actions"]) >= 3
+
+
+def test_query_approval_board_surfaces_review_required_requests() -> None:
+    APP_MODULE.write_query_audit_snapshot(
+        request_id="approval123",
+        question="Show raw transaction ids",
+        status="completed",
+        stage="completed",
+        sql_query="SELECT transaction_id FROM sales",
+        policy_decision="review",
+        policy_reasons=["non_aggregated_queries_without_limit_require_operator_review"],
+    )
+    client = TestClient(APP_MODULE.app)
+
+    response = client.get("/api/query-approval-board")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["pending_count"] >= 1
+    assert any(item["request_id"] == "approval123" for item in payload["items"])
 
 
 def test_operator_session_cookie_reuses_token_for_protected_routes() -> None:
