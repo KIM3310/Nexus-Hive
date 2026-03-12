@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-hive-config
+  namespace: nexus-hive
+  labels:
+    app.kubernetes.io/name: nexus-hive
+data:
+  NEXUS_HIVE_DB_PATH: "/app/nexus_enterprise.db"
+  NEXUS_HIVE_OLLAMA_URL: "http://ollama-service:11434/api/generate"
+  NEXUS_HIVE_MODEL: "phi3"
+  NEXUS_HIVE_ROLE: "analyst"
+  NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK: "1"
+  NEXUS_HIVE_LOG_LEVEL: "INFO"
+  NEXUS_HIVE_WAREHOUSE_ADAPTER: "sqlite-demo"
