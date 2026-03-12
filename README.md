@@ -18,6 +18,12 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 - **Solution / cloud architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
 - **Field / solutions engineer:** the repo is set up for a fast executive question -> governed answer -> review-pack walkthrough.
 
+
+## Portfolio context
+- **Portfolio family:** governed ops and control towers
+- **This repo's role:** governed analytics / executive BI branch of the control-tower cluster.
+- **Related repos:** `regulated-case-workbench`, `fab-ops-yield-control-tower`, `smallbiz-ops-copilot`
+
 ## 🏗️ Architecture: The AI Federation
 
 Nexus-Hive replaces single-prompt LLMs with a **Stateful Multi-Agent Graph Architecture**.
