@@ -9,8 +9,8 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 ---
 
 ## Portfolio posture
-- Treat this repo as a governed BI copilot demo with synthetic/demo-safe warehouse posture.
-- Query audit, gold eval, and the review pack are the evidence layer for claims about reliability and governance.
+- Treat this repo as a governed analytics desk for executive questions, not as a free-form text-to-chart demo.
+- Query audit, gold eval, approval board, and review pack are the evidence chain behind any claim of trustworthy BI automation.
 
 
 ## Role signals
