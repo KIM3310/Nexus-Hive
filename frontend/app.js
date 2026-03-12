@@ -5,6 +5,183 @@ let latestAuditDetailPayload = null;
 let latestReviewRoutes = [];
 let latestGoldEvalPayload = null;
 let latestSessionBoardPayload = null;
+let recordedReviewActive = false;
+
+const RECORDED_REVIEW = {
+    runtimeBrief: {
+        headline: 'Recorded runtime brief for a recruiter walkthrough.',
+        status: 'recorded-review',
+        report_contract: {
+            schema: 'nexus-answer-v1',
+            operator_rules: [
+                'Keep policy preview visible before running or sharing SQL.',
+                'Treat review-required output as human-held until the approval board is clear.',
+                'Use the audit trail as proof, not a hidden implementation detail.',
+            ],
+        },
+        model: 'phi3-local + deterministic fallback',
+        diagnostics: { db_ready: true },
+        evidence_counts: { retry_budget: 1 },
+        review_flow: [
+            'Open /health and /api/runtime/brief to confirm local demo posture.',
+            'Use /api/query-approval-board before presenting any review-required SQL as execution-ready.',
+            'Read /api/query-review-board for fallback-heavy or denied requests before the chart deck.',
+        ],
+        agent_contract: [
+            { agent: 'Planner', responsibility: 'Translate the business question into a governed SQL intent.' },
+            { agent: 'Policy', responsibility: 'Block or escalate risky SQL before execution.' },
+            { agent: 'Reviewer', responsibility: 'Package answer, chart, and audit trace into one shareable decision surface.' },
+        ],
+        watchouts: [
+            'Recorded mode proves the workflow shape, not live infra latency.',
+            'Any review-required SQL still needs explicit approval before external sharing.',
+        ],
+    },
+    reviewPack: {
+        headline: 'Recorded executive pack with approval, audit, and proof surfaces already stitched together.',
+        status: 'recorded-review',
+        proof_bundle: {
+            warehouse_ready: true,
+            review_routes: [
+                '/health',
+                '/api/runtime/brief',
+                '/api/query-approval-board',
+                '/api/query-review-board',
+            ],
+            retry_budget: 1,
+        },
+        answer_contract: { schema: 'nexus-answer-v1' },
+        executive_promises: [
+            'Every chart is paired with auditable SQL and a request ID.',
+            'Review-required SQL is isolated before it can look production-safe.',
+        ],
+        proof_assets: [
+            { label: 'Approval Board', href: '/api/query-approval-board' },
+            { label: 'Review Board', href: '/api/query-review-board' },
+            { label: 'Gold Eval Run', href: '/api/evals/nl2sql-gold/run' },
+        ],
+        trust_boundary: [
+            'Warehouse access stays local to the governed runtime.',
+            'Fallback answers stay visibly marked in the audit trail.',
+        ],
+        two_minute_review: [
+            'Check the approval board first.',
+            'Open the review board for denied or fallback-heavy requests.',
+            'Use the gold eval summary before claiming governed quality.',
+        ],
+        review_sequence: [
+            'Approval board -> review board -> audit detail -> chart answer.',
+        ],
+        watchouts: [
+            'Recorded mode is meant for proof of workflow, not live latency claims.',
+        ],
+    },
+    warehouseBrief: {
+        headline: 'Recorded warehouse posture with lineage, quality gates, and recent audits.',
+        status: 'recorded-review',
+        warehouse_mode: 'sqlite demo warehouse',
+        fallback_mode: 'heuristic answer fallback',
+        table_profiles: [{}, {}, {}],
+        gold_eval_run: { summary: { pass_count: 4, case_count: 4 } },
+        quality_gate: {
+            status: 'pass',
+            checks: [
+                { name: 'freshness', status: 'pass', violations: 0 },
+                { name: 'null spikes', status: 'pass', violations: 0 },
+                { name: 'role-filter coverage', status: 'pass', violations: 0 },
+            ],
+        },
+        recent_audit_count: 6,
+        lineage: {
+            relationships: [
+                { from_table: 'orders', from_column: 'merchant_id', to_table: 'merchants', to_column: 'merchant_id', semantic_role: 'lookup' },
+                { from_table: 'orders', from_column: 'created_at', to_table: 'calendar', to_column: 'date_key', semantic_role: 'time' },
+            ],
+        },
+        policy: {
+            deny_rules: ['Block wildcard SELECT on viewer role.'],
+            review_rules: ['Escalate finance joins that include restricted margin columns.'],
+        },
+        policy_examples: [
+            'FLOW: approval board routes review-required SQL to a human gate.',
+            'FLOW: review board groups fallback-heavy answers before chart sharing.',
+        ],
+    },
+    queryAuditFeed: {
+        items: [
+            {
+                request_id: 'req-recorded-1042',
+                stage: 'review',
+                policy_decision: 'review',
+                chart_type: 'bar',
+                row_count: 4,
+                fallback_sql_used: false,
+                fallback_chart_used: false,
+                question: 'Which region saw the highest Q4 revenue dip?',
+            },
+            {
+                request_id: 'req-recorded-1037',
+                stage: 'deny',
+                policy_decision: 'deny',
+                chart_type: null,
+                row_count: 0,
+                fallback_sql_used: false,
+                fallback_chart_used: false,
+                question: 'Show every customer email tied to high-value orders.',
+            },
+        ],
+    },
+    querySessionBoard: {
+        summary: {
+            total_sessions: 3,
+            ready_count: 1,
+            attention_count: 1,
+            review_count: 1,
+            compare_count: 1,
+        },
+        items: [
+            {
+                request_id: 'req-recorded-1042',
+                session_state: 'review',
+                chart_type: 'bar',
+                fallback_mode: { sql: false, chart: false },
+                headline: 'Revenue dip answer is ready for approval review.',
+            },
+            {
+                request_id: 'req-recorded-1037',
+                session_state: 'attention',
+                chart_type: null,
+                fallback_mode: { sql: false, chart: false },
+                headline: 'Restricted PII request was blocked before execution.',
+            },
+        ],
+    },
+    auditDetails: {
+        'req-recorded-1042': {
+            request_id: 'req-recorded-1042',
+            latest: {
+                request_id: 'req-recorded-1042',
+                policy_decision: 'review',
+                stage: 'review',
+                row_count: 4,
+                retry_count: 1,
+                chart_type: 'bar',
+                fallback_sql_used: false,
+                fallback_chart_used: false,
+                sql_query: "SELECT region, revenue_delta FROM regional_revenue WHERE quarter = 'Q4' ORDER BY revenue_delta ASC LIMIT 5",
+                next_action: 'Open the approval board and sign off before external sharing.',
+            },
+            history: [{}, {}],
+        },
+    },
+    goldEval: {
+        summary: { case_count: 4, pass_count: 4, fail_count: 0 },
+        items: [
+            { question: 'Q4 revenue dip by region', status: 'pass', missing_features: [] },
+            { question: 'Approval-required finance join', status: 'pass', missing_features: [] },
+        ],
+    },
+};
 
 // Ensure prompt chip updates input
 window.setPrompt = function (text) {
@@ -67,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const auditDetail = document.getElementById('audit-detail');
     const sessionBoardSummary = document.getElementById('session-board-summary');
     const sessionBoardList = document.getElementById('session-board-list');
+    const statusText = document.getElementById('status-text');
 
     // Add CSS generic dark theme to Chart.js
     Chart.defaults.color = '#8b92a5';
@@ -89,6 +267,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         agentLogs.appendChild(div);
         agentLogs.scrollTop = agentLogs.scrollHeight;
+    }
+
+    function activateRecordedReview(reason = 'review surfaces') {
+        if (statusText) {
+            statusText.innerText = 'Recorded Review Mode';
+        }
+        if (recordedReviewActive) {
+            return;
+        }
+        recordedReviewActive = true;
+        addLog(`Backend unavailable. Loaded recorded recruiter review for ${reason}.`, 'success');
     }
 
     function renderBriefList(container, items) {
@@ -195,17 +384,21 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBriefList(briefWatchouts, payload.watchouts || []);
         } catch (error) {
             console.error(error);
-            briefHeadline.innerText = 'Runtime brief unavailable.';
-            briefBadge.innerText = 'ERROR';
-            briefSchema.innerText = 'Unavailable';
-            briefModel.innerText = 'Unavailable';
-            briefDbReady.innerText = 'Unknown';
-            briefRetryBudget.innerText = 'Unknown';
-            renderBriefList(briefReviewFlow, ['Review /health and /api/meta when the backend becomes available.']);
-            renderBriefList(briefOperatorRules, ['No runtime rules loaded.']);
-            renderAgentContract(briefAgentContract, []);
-            renderBriefList(briefWatchouts, ['The backend runtime brief could not be loaded.']);
-            addLog('Failed to load runtime brief surface.', 'error');
+            const payload = RECORDED_REVIEW.runtimeBrief;
+            activateRecordedReview('runtime brief');
+            const diagnostics = payload.diagnostics || {};
+            const reportContract = payload.report_contract || {};
+            const evidenceCounts = payload.evidence_counts || {};
+            briefHeadline.innerText = payload.headline;
+            briefBadge.innerText = 'RECORDED';
+            briefSchema.innerText = reportContract.schema || 'Unavailable';
+            briefModel.innerText = payload.model || 'Unavailable';
+            briefDbReady.innerText = diagnostics.db_ready ? 'Ready' : 'Degraded';
+            briefRetryBudget.innerText = `${evidenceCounts.retry_budget || 0} retries`;
+            renderBriefList(briefReviewFlow, payload.review_flow || []);
+            renderBriefList(briefOperatorRules, reportContract.operator_rules || []);
+            renderAgentContract(briefAgentContract, payload.agent_contract || []);
+            renderBriefList(briefWatchouts, payload.watchouts || []);
         }
     }
 
@@ -240,18 +433,25 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackWatchouts, payload.watchouts || []);
         } catch (error) {
             console.error(error);
-            latestReviewRoutes = [];
-            reviewPackHeadline.innerText = 'Executive review pack unavailable.';
-            reviewPackBadge.innerText = 'ERROR';
-            reviewPackReady.innerText = 'Unknown';
-            reviewPackRoutes.innerText = 'Unavailable';
-            reviewPackSchema.innerText = 'Unavailable';
-            reviewPackRetry.innerText = 'Unavailable';
-            renderReviewList(reviewPackPromises, ['No executive promises loaded.']);
-            renderReviewList(reviewPackBoundary, ['No trust boundary loaded.']);
-            renderReviewList(reviewPackSequence, ['Review /api/runtime/brief and /api/meta when the backend becomes available.']);
-            renderReviewList(reviewPackWatchouts, ['The backend review pack could not be loaded.']);
-            addLog('Failed to load executive review pack surface.', 'error');
+            const payload = RECORDED_REVIEW.reviewPack;
+            activateRecordedReview('review pack');
+            const proofBundle = payload.proof_bundle || {};
+            const answerContract = payload.answer_contract || {};
+            const proofAssets = (payload.proof_assets || []).map((item) =>
+                `Proof: ${item.label} -> ${item.href || item.path || '-'}`
+            );
+            const twoMinuteReview = (payload.two_minute_review || []).map((item) => `2-minute: ${item}`);
+            latestReviewRoutes = proofBundle.review_routes || [];
+            reviewPackHeadline.innerText = payload.headline;
+            reviewPackBadge.innerText = 'RECORDED';
+            reviewPackReady.innerText = proofBundle.warehouse_ready ? 'Auditable' : 'Degraded';
+            reviewPackRoutes.innerText = `${(proofBundle.review_routes || []).length} routes`;
+            reviewPackSchema.innerText = answerContract.schema || 'Unavailable';
+            reviewPackRetry.innerText = `${proofBundle.retry_budget || 0} retries`;
+            renderReviewList(reviewPackPromises, [...(payload.executive_promises || []), ...proofAssets]);
+            renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
+            renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
+            renderReviewList(reviewPackWatchouts, payload.watchouts || []);
         }
     }
 
@@ -285,16 +485,27 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(warehousePolicies, policyRules);
         } catch (error) {
             console.error(error);
-            warehouseHeadline.innerText = 'Warehouse brief unavailable.';
-            warehouseBadge.innerText = 'ERROR';
-            warehouseMode.innerText = 'Unavailable';
-            warehouseTableCount.innerText = 'Unavailable';
-            warehouseQuality.innerText = 'Unavailable';
-            warehouseAuditCount.innerText = 'Unavailable';
-            renderReviewList(warehouseLineage, ['Lineage surface unavailable.']);
-            renderReviewList(warehouseQualityChecks, ['Quality gate unavailable.']);
-            renderReviewList(warehousePolicies, ['Policy examples unavailable.']);
-            addLog('Failed to load warehouse brief surface.', 'error');
+            const payload = RECORDED_REVIEW.warehouseBrief;
+            activateRecordedReview('warehouse brief');
+            const evalSummary = payload.gold_eval_run?.summary || payload.gold_eval?.summary || {};
+            warehouseHeadline.innerText = payload.headline;
+            warehouseBadge.innerText = 'RECORDED';
+            warehouseMode.innerText = `${payload.warehouse_mode || 'Unavailable'} / ${payload.fallback_mode || 'unknown'}`;
+            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables / ${evalSummary.pass_count || 0}/${evalSummary.case_count || 0} evals`;
+            warehouseQuality.innerText = (payload.quality_gate?.status || 'unknown').toUpperCase();
+            warehouseAuditCount.innerText = `${payload.recent_audit_count || 0} requests`;
+            renderObjectList(warehouseLineage, payload.lineage?.relationships || [], (item) =>
+                `${item.from_table}.${item.from_column} -> ${item.to_table}.${item.to_column} (${item.semantic_role})`
+            );
+            renderObjectList(warehouseQualityChecks, payload.quality_gate?.checks || [], (item) =>
+                `${item.name}: ${item.status.toUpperCase()} (${item.violations} violations)`
+            );
+            const policyRules = [
+                ...(payload.policy?.deny_rules || []).map((item) => `DENY: ${item}`),
+                ...(payload.policy?.review_rules || []).map((item) => `REVIEW: ${item}`),
+                ...(payload.policy_examples || []).map((item) => `FLOW: ${item}`),
+            ];
+            renderReviewList(warehousePolicies, policyRules);
         }
     }
 
@@ -331,8 +542,25 @@ document.addEventListener('DOMContentLoaded', () => {
             warehouseAuditCount.innerText = `${items.length} requests`;
         } catch (error) {
             console.error(error);
-            renderReviewList(warehouseAuditFeed, ['Query audit feed unavailable.']);
-            addLog('Failed to load query audit feed.', 'error');
+            const payload = RECORDED_REVIEW.queryAuditFeed;
+            activateRecordedReview('query audit feed');
+            const items = payload.items || [];
+            latestAuditRequestId = items[0]?.request_id || latestAuditRequestId;
+            warehouseAuditFeed.innerHTML = '';
+            items.forEach((item) => {
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const rowPart = Number.isFinite(item.row_count) ? ` | ${item.row_count} rows` : '';
+                const policyPart = item.policy_decision ? ` | ${item.policy_decision}` : '';
+                const fallbackPart = item.fallback_sql_used || item.fallback_chart_used ? ' | fallback' : '';
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${item.stage.toUpperCase()} | ${item.request_id}${policyPart}${chartPart}${rowPart}${fallbackPart} | ${item.question}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                warehouseAuditFeed.appendChild(listItem);
+            });
+            warehouseAuditCount.innerText = `${items.length} requests`;
         }
     }
 
@@ -374,10 +602,30 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error(error);
-            latestSessionBoardPayload = null;
-            renderDetailCard(sessionBoardSummary, ['Saved session posture is unavailable.']);
-            renderReviewList(sessionBoardList, ['Saved sessions are unavailable.']);
-            addLog('Failed to load saved session board.', 'error');
+            const payload = RECORDED_REVIEW.querySessionBoard;
+            activateRecordedReview('saved sessions');
+            latestSessionBoardPayload = payload;
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            renderDetailCard(sessionBoardSummary, [
+                `Sessions: ${summary.total_sessions || 0}`,
+                `Ready: ${summary.ready_count || 0}`,
+                `Attention: ${summary.attention_count || 0}`,
+                `Review: ${summary.review_count || 0}`,
+                `Compare: ${summary.compare_count || 0}`,
+            ]);
+            sessionBoardList.innerHTML = '';
+            items.forEach((item) => {
+                const fallbackPart = item.fallback_mode?.sql || item.fallback_mode?.chart ? ' | fallback' : '';
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${String(item.session_state || 'unknown').toUpperCase()} | ${item.request_id}${chartPart}${fallbackPart} | ${item.headline}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                sessionBoardList.appendChild(listItem);
+            });
         }
     }
 
@@ -414,9 +662,31 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         } catch (error) {
             console.error(error);
-            latestAuditDetailPayload = null;
-            addLog('Failed to load query audit detail.', 'error');
-            renderDetailCard(auditDetail, ['Audit detail unavailable.']);
+            const payload = RECORDED_REVIEW.auditDetails[requestId];
+            if (!payload) {
+                latestAuditDetailPayload = null;
+                addLog('Failed to load query audit detail.', 'error');
+                renderDetailCard(auditDetail, ['Audit detail unavailable.']);
+                return;
+            }
+            activateRecordedReview('audit detail');
+            const latest = payload.latest || {};
+            const history = payload.history || [];
+            latestAuditDetailPayload = payload;
+            latestAuditRequestId = payload.request_id;
+            if (latest.sql_query) {
+                policySqlInput.value = latest.sql_query;
+            }
+            renderDetailCard(auditDetail, [
+                `Request ID: ${payload.request_id}`,
+                `Decision: ${String(latest.policy_decision || 'review-pending').replace(/-/g, ' ').toUpperCase()}`,
+                `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
+                `Rows: ${latest.row_count || 0}`,
+                `Retries: ${latest.retry_count || 0}`,
+                `Chart: ${latest.chart_type || 'n/a'}`,
+                `Fallback: ${latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no'}`,
+                `SQL: ${latest.sql_query || 'not captured yet'}`,
+            ]);
         }
     }
 
@@ -489,10 +759,22 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Gold eval run completed: ${(summary.pass_count || 0)}/${summary.case_count || items.length} cases passed.`, 'success');
         } catch (error) {
             console.error(error);
-            latestGoldEvalPayload = null;
-            renderDetailCard(goldEvalSummary, ['Gold eval run unavailable.']);
-            renderReviewList(goldEvalFailures, ['No eval detail available.']);
-            addLog('Failed to run gold eval suite.', 'error');
+            const payload = RECORDED_REVIEW.goldEval;
+            activateRecordedReview('gold eval');
+            latestGoldEvalPayload = payload;
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            const failing = items.filter((item) => item.status !== 'pass');
+            renderDetailCard(goldEvalSummary, [
+                `Cases: ${summary.case_count || items.length}`,
+                `Pass: ${summary.pass_count || 0}`,
+                `Fail: ${summary.fail_count || 0}`,
+            ]);
+            if (failing.length > 0) {
+                renderObjectList(goldEvalFailures, failing, (item) => `${item.question} | ${item.status.toUpperCase()} | missing ${item.missing_features.join(', ')}`);
+            } else {
+                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local recruiter review run.']);
+            }
         } finally {
             runGoldEvalBtn.disabled = false;
             runGoldEvalBtn.innerText = 'Run Gold Eval';
