@@ -6,6 +6,40 @@ let latestReviewRoutes = [];
 let latestGoldEvalPayload = null;
 let latestSessionBoardPayload = null;
 let recordedReviewActive = false;
+let currentLens = 'analyst';
+
+const REVIEW_LENSES = {
+    analyst: {
+        headline: 'Reviewer-first governed path',
+        summary: 'Start with the approval board, then open the review board and audit detail before presenting any chart answer.',
+        cards: [
+            ['01 · Approval', 'Review-required SQL should stop at a human gate first.'],
+            ['02 · Review', 'Use the review board for fallback-heavy or denied requests.'],
+            ['03 · Audit', 'Copy the governed claim only after the audit trace is visible.'],
+        ],
+        actions: ['Copy Review Routes', 'Copy Governed Claim', 'Copy Review Bundle'],
+    },
+    reviewer: {
+        headline: 'Human-review path for risky SQL',
+        summary: 'Use this lens when the audience cares about policy verdicts, denied requests, and the trust boundary around fallback answers.',
+        cards: [
+            ['01 · Policy preview', 'Run or seed a denied query to show the review gate before execution.'],
+            ['02 · Audit detail', 'Focus the latest audit so SQL, retries, and fallback flags stay visible.'],
+            ['03 · Decision brief', 'Copy the query decision brief once the policy story is concrete.'],
+        ],
+        actions: ['Copy Query Decision Brief', 'Copy Latest Audit', 'Seed Denied SQL'],
+    },
+    executive: {
+        headline: 'Executive BI proof path',
+        summary: 'Lead with the governed claim, then use the gold eval summary and review bundle to explain why this workflow is safe to trust.',
+        cards: [
+            ['01 · Governed claim', 'Summarize readiness, schema, and current policy posture in one block.'],
+            ['02 · Gold eval', 'Use the eval summary before talking about chart quality or rollout.'],
+            ['03 · Review bundle', 'End with the bundle so the proof path is easy to replay later.'],
+        ],
+        actions: ['Copy Governed Claim', 'Copy Gold Eval', 'Copy Review Bundle'],
+    },
+};
 
 const RECORDED_REVIEW = {
     runtimeBrief: {
@@ -237,6 +271,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
     const copyGoldEvalBtn = document.getElementById('copy-gold-eval-btn');
     const governanceHotkeys = document.getElementById('governanceHotkeys');
+    const lensHeadline = document.getElementById('lens-headline');
+    const lensSummary = document.getElementById('lens-summary');
+    const lensGrid = document.getElementById('lens-grid');
+    const lensAnalystBtn = document.getElementById('lens-analyst-btn');
+    const lensReviewerBtn = document.getElementById('lens-reviewer-btn');
+    const lensExecutiveBtn = document.getElementById('lens-executive-btn');
+    const lensPrimaryBtn = document.getElementById('lens-primary-btn');
+    const lensSecondaryBtn = document.getElementById('lens-secondary-btn');
+    const lensTertiaryBtn = document.getElementById('lens-tertiary-btn');
     const policyVerdict = document.getElementById('policy-verdict');
     const runGoldEvalBtn = document.getElementById('run-gold-eval-btn');
     const goldEvalSummary = document.getElementById('gold-eval-summary');
@@ -921,6 +964,35 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(ok ? 'Copied review bundle.' : 'Failed to copy review bundle.', ok ? 'success' : 'error');
     }
 
+    function renderLensPanel() {
+        const config = REVIEW_LENSES[currentLens] || REVIEW_LENSES.analyst;
+        lensHeadline.textContent = config.headline;
+        lensSummary.textContent = config.summary;
+        lensGrid.innerHTML = config.cards.map(([label, body]) => `
+            <section class="brief-list-card">
+                <span class="brief-label">${label}</span>
+                <ul class="brief-list"><li class="brief-list-item">${body}</li></ul>
+            </section>
+        `).join('');
+        [lensAnalystBtn, lensReviewerBtn, lensExecutiveBtn].forEach((btn) => btn?.classList.remove('active'));
+        if (currentLens === 'analyst') lensAnalystBtn?.classList.add('active');
+        if (currentLens === 'reviewer') lensReviewerBtn?.classList.add('active');
+        if (currentLens === 'executive') lensExecutiveBtn?.classList.add('active');
+        lensPrimaryBtn.textContent = config.actions[0];
+        lensSecondaryBtn.textContent = config.actions[1];
+        lensTertiaryBtn.textContent = config.actions[2];
+    }
+
+    function runLensAction(action) {
+        if (action === 'Copy Review Routes') return copyReviewRoutes();
+        if (action === 'Copy Governed Claim') return copyGovernedClaim();
+        if (action === 'Copy Review Bundle') return copyReviewBundle();
+        if (action === 'Copy Query Decision Brief') return copyQueryDecisionBrief();
+        if (action === 'Copy Latest Audit') return copyLatestAuditSnapshot();
+        if (action === 'Seed Denied SQL') return seedDeniedSql();
+        if (action === 'Copy Gold Eval') return copyGoldEvalSummary();
+    }
+
     function renderChart(configData, dbData) {
         if (!dbData || dbData.length === 0) {
             addLog("No records returned to visualize.", "error");
@@ -1102,6 +1174,13 @@ document.addEventListener('DOMContentLoaded', () => {
     seedDeniedSqlBtn.addEventListener('click', seedDeniedSql);
     copyGoldEvalBtn.addEventListener('click', copyGoldEvalSummary);
     runGoldEvalBtn.addEventListener('click', loadGoldEvalRun);
+    renderLensPanel();
+    lensAnalystBtn.addEventListener('click', () => { currentLens = 'analyst'; renderLensPanel(); });
+    lensReviewerBtn.addEventListener('click', () => { currentLens = 'reviewer'; renderLensPanel(); });
+    lensExecutiveBtn.addEventListener('click', () => { currentLens = 'executive'; renderLensPanel(); });
+    lensPrimaryBtn.addEventListener('click', () => runLensAction(lensPrimaryBtn.textContent));
+    lensSecondaryBtn.addEventListener('click', () => runLensAction(lensSecondaryBtn.textContent));
+    lensTertiaryBtn.addEventListener('click', () => runLensAction(lensTertiaryBtn.textContent));
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
     });
