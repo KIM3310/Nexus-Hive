@@ -26,3 +26,17 @@ def test_frontend_metadata_contract() -> None:
 
 def test_frontend_preview_asset_exists() -> None:
     assert PREVIEW_CARD.exists()
+
+
+def test_reviewer_priority_surface_contract() -> None:
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+    required_tokens = [
+        'id="reviewer-priority-panel"',
+        'id="priority-flow"',
+        'Keep one request visible from ask to approval to chart to audit.',
+        'Recorded review mode demonstrates workflow shape only.',
+        'Trace log',
+    ]
+
+    for token in required_tokens:
+        assert token in html, token
