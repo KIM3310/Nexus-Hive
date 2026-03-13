@@ -65,9 +65,14 @@ uvicorn main:app --port 8000
 
 ## Canonical runtime + artifact map
 - Canonical runtime: `uvicorn main:app` serves both the governed analytics API and the lightweight local frontend in `frontend/`.
-- `nexus_enterprise.db` is the seeded local demo warehouse checked in for reproducible review; `seed_db.py` regenerates it when needed.
+- `nexus_enterprise.db` is the seeded local demo warehouse checked in for reproducible review; `seed_db.py` regenerates it when needed. Treat that database as the recorded baseline for walkthroughs, while fresh query traces live in runtime artifacts.
 - `.runtime/` stores local query-audit and event artifacts for the review surfaces and should be treated as ephemeral runtime state.
 - `docs/` is explanatory context; the review APIs and local frontend are the canonical proof surfaces.
+
+## Reviewer walkthrough in one story
+1. Use the seeded warehouse and review APIs to walk one executive question from policy preview to audited answer.
+2. Read the local frontend as the live runtime shell for that same story, not as a separate demo track.
+3. Treat docs as supporting context after the audit trail, approval board, and eval surfaces have already earned trust.
 
 ## Service-Grade Surfaces
 
