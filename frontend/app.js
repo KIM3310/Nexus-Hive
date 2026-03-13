@@ -290,6 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const priorityMode = document.getElementById('priority-mode');
     const priorityApproval = document.getElementById('priority-approval');
     const priorityNext = document.getElementById('priority-next');
+    const priorityFreshness = document.getElementById('priority-freshness');
+    const priorityStaleness = document.getElementById('priority-staleness');
     const priorityQuestion = document.getElementById('priority-question');
     const priorityRoute = document.getElementById('priority-route');
     const priorityChart = document.getElementById('priority-chart');
@@ -398,6 +400,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function formatAuditTimestamp(value) {
+        if (!value) return 'Awaiting audit timestamp';
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return parsed.toISOString().replace('.000Z', 'Z');
+    }
+
+    function describeAuditFreshness(value) {
+        if (!value) {
+            return {
+                freshness: 'Awaiting audit timestamp',
+                note: 'Proof freshness should stay visible before any governed chart is shared.',
+            };
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return {
+                freshness: `Audit updated ${String(value)}`,
+                note: 'Use the approval board and audit detail together before chart sharing.',
+            };
+        }
+        const ageMinutes = Math.max(0, Math.round((Date.now() - parsed.getTime()) / 60000));
+        if (ageMinutes <= 15) {
+            return {
+                freshness: `Audit updated ${formatAuditTimestamp(value)} · fresh`,
+                note: 'Fresh audit detail is visible. Keep this request ID attached through approval, chart, and audit.',
+            };
+        }
+        if (ageMinutes <= 60) {
+            return {
+                freshness: `Audit updated ${formatAuditTimestamp(value)} · ${ageMinutes}m old`,
+                note: 'Audit detail is aging. Re-open the approval board before reusing this chart externally.',
+            };
+        }
+        return {
+            freshness: `Audit updated ${formatAuditTimestamp(value)} · stale`,
+            note: 'Audit detail is stale. Refresh the governed request before sharing any chart claim.',
+        };
+    }
+
     function renderReviewerPriority() {
         const latest = latestAuditDetailPayload?.latest || {};
         const reviewPack = RECORDED_REVIEW.reviewPack;
@@ -446,12 +488,19 @@ document.addEventListener('DOMContentLoaded', () => {
         priorityMode.innerText = modeLabel;
         priorityApproval.innerText = approvalDecision;
         priorityNext.innerText = nextAction;
+        const freshness = describeAuditFreshness(latest.updated_at || latest.generated_at || null);
+        if (priorityFreshness) priorityFreshness.innerText = freshness.freshness;
         if (priorityQuestion) priorityQuestion.innerText = questionLane;
         if (priorityRoute) priorityRoute.innerText = routePreview;
         if (priorityChart) priorityChart.innerText = chartPosture;
         priorityProofNote.innerText = recordedReviewActive
             ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
             : `Live proof path: ${routePreview}.`;
+        if (priorityStaleness) {
+            priorityStaleness.innerText = recordedReviewActive
+                ? 'Proof freshness should stay visible before any governed chart is shared.'
+                : freshness.note;
+        }
 
         priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {
             const stepName = step.getAttribute('data-step');
@@ -997,6 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Warehouse ready: ${reviewPackReady.innerText || '-'}`,
             `Schema: ${reviewPackSchema.innerText || '-'}`,
             `Audit requests: ${warehouseAuditCount.innerText || '-'}`,
+            `Proof freshness: ${priorityFreshness?.innerText || '-'}`,
             `Gold eval: ${evalSummary.pass_count ?? 0}/${evalSummary.case_count ?? 0}`,
             `Latest audit: ${latestSummary.request_id || latestAuditRequestId || '-'}`,
             `Policy decision: ${latestSummary.policy_decision || 'review-pending'}`,
@@ -1029,6 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Rows: ${latestSummary.row_count || 0}`,
             `Chart: ${latestSummary.chart_type || 'n/a'}`,
             `Fallback: ${latestSummary.fallback_sql_used || latestSummary.fallback_chart_used ? 'yes' : 'no'}`,
+            `Proof freshness: ${priorityFreshness?.innerText || '-'}`,
             `History entries: ${history.length}`,
             `Next action: ${nextAction}`,
             '',
