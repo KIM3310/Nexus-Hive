@@ -295,7 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const priorityQuestion = document.getElementById('priority-question');
     const priorityRoute = document.getElementById('priority-route');
     const priorityChart = document.getElementById('priority-chart');
+    const priorityTrace = document.getElementById('priority-trace');
     const priorityProofNote = document.getElementById('priority-proof-note');
+    const priorityTraceNote = document.getElementById('priority-trace-note');
     const priorityFlow = document.getElementById('priority-flow');
     const lensHeadline = document.getElementById('lens-headline');
     const lensSummary = document.getElementById('lens-summary');
@@ -440,6 +442,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+
+    function describeTraceContinuity() {
+        const history = Array.isArray(latestAuditDetailPayload?.history) ? latestAuditDetailPayload.history : [];
+        const latest = latestAuditDetailPayload?.latest || {};
+        const retryCount = Number(latest.retry_count || 0);
+        if (!history.length && !latest.request_id) {
+            return {
+                summary: 'Awaiting audit depth',
+                note: 'Trace continuity keeps retries and audit depth attached to the same request.',
+            };
+        }
+        const eventCount = Math.max(history.length, latest.request_id ? 1 : 0);
+        return {
+            summary: `${eventCount} audit events · ${retryCount} retries`,
+            note: latest.request_id
+                ? 'Trace continuity is live. Keep this same request ID attached through approval, chart, and audit.'
+                : 'Trace continuity keeps retries and audit depth attached to the same request.',
+        };
+    }
+
     function renderReviewerPriority() {
         const latest = latestAuditDetailPayload?.latest || {};
         const reviewPack = RECORDED_REVIEW.reviewPack;
@@ -493,6 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (priorityQuestion) priorityQuestion.innerText = questionLane;
         if (priorityRoute) priorityRoute.innerText = routePreview;
         if (priorityChart) priorityChart.innerText = chartPosture;
+        const trace = describeTraceContinuity();
+        if (priorityTrace) priorityTrace.innerText = trace.summary;
         priorityProofNote.innerText = recordedReviewActive
             ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
             : `Live proof path: ${routePreview}.`;
@@ -500,6 +524,11 @@ document.addEventListener('DOMContentLoaded', () => {
             priorityStaleness.innerText = recordedReviewActive
                 ? 'Proof freshness should stay visible before any governed chart is shared.'
                 : freshness.note;
+        }
+        if (priorityTraceNote) {
+            priorityTraceNote.innerText = recordedReviewActive
+                ? 'Trace continuity keeps retries and audit depth attached to the same request.'
+                : trace.note;
         }
 
         priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {
