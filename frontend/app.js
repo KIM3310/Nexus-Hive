@@ -298,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const priorityTrace = document.getElementById('priority-trace');
     const priorityProofNote = document.getElementById('priority-proof-note');
     const priorityTraceNote = document.getElementById('priority-trace-note');
+    const priorityLock = document.getElementById('priority-lock');
     const priorityFlow = document.getElementById('priority-flow');
     const lensHeadline = document.getElementById('lens-headline');
     const lensSummary = document.getElementById('lens-summary');
@@ -529,6 +530,14 @@ document.addEventListener('DOMContentLoaded', () => {
             priorityTraceNote.innerText = recordedReviewActive
                 ? 'Trace continuity keeps retries and audit depth attached to the same request.'
                 : trace.note;
+        }
+        if (priorityLock) {
+            const proofAligned = hasAudit && hasChart && !freshness.freshness.includes('stale');
+            priorityLock.innerText = recordedReviewActive
+                ? `Recorded request lock: keep ${effectiveRequestId} attached through approval, chart, and audit before you narrate governed quality.`
+                : (proofAligned
+                    ? `Request continuity is aligned for ${effectiveRequestId}. Approval posture, chart posture, and audit freshness are reading from the same request thread.`
+                    : `Request continuity stays blocked for ${effectiveRequestId} until approval posture, chart posture, and audit freshness all point to the same request ID.`);
         }
 
         priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {

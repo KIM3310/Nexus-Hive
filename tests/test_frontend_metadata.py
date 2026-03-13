@@ -38,6 +38,7 @@ def test_reviewer_priority_surface_contract() -> None:
         'id="priority-route"',
         'id="priority-chart"',
         'id="priority-trace"',
+        'id="priority-lock"',
         'id="priority-freshness"',
         'id="priority-staleness"',
         'id="priority-trace-note"',
@@ -45,6 +46,7 @@ def test_reviewer_priority_surface_contract() -> None:
         'Recorded review mode demonstrates workflow shape only.',
         'Proof freshness should stay visible before any governed chart is shared.',
         'Trace continuity keeps retries and audit depth attached to the same request.',
+        'Request continuity stays blocked until approval posture, chart posture, and audit freshness all point to the same request ID.',
         'Trace log',
     ]
 
