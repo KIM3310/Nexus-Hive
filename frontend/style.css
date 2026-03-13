@@ -270,12 +270,33 @@ body {
 
 .priority-thread {
     display: grid;
+}
+
+.priority-thread-rail {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.priority-thread-copy {
+    margin: 0;
+}
+
+.priority-thread-pills {
+    display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
 }
 
-.priority-thread-card strong {
-    min-height: 3.4rem;
+.priority-thread-pill {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 0.95rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.priority-thread-pill strong {
+    display: block;
+    min-height: 3.1rem;
     font-size: 0.95rem;
     line-height: 1.45;
 }
@@ -594,10 +615,12 @@ canvas {
 
 .suggested-prompts {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
 }
 
 .prompt-chip {
+    font: inherit;
     font-size: 0.75rem;
     color: var(--text-muted);
     padding: 6px 14px;
