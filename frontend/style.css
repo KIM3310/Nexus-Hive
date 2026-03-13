@@ -27,7 +27,8 @@ body {
     position: relative;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
+    padding: 2rem 0;
 }
 
 /* Abstract Orbs */
@@ -57,9 +58,10 @@ body {
 /* Layout */
 .app-container {
     width: 95vw;
-    height: 90vh;
     max-width: 1600px;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    align-items: start;
     gap: 1.5rem;
 }
 
@@ -74,17 +76,21 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 380px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: sticky;
+    top: 2rem;
+    max-height: calc(100vh - 4rem);
+    background: rgba(14, 16, 21, 0.42);
 }
 
 .sidebar-header {
-    padding: 1.5rem;
+    padding: 1.1rem 1.2rem;
     border-bottom: 1px solid var(--panel-border);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
 }
 
@@ -94,9 +100,20 @@ body {
 }
 
 .sidebar-header h2 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
+}
+
+.sidebar-caption {
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.sidebar-badge {
+    opacity: 0.8;
 }
 
 .badge {
@@ -112,7 +129,7 @@ body {
 
 .agent-feed {
     flex: 1;
-    padding: 1.5rem;
+    padding: 1rem 1.1rem 1.2rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -188,7 +205,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 0.25rem;
 }
 
 .topbar h1 {
@@ -215,6 +232,75 @@ body {
     font-size: 1.1rem;
     line-height: 1.4;
     max-width: 780px;
+}
+
+.command-palette-priority {
+    padding: 1.1rem 1.25rem;
+}
+
+.reviewer-priority-panel {
+    padding: 1.25rem;
+    display: grid;
+    gap: 1rem;
+}
+
+.reviewer-priority-header {
+    align-items: center;
+}
+
+.priority-summary {
+    margin-top: 0;
+}
+
+.priority-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.priority-card strong {
+    min-height: 2.8rem;
+}
+
+.priority-flow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.priority-step {
+    padding: 1rem;
+    border-radius: 14px;
+    border: 1px solid var(--panel-border);
+    background: rgba(0, 0, 0, 0.26);
+    display: grid;
+    gap: 0.45rem;
+}
+
+.priority-step strong {
+    font-size: 0.96rem;
+    line-height: 1.4;
+}
+
+.priority-step p {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.priority-step.active {
+    border-color: var(--accent);
+    background: rgba(94, 106, 210, 0.14);
+    box-shadow: 0 0 0 1px rgba(94, 106, 210, 0.22) inset;
+}
+
+.priority-step.complete {
+    border-color: rgba(46, 205, 113, 0.35);
+    background: rgba(46, 205, 113, 0.08);
+}
+
+.priority-proof-note {
+    margin-top: 0;
 }
 
 .brief-metrics {
@@ -405,7 +491,7 @@ body {
 }
 
 .visualization-area {
-    flex: 1;
+    min-height: 340px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -518,13 +604,19 @@ canvas {
 
 @media (max-width: 1280px) {
     .app-container {
-        height: auto;
-        min-height: 90vh;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sidebar {
+        position: static;
+        max-height: none;
     }
 
     .governance-grid,
     .brief-metrics,
-    .brief-grid {
+    .brief-grid,
+    .priority-metrics,
+    .priority-flow {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -541,14 +633,11 @@ canvas {
     .app-container {
         width: 100%;
         min-height: 100vh;
-        height: auto;
-        flex-direction: column;
         padding: 1rem;
     }
 
     .sidebar {
-        width: 100%;
-        min-height: 260px;
+        min-height: 220px;
     }
 
     .topbar,
@@ -561,7 +650,9 @@ canvas {
 
     .governance-grid,
     .brief-metrics,
-    .brief-grid {
+    .brief-grid,
+    .priority-metrics,
+    .priority-flow {
         grid-template-columns: minmax(0, 1fr);
     }
 

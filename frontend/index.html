@@ -24,36 +24,92 @@
 </head>
 
 <body>
-    <!-- Abstract ambient background -->
     <div class="glow-orb primary"></div>
     <div class="glow-orb secondary"></div>
 
     <div class="app-container">
-        <!-- Sidebar: LangGraph Thought Process -->
-        <aside class="sidebar glass-panel">
-            <div class="sidebar-header">
-                <span class="logo-icon">⬡</span>
-                <h2>Nexus-Hive</h2>
-                <span class="badge">Multi-Agent State</span>
-            </div>
-
-            <div class="agent-feed" id="agent-logs">
-                <div class="log-entry system">
-                    <span class="timestamp">System initialized.</span>
-                    <p>Awaiting natural language input to compile SQL...</p>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content: Chat & Chart Visualization -->
         <main class="main-content">
             <header class="topbar">
-                <h1>Executive Data Copilot</h1>
+                <div>
+                    <p class="brief-label">Reviewer surface</p>
+                    <h1>Executive Data Copilot</h1>
+                </div>
                 <div class="status-indicator">
                     <span class="dot pulse"></span>
-                    <span id="status-text">Federated AI Online</span>
+                    <span id="status-text">Waiting for governed proof</span>
                 </div>
             </header>
+
+            <div class="command-palette glass-panel command-palette-priority">
+                <div class="input-wrap">
+                    <input type="text" id="nl-input" class="cmd-input"
+                        placeholder="e.g., Show me total revenue by region, grouped as a bar chart..."
+                        autocomplete="off">
+                    <button id="ask-btn" class="execute-btn">EXECUTE</button>
+                </div>
+                <div class="suggested-prompts">
+                    <span class="prompt-chip"
+                        onclick="setPrompt('what is the total net revenue grouped by category?')">Revenue by
+                        Category</span>
+                    <span class="prompt-chip"
+                        onclick="setPrompt('show me the top 5 regions by total profit in a pie chart')">Top Regions
+                        (Profit)</span>
+                    <span class="prompt-chip"
+                        onclick="setPrompt('What is the average discount applied per category?')">Avg Discount</span>
+                </div>
+            </div>
+
+            <section class="reviewer-priority-panel glass-panel" id="reviewer-priority-panel">
+                <div class="readiness-header reviewer-priority-header">
+                    <div>
+                        <p class="brief-label">Top-fold reviewer path</p>
+                        <h2 id="priority-headline">Keep one request visible from ask to approval to chart to audit.</h2>
+                    </div>
+                    <span class="badge" id="priority-badge">FOCUSED REQUEST</span>
+                </div>
+                <p class="detail-card priority-summary" id="priority-summary">Submit one question, keep its request ID in view, and only present the chart once approval posture plus audit proof are both visible.</p>
+                <div class="priority-metrics">
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Focused Request</span>
+                        <strong id="priority-request">Waiting for request</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Mode Guardrail</span>
+                        <strong id="priority-mode">Recorded workflow only until endpoints answer</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Approval Gate</span>
+                        <strong id="priority-approval">Review pending</strong>
+                    </section>
+                    <section class="brief-card priority-card">
+                        <span class="brief-label">Next Reviewer Move</span>
+                        <strong id="priority-next">Run ask, then focus approval before chart sharing</strong>
+                    </section>
+                </div>
+                <div class="priority-flow" id="priority-flow">
+                    <section class="priority-step active" data-step="ask">
+                        <span class="brief-label">01 · Ask</span>
+                        <strong>Register the business question.</strong>
+                        <p>The request ID becomes the thread you keep attached to every proof surface.</p>
+                    </section>
+                    <section class="priority-step" data-step="approve">
+                        <span class="brief-label">02 · Approve</span>
+                        <strong>Check policy before trust.</strong>
+                        <p>Approval or denial must be visible before a chart looks presentation-ready.</p>
+                    </section>
+                    <section class="priority-step" data-step="chart">
+                        <span class="brief-label">03 · Chart</span>
+                        <strong>Show one governed answer.</strong>
+                        <p>Keep the chart scoped to the same request instead of jumping across sessions.</p>
+                    </section>
+                    <section class="priority-step" data-step="audit">
+                        <span class="brief-label">04 · Audit</span>
+                        <strong>Close with evidence.</strong>
+                        <p>Audit detail proves fallback, retries, and SQL lineage for the same request.</p>
+                    </section>
+                </div>
+                <div class="detail-card priority-proof-note" id="priority-proof-note">Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.</div>
+            </section>
 
             <section class="readiness-panel glass-panel">
                 <div class="readiness-header">
@@ -77,6 +133,50 @@
                     <button id="lens-primary-btn" class="control-button secondary" type="button">Copy Review Routes</button>
                     <button id="lens-secondary-btn" class="control-button secondary" type="button">Copy Governed Claim</button>
                     <button id="lens-tertiary-btn" class="control-button secondary" type="button">Copy Review Bundle</button>
+                </div>
+            </section>
+
+            <section class="readiness-panel glass-panel">
+                <div class="readiness-header">
+                    <div>
+                        <p class="brief-label">Chart Storyboard</p>
+                        <h2 id="storyboard-headline">Loading claim-to-chart review path...</h2>
+                    </div>
+                    <span class="badge" id="storyboard-badge">GUIDED PROOF</span>
+                </div>
+
+                <div class="brief-metrics">
+                    <div class="brief-card">
+                        <span class="brief-label">Approval Posture</span>
+                        <strong id="storyboard-approval">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Focused Chart</span>
+                        <strong id="storyboard-chart">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Saved Sessions</span>
+                        <strong id="storyboard-sessions">Pending</strong>
+                    </div>
+                    <div class="brief-card">
+                        <span class="brief-label">Review Routes</span>
+                        <strong id="storyboard-routes">Pending</strong>
+                    </div>
+                </div>
+
+                <div class="brief-grid storyboard-grid">
+                    <section class="detail-card">
+                        <span class="brief-label">Chart Claim</span>
+                        <div id="storyboard-claim"></div>
+                    </section>
+                    <section class="detail-card">
+                        <span class="brief-label">Audit Story</span>
+                        <div id="storyboard-audit"></div>
+                    </section>
+                    <section class="detail-card">
+                        <span class="brief-label">Next Reviewer Move</span>
+                        <div id="storyboard-next"></div>
+                    </section>
                 </div>
             </section>
 
@@ -227,50 +327,6 @@
             <section class="readiness-panel glass-panel">
                 <div class="readiness-header">
                     <div>
-                        <p class="brief-label">Chart Storyboard</p>
-                        <h2 id="storyboard-headline">Loading claim-to-chart review path...</h2>
-                    </div>
-                    <span class="badge" id="storyboard-badge">GUIDED PROOF</span>
-                </div>
-
-                <div class="brief-metrics">
-                    <div class="brief-card">
-                        <span class="brief-label">Approval Posture</span>
-                        <strong id="storyboard-approval">Pending</strong>
-                    </div>
-                    <div class="brief-card">
-                        <span class="brief-label">Focused Chart</span>
-                        <strong id="storyboard-chart">Pending</strong>
-                    </div>
-                    <div class="brief-card">
-                        <span class="brief-label">Saved Sessions</span>
-                        <strong id="storyboard-sessions">Pending</strong>
-                    </div>
-                    <div class="brief-card">
-                        <span class="brief-label">Review Routes</span>
-                        <strong id="storyboard-routes">Pending</strong>
-                    </div>
-                </div>
-
-                <div class="brief-grid storyboard-grid">
-                    <section class="detail-card">
-                        <span class="brief-label">Chart Claim</span>
-                        <div id="storyboard-claim"></div>
-                    </section>
-                    <section class="detail-card">
-                        <span class="brief-label">Audit Story</span>
-                        <div id="storyboard-audit"></div>
-                    </section>
-                    <section class="detail-card">
-                        <span class="brief-label">Next Reviewer Move</span>
-                        <div id="storyboard-next"></div>
-                    </section>
-                </div>
-            </section>
-
-            <section class="readiness-panel glass-panel">
-                <div class="readiness-header">
-                    <div>
                         <p class="brief-label">Governance Workbench</p>
                         <h2>Preview SQL policy, run the gold eval suite, and inspect audit detail before trusting an answer.</h2>
                     </div>
@@ -342,30 +398,27 @@
                     <h3>No Data Rendered</h3>
                     <p>Ask a question below to trigger the SQL compilation and visualization pipeline.</p>
                 </div>
-                <!-- Dynamic Chart Container -->
                 <canvas id="biChart" style="display: none;"></canvas>
             </div>
+        </main>
 
-            <!-- Command Palette -->
-            <div class="command-palette glass-panel">
-                <div class="input-wrap">
-                    <input type="text" id="nl-input" class="cmd-input"
-                        placeholder="e.g., Show me total revenue by region, grouped as a bar chart..."
-                        autocomplete="off">
-                    <button id="ask-btn" class="execute-btn">EXECUTE</button>
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <span class="logo-icon">⬡</span>
+                <div>
+                    <h2>Trace log</h2>
+                    <p class="sidebar-caption">Optional event stream for deeper reviewer playback.</p>
                 </div>
-                <div class="suggested-prompts">
-                    <span class="prompt-chip"
-                        onclick="setPrompt('what is the total net revenue grouped by category?')">Revenue by
-                        Category</span>
-                    <span class="prompt-chip"
-                        onclick="setPrompt('show me the top 5 regions by total profit in a pie chart')">Top Regions
-                        (Profit)</span>
-                    <span class="prompt-chip"
-                        onclick="setPrompt('What is the average discount applied per category?')">Avg Discount</span>
+                <span class="badge sidebar-badge">SECONDARY</span>
+            </div>
+
+            <div class="agent-feed" id="agent-logs">
+                <div class="log-entry system">
+                    <span class="timestamp">System initialized.</span>
+                    <p>Ask one governed question to start the request thread.</p>
                 </div>
             </div>
-        </main>
+        </aside>
     </div>
 
     <script src="app.js"></script>

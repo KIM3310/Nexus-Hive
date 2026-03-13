@@ -280,6 +280,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const seedDeniedSqlBtn = document.getElementById('seed-denied-sql-btn');
     const copyGoldEvalBtn = document.getElementById('copy-gold-eval-btn');
     const governanceHotkeys = document.getElementById('governanceHotkeys');
+    const priorityHeadline = document.getElementById('priority-headline');
+    const priorityBadge = document.getElementById('priority-badge');
+    const prioritySummary = document.getElementById('priority-summary');
+    const priorityRequest = document.getElementById('priority-request');
+    const priorityMode = document.getElementById('priority-mode');
+    const priorityApproval = document.getElementById('priority-approval');
+    const priorityNext = document.getElementById('priority-next');
+    const priorityProofNote = document.getElementById('priority-proof-note');
+    const priorityFlow = document.getElementById('priority-flow');
     const lensHeadline = document.getElementById('lens-headline');
     const lensSummary = document.getElementById('lens-summary');
     const lensGrid = document.getElementById('lens-grid');
@@ -323,13 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function activateRecordedReview(reason = 'review surfaces') {
         if (statusText) {
-            statusText.innerText = 'Recorded Review Mode';
+            statusText.innerText = 'Recorded review only';
         }
         if (recordedReviewActive) {
             return;
         }
         recordedReviewActive = true;
-        addLog(`Backend unavailable. Loaded recorded recruiter review for ${reason}.`, 'success');
+        addLog(`Backend unavailable. Loaded recorded reviewer flow for ${reason}.`, 'success');
+        renderReviewerPriority();
     }
 
     function renderBriefList(container, items) {
@@ -382,6 +392,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderReviewerPriority() {
+        const latest = latestAuditDetailPayload?.latest || {};
+        const reviewPack = RECORDED_REVIEW.reviewPack;
+        const reviewRoutes = latestReviewRoutes.length > 0
+            ? latestReviewRoutes
+            : (reviewPack.proof_bundle?.review_routes || []);
+        const approvalDecision = String(latest.policy_decision || 'review').replace(/-/g, ' ').toUpperCase();
+        const effectiveRequestId = latest.request_id || latestAuditRequestId || latestRequestId || 'Awaiting request';
+        const modeLabel = recordedReviewActive
+            ? 'Recorded workflow only'
+            : 'Live endpoint evidence';
+        const nextAction = latest.next_action
+            || (approvalDecision === 'DENY'
+                ? 'Keep the denied request on the approval board until blocked SQL is rewritten.'
+                : latest.request_id
+                    ? 'Keep this request ID attached through approval, chart, and audit before sharing.'
+                    : 'Run ask, then focus approval before chart sharing.');
+        const hasChart = Boolean(latest.chart_type);
+        const hasAudit = Boolean(latest.request_id);
+        const stepStates = {
+            ask: Boolean(latestRequestId || latestAuditRequestId),
+            approve: hasAudit,
+            chart: hasChart,
+            audit: hasAudit,
+        };
+
+        priorityHeadline.innerText = recordedReviewActive
+            ? 'Keep one recorded request visible from ask to approval to chart to audit.'
+            : 'Keep one live request visible from ask to approval to chart to audit.';
+        if (statusText) {
+            statusText.innerText = recordedReviewActive
+                ? 'Recorded review only'
+                : (latest.request_id ? 'Live request in review' : 'Waiting for governed proof');
+        }
+        priorityBadge.innerText = recordedReviewActive ? 'RECORDED REVIEW' : 'LIVE REVIEW';
+        prioritySummary.innerText = recordedReviewActive
+            ? 'Recorded mode shows the reviewer flow shape with one request thread. Do not treat it as live warehouse runtime evidence.'
+            : 'Use one request ID as the continuity anchor so approval posture, chart output, and audit proof stay on the same top-fold story.';
+        priorityRequest.innerText = effectiveRequestId;
+        priorityMode.innerText = modeLabel;
+        priorityApproval.innerText = approvalDecision;
+        priorityNext.innerText = nextAction;
+        priorityProofNote.innerText = recordedReviewActive
+            ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
+            : `Live proof path: ${(reviewRoutes[0] || '/api/query-approval-board')} -> ${(reviewRoutes[1] || '/api/query-review-board')} -> ${(reviewRoutes[2] || '/api/query-audit/{request_id}')}.`;
+
+        priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {
+            const stepName = step.getAttribute('data-step');
+            step.classList.remove('active', 'complete');
+            if (stepName && stepStates[stepName]) {
+                step.classList.add('complete');
+            }
+        });
+
+        if (!stepStates.ask) {
+            priorityFlow?.querySelector('[data-step="ask"]')?.classList.add('active');
+        } else if (!stepStates.chart) {
+            priorityFlow?.querySelector('[data-step="approve"]')?.classList.add('active');
+        } else {
+            priorityFlow?.querySelector('[data-step="audit"]')?.classList.add('active');
+        }
+    }
+
     function renderStoryboard() {
         const reviewPack = RECORDED_REVIEW.reviewPack;
         const latest = latestAuditDetailPayload?.latest || {};
@@ -404,8 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fallbackLabel = latest.fallback_sql_used || latest.fallback_chart_used ? 'Fallback path used' : 'Fallback not used';
 
         storyboardHeadline.innerText = recordedReviewActive
-            ? 'Follow one governed chart story from approval gate to audit trace before you present the answer.'
-            : 'Follow the current chart story from approval gate to audit trace before you present the answer.';
+            ? 'Follow one recorded governed chart story from approval gate to audit trace before you present the answer.'
+            : 'Follow the current governed chart story from approval gate to audit trace before you present the answer.';
         storyboardBadge.innerText = recordedReviewActive ? 'RECORDED STORY' : 'LIVE STORY';
         storyboardApproval.innerText = approvalDecision;
         storyboardChart.innerText = chartState;
@@ -429,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? 'Recorded mode proves approval, audit, and chart storytelling without claiming live warehouse latency.'
                 : 'Live mode should still keep the approval board and audit trace visible before external sharing.',
         ]);
+        renderReviewerPriority();
     }
 
     async function copyTextToClipboard(text) {
@@ -482,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBriefList(briefReviewFlow, payload.review_flow || []);
             renderBriefList(briefOperatorRules, reportContract.operator_rules || []);
             renderAgentContract(briefAgentContract, payload.agent_contract || []);
-            renderBriefList(briefWatchouts, payload.watchouts || []);
+            renderBriefList(briefWatchouts, [...(payload.watchouts || []), 'Live runtime evidence is valid only when these endpoints respond in the current session.']);
         } catch (error) {
             console.error(error);
             const payload = RECORDED_REVIEW.runtimeBrief;
@@ -499,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBriefList(briefReviewFlow, payload.review_flow || []);
             renderBriefList(briefOperatorRules, reportContract.operator_rules || []);
             renderAgentContract(briefAgentContract, payload.agent_contract || []);
-            renderBriefList(briefWatchouts, payload.watchouts || []);
+            renderBriefList(briefWatchouts, [...(payload.watchouts || []), 'Recorded mode demonstrates workflow shape, not live warehouse latency or freshness.']);
         }
     }
 
@@ -531,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackPromises, [...(payload.executive_promises || []), ...proofAssets]);
             renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
             renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
-            renderReviewList(reviewPackWatchouts, payload.watchouts || []);
+            renderReviewList(reviewPackWatchouts, [...(payload.watchouts || []), 'Keep one request ID attached through approval, chart, and audit when presenting this pack.']);
             renderStoryboard();
         } catch (error) {
             console.error(error);
@@ -553,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackPromises, [...(payload.executive_promises || []), ...proofAssets]);
             renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
             renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
-            renderReviewList(reviewPackWatchouts, payload.watchouts || []);
+            renderReviewList(reviewPackWatchouts, [...(payload.watchouts || []), 'Recorded review pack shows workflow shape only; avoid implying live warehouse execution.']);
             renderStoryboard();
         }
     }
@@ -1251,11 +1325,15 @@ document.addEventListener('DOMContentLoaded', () => {
     nlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') executeQuery();
     });
+    if (statusText) {
+        statusText.innerText = 'Waiting for governed proof';
+    }
     policySqlInput.value = 'SELECT region, SUM(net_revenue) AS total_revenue FROM sales GROUP BY region ORDER BY total_revenue DESC LIMIT 5;';
     renderDetailCard(policyVerdict, ['Run a policy preview on the seeded warehouse SQL before relying on the chart output.']);
     renderDetailCard(goldEvalSummary, ['Run the deterministic NL2SQL suite to inspect governed baseline quality.']);
     renderDetailCard(auditDetail, ['Select a recent audit request or run a governed query to inspect SQL, fallback usage, and retries.']);
     renderDetailCard(sessionBoardSummary, ['Saved sessions let you reopen completed or blocked analyst requests.']);
+    renderReviewerPriority();
     renderStoryboard();
     document.addEventListener('keydown', (event) => {
         const tag = String(event.target?.tagName || '').toLowerCase();
