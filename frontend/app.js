@@ -223,6 +223,9 @@ window.setPrompt = function (text) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-prompt]').forEach((button) => {
+        button.addEventListener('click', () => window.setPrompt(button.dataset.prompt || ''));
+    });
     const askBtn = document.getElementById('ask-btn');
     const nlInput = document.getElementById('nl-input');
     const agentLogs = document.getElementById('agent-logs');

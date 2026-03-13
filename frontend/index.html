@@ -47,15 +47,10 @@
                         autocomplete="off">
                     <button id="ask-btn" class="execute-btn">EXECUTE</button>
                 </div>
-                <div class="suggested-prompts">
-                    <span class="prompt-chip"
-                        onclick="setPrompt('what is the total net revenue grouped by category?')">Revenue by
-                        Category</span>
-                    <span class="prompt-chip"
-                        onclick="setPrompt('show me the top 5 regions by total profit in a pie chart')">Top Regions
-                        (Profit)</span>
-                    <span class="prompt-chip"
-                        onclick="setPrompt('What is the average discount applied per category?')">Avg Discount</span>
+                <div class="suggested-prompts" aria-label="recorded prompt starters">
+                    <button class="prompt-chip" type="button" data-prompt="what is the total net revenue grouped by category?">Revenue by Category</button>
+                    <button class="prompt-chip" type="button" data-prompt="show me the top 5 regions by total profit in a pie chart">Top Regions (Profit)</button>
+                    <button class="prompt-chip" type="button" data-prompt="What is the average discount applied per category?">Avg Discount</button>
                 </div>
             </div>
 
@@ -109,17 +104,23 @@
                     </section>
                 </div>
                 <div class="priority-thread" id="priority-thread">
-                    <section class="brief-card priority-thread-card">
-                        <span class="brief-label">Question Lane</span>
-                        <strong id="priority-question">Awaiting governed question</strong>
-                    </section>
-                    <section class="brief-card priority-thread-card">
-                        <span class="brief-label">Proof Route</span>
-                        <strong id="priority-route">/api/query-approval-board → /api/query-review-board → /api/query-audit/{request_id}</strong>
-                    </section>
-                    <section class="brief-card priority-thread-card">
-                        <span class="brief-label">Chart Posture</span>
-                        <strong id="priority-chart">Awaiting governed answer</strong>
+                    <section class="detail-card priority-thread-rail">
+                        <span class="brief-label">Continuity rail</span>
+                        <p class="priority-thread-copy">Keep one governed request attached to the question, proof route, and chart posture.</p>
+                        <div class="priority-thread-pills">
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Question</span>
+                                <strong id="priority-question">Awaiting governed question</strong>
+                            </article>
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Proof Route</span>
+                                <strong id="priority-route">/api/query-approval-board → /api/query-review-board → /api/query-audit/{request_id}</strong>
+                            </article>
+                            <article class="priority-thread-pill">
+                                <span class="brief-label">Chart Posture</span>
+                                <strong id="priority-chart">Awaiting governed answer</strong>
+                            </article>
+                        </div>
                     </section>
                 </div>
                 <div class="detail-card priority-proof-note" id="priority-proof-note">Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.</div>
