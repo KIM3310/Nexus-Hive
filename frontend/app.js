@@ -287,6 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const priorityMode = document.getElementById('priority-mode');
     const priorityApproval = document.getElementById('priority-approval');
     const priorityNext = document.getElementById('priority-next');
+    const priorityQuestion = document.getElementById('priority-question');
+    const priorityRoute = document.getElementById('priority-route');
+    const priorityChart = document.getElementById('priority-chart');
     const priorityProofNote = document.getElementById('priority-proof-note');
     const priorityFlow = document.getElementById('priority-flow');
     const lensHeadline = document.getElementById('lens-headline');
@@ -430,13 +433,22 @@ document.addEventListener('DOMContentLoaded', () => {
         prioritySummary.innerText = recordedReviewActive
             ? 'Recorded mode shows the reviewer flow shape with one request thread. Do not treat it as live warehouse runtime evidence.'
             : 'Use one request ID as the continuity anchor so approval posture, chart output, and audit proof stay on the same top-fold story.';
+        const questionLane = latest.question || latestAuditDetailPayload?.question || 'Run a governed question or focus a recorded audit request.';
+        const chartPosture = latest.chart_type
+            ? `${latest.chart_type} · ${latest.row_count || 0} rows kept on the same request.`
+            : 'Awaiting governed answer';
+        const routePreview = `${reviewRoutes[0] || '/api/query-approval-board'} → ${reviewRoutes[1] || '/api/query-review-board'} → ${reviewRoutes[2] || '/api/query-audit/{request_id}'}`;
+
         priorityRequest.innerText = effectiveRequestId;
         priorityMode.innerText = modeLabel;
         priorityApproval.innerText = approvalDecision;
         priorityNext.innerText = nextAction;
+        if (priorityQuestion) priorityQuestion.innerText = questionLane;
+        if (priorityRoute) priorityRoute.innerText = routePreview;
+        if (priorityChart) priorityChart.innerText = chartPosture;
         priorityProofNote.innerText = recordedReviewActive
             ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
-            : `Live proof path: ${(reviewRoutes[0] || '/api/query-approval-board')} -> ${(reviewRoutes[1] || '/api/query-review-board')} -> ${(reviewRoutes[2] || '/api/query-audit/{request_id}')}.`;
+            : `Live proof path: ${routePreview}.`;
 
         priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {
             const stepName = step.getAttribute('data-step');

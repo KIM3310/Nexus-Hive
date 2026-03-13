@@ -33,6 +33,8 @@ def test_reviewer_priority_surface_contract() -> None:
     required_tokens = [
         'id="reviewer-priority-panel"',
         'id="priority-flow"',
+        'id="priority-thread"',
+        'id="priority-route"',
         'Keep one request visible from ask to approval to chart to audit.',
         'Recorded review mode demonstrates workflow shape only.',
         'Trace log',
