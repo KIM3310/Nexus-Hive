@@ -299,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const priorityProofNote = document.getElementById('priority-proof-note');
     const priorityTraceNote = document.getElementById('priority-trace-note');
     const priorityLock = document.getElementById('priority-lock');
+    const priorityReviewWindow = document.getElementById('priority-review-window');
     const priorityFlow = document.getElementById('priority-flow');
     const lensHeadline = document.getElementById('lens-headline');
     const lensSummary = document.getElementById('lens-summary');
@@ -538,6 +539,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 : (proofAligned
                     ? `Request continuity is aligned for ${effectiveRequestId}. Approval posture, chart posture, and audit freshness are reading from the same request thread.`
                     : `Request continuity stays blocked for ${effectiveRequestId} until approval posture, chart posture, and audit freshness all point to the same request ID.`);
+        }
+        if (priorityReviewWindow) {
+            priorityReviewWindow.innerText = recordedReviewActive
+                ? `Recorded review window: keep ${effectiveRequestId} as the only governed thread before forwarding any chart copy.`
+                : `Review window for ${effectiveRequestId}: ${freshness.note}`;
         }
 
         priorityFlow?.querySelectorAll('.priority-step').forEach((step) => {
