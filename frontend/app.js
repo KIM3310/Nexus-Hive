@@ -766,6 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...(payload.policy?.deny_rules || []).map((item) => `DENY: ${item}`),
                 ...(payload.policy?.review_rules || []).map((item) => `REVIEW: ${item}`),
                 ...(payload.policy_examples || []).map((item) => `FLOW: ${item}`),
+                ...(payload.query_tag_examples || []).slice(0, 2).map((item) => `TAG: ${item}`),
             ];
             renderReviewList(warehousePolicies, policyRules);
         } catch (error) {
@@ -937,6 +938,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Request ID: ${payload.request_id}`,
                 `Decision: ${String(policyDecision || 'review-pending').replace(/-/g, ' ').toUpperCase()}`,
                 `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
+                `Adapter: ${latest.adapter_name || 'unknown'}`,
+                `Query Tag: ${latest.query_tag || 'not captured yet'}`,
                 `Rows: ${latest.row_count || 0}`,
                 `Retries: ${latest.retry_count || 0}`,
                 `Chart: ${latest.chart_type || 'n/a'}`,

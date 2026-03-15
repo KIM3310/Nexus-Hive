@@ -59,21 +59,37 @@ WAREHOUSE_ADAPTERS = [
         "name": "sqlite-demo",
         "status": "active",
         "role": "Local warehouse stand-in for governed analytics review",
-        "capabilities": ["read-only SQL execution", "pandas result preview", "local schema introspection"],
+        "capabilities": [
+            "read-only SQL execution",
+            "pandas result preview",
+            "local schema introspection",
+            "query tag preview",
+        ],
     },
     {
-        "name": "cloud-warehouse-contract",
+        "name": "snowflake-sql-contract",
         "status": "planned",
-        "role": "Parameterized warehouse adapter contract for future deployment",
-        "capabilities": ["query tagging", "role simulation", "audit sink integration"],
+        "role": "Parameterized warehouse adapter contract for Snowflake-style governed SQL warehouses",
+        "capabilities": [
+            "query tagging",
+            "role simulation",
+            "audit sink integration",
+            "statement id capture",
+        ],
     },
     {
-        "name": "lakehouse-sql-contract",
+        "name": "databricks-sql-contract",
         "status": "planned",
         "role": "Lakehouse SQL adapter contract for medallion-style modeled tables",
-        "capabilities": ["modeled view registration", "freshness metadata", "quality gate attachment"],
+        "capabilities": [
+            "modeled view registration",
+            "freshness metadata",
+            "quality gate attachment",
+            "query tagging",
+        ],
     },
 ]
+QUERY_TAG_SCHEMA = "nexus-hive-query-tag-v1"
 LINEAGE_RELATIONSHIPS = [
     {
         "from_table": "sales",
@@ -335,6 +351,8 @@ def build_query_audit_schema() -> Dict[str, Any]:
             "question",
             "status",
             "stage",
+            "adapter_name",
+            "query_tag",
             "sql_query",
             "row_count",
             "retry_count",
@@ -461,6 +479,50 @@ def build_policy_schema() -> Dict[str, Any]:
         ],
         "sensitive_columns_by_role": SENSITIVE_COLUMNS_BY_ROLE,
     }
+
+
+def build_query_tag_contract() -> Dict[str, Any]:
+    return {
+        "schema": QUERY_TAG_SCHEMA,
+        "default_adapter": "sqlite-demo",
+        "required_dimensions": [
+            "service",
+            "adapter",
+            "role",
+            "request_id",
+            "purpose",
+        ],
+        "examples": [
+            "service=nexus-hive;adapter=sqlite-demo;role=analyst;request_id=req-123;purpose=ask",
+            "service=nexus-hive;adapter=snowflake-sql-contract;role=analyst;request_id=req-123;purpose=policy-check",
+            "service=nexus-hive;adapter=databricks-sql-contract;role=viewer;request_id=req-123;purpose=gold-eval",
+        ],
+        "adapter_notes": [
+            {
+                "adapter": "sqlite-demo",
+                "tag_transport": "local audit preview only",
+            },
+            {
+                "adapter": "snowflake-sql-contract",
+                "tag_transport": "maps cleanly onto statement params / QUERY_TAG-style governance metadata",
+            },
+            {
+                "adapter": "databricks-sql-contract",
+                "tag_transport": "maps onto warehouse tags and medallion/lakehouse governance review",
+            },
+        ],
+    }
+
+
+def build_query_tag(*, request_id: str, role: str, purpose: str, adapter_name: str = "sqlite-demo") -> str:
+    safe_role = str(role or DEFAULT_ROLE).strip().lower() or DEFAULT_ROLE
+    safe_purpose = str(purpose or "ask").strip().lower() or "ask"
+    safe_request_id = str(request_id or "unknown").strip() or "unknown"
+    safe_adapter = str(adapter_name or "sqlite-demo").strip() or "sqlite-demo"
+    return (
+        f"service=nexus-hive;adapter={safe_adapter};role={safe_role};"
+        f"request_id={safe_request_id};purpose={safe_purpose}"
+    )
 
 
 def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
@@ -627,6 +689,8 @@ def write_query_audit_snapshot(
     question: str,
     status: str,
     stage: str,
+    adapter_name: str = "sqlite-demo",
+    query_tag: str = "",
     sql_query: str = "",
     row_count: int = 0,
     retry_count: int = 0,
@@ -645,6 +709,8 @@ def write_query_audit_snapshot(
             "question": question,
             "status": status,
             "stage": stage,
+            "adapter_name": adapter_name,
+            "query_tag": query_tag,
             "sql_query": sql_query,
             "row_count": row_count,
             "retry_count": retry_count,
@@ -793,6 +859,7 @@ def build_query_audit_summary(
 
     status_counts: Dict[str, int] = {}
     policy_counts: Dict[str, int] = {}
+    adapter_counts: Dict[str, int] = {}
     policy_reason_counts: Dict[str, int] = {}
     top_questions: Dict[str, Dict[str, Any]] = {}
     fallback_sql_count = 0
@@ -804,8 +871,10 @@ def build_query_audit_summary(
     for item in latest_items:
         item_status = str(item.get("status") or "unknown").strip().lower() or "unknown"
         item_policy = str(item.get("policy_decision") or "unknown").strip().lower() or "unknown"
+        item_adapter = str(item.get("adapter_name") or "unknown").strip().lower() or "unknown"
         status_counts[item_status] = status_counts.get(item_status, 0) + 1
         policy_counts[item_policy] = policy_counts.get(item_policy, 0) + 1
+        adapter_counts[item_adapter] = adapter_counts.get(item_adapter, 0) + 1
         fallback_sql_count += 1 if item.get("fallback_sql_used") else 0
         fallback_chart_count += 1 if item.get("fallback_chart_used") else 0
         denied_count += 1 if item_policy == "deny" else 0
@@ -857,6 +926,7 @@ def build_query_audit_summary(
             "total_requests": len(latest_items),
             "status_counts": status_counts,
             "policy_decision_counts": policy_counts,
+            "adapter_counts": adapter_counts,
             "fallback_sql_count": fallback_sql_count,
             "fallback_chart_count": fallback_chart_count,
             "denied_count": denied_count,
@@ -1293,6 +1363,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
     gold_eval = build_gold_eval_pack()
     gold_eval_run = run_gold_eval_suite()
     policy_schema = build_policy_schema()
+    query_tag_contract = build_query_tag_contract()
 
     return {
         "status": "ok" if quality_gate["status"] == "ok" else "degraded",
@@ -1308,6 +1379,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "quality_gate": quality_gate,
         "lineage": build_lineage_schema(),
         "policy": policy_schema,
+        "query_tag_contract": query_tag_contract,
         "gold_eval": gold_eval,
         "gold_eval_run": gold_eval_run,
         "recent_audit_count": len(recent_audits),
@@ -1318,10 +1390,12 @@ def build_warehouse_brief() -> Dict[str, Any]:
             "trace_sql_before_chart_trust",
             "sensitive_columns_require_role_escalation",
         ],
+        "query_tag_examples": query_tag_contract["examples"],
         "routes": [
             "/api/runtime/warehouse-brief",
             "/api/schema/lineage",
             "/api/schema/policy",
+            "/api/schema/query-tag",
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
             "/api/query-session-board",
@@ -1597,6 +1671,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/schema/answer",
             "/api/schema/lineage",
             "/api/schema/policy",
+            "/api/schema/query-tag",
             "/api/schema/query-audit",
             "/api/evals/nl2sql-gold",
             "/api/evals/nl2sql-gold/run",
@@ -1619,6 +1694,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "warehouse-brief-surface",
             "lineage-schema-surface",
             "policy-schema-surface",
+            "query-tag-schema-surface",
             "query-audit-surface",
             "gold-eval-surface",
             "policy-preview-surface",
@@ -1682,6 +1758,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "quality_gate_schema": warehouse_brief["quality_gate"]["schema"],
             "lineage_schema": warehouse_brief["lineage"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
+            "query_tag_schema": warehouse_brief["query_tag_contract"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "query_session_board_schema": QUERY_SESSION_BOARD_SCHEMA,
             "query_approval_board_schema": QUERY_APPROVAL_BOARD_SCHEMA,
@@ -1697,6 +1774,7 @@ def build_runtime_brief() -> Dict[str, Any]:
         "review_flow": [
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
+            "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
             "Ask a question through /api/ask or the frontend to validate SQL, execution, and chart generation.",
@@ -1706,6 +1784,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "The visualization agent uses the shape of returned rows; poor SQL still yields poor charts.",
             "Ollama availability affects live demos, but the runtime brief remains available without it.",
             "SQLite is used as a local warehouse stand-in, not a claim of production warehouse scale.",
+            "Query tags are governance proof fields and not a substitute for warehouse-native access controls.",
         ],
         "agent_contract": [
             {
@@ -1757,6 +1836,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/schema/answer",
                 "/api/schema/lineage",
                 "/api/schema/policy",
+                "/api/schema/query-tag",
                 "/api/schema/query-audit",
                 "/api/evals/nl2sql-gold",
                 "/api/evals/nl2sql-gold/run",
@@ -1784,11 +1864,13 @@ def build_review_pack() -> Dict[str, Any]:
             "visualizer: chart payload is inferred from actual result shape",
             "warehouse brief: lineage and quality gate stay visible before approval",
             "policy: wildcard projections and sensitive columns are denied before execution",
+            "query tag: request metadata stays attached to the governed review path before warehouse expansion",
             "stream: reviewer can audit the agent trace before trusting the rendered chart",
         ],
         "review_sequence": [
             "Open /health to confirm warehouse and model posture.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
+            "Read /api/schema/query-tag before warehouse-target demos so the governance dimensions stay explicit.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
             "Use /api/query-session-board to reopen reusable governed query sessions before re-running them.",
@@ -1808,6 +1890,7 @@ def build_review_pack() -> Dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
+            {"label": "Query Tag Schema", "href": "/api/schema/query-tag", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
             {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
             {"label": "Query Approval Board", "href": "/api/query-approval-board", "kind": "route"},
@@ -1831,6 +1914,7 @@ def build_review_pack() -> Dict[str, Any]:
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
             "policy_schema": "/api/schema/policy",
+            "query_tag_schema": "/api/schema/query-tag",
             "query_audit_schema": "/api/schema/query-audit",
             "query_session_board": "/api/query-session-board",
             "query_approval_board": "/api/query-approval-board",
@@ -1847,6 +1931,12 @@ def build_review_pack() -> Dict[str, Any]:
     }
 
 async def run_agent_and_stream(question: str, request_id: str):
+    query_tag = build_query_tag(
+        request_id=request_id,
+        role=DEFAULT_ROLE,
+        purpose="ask",
+        adapter_name="sqlite-demo",
+    )
     state = {
         "user_query": question,
         "sql_query": "",
@@ -1889,6 +1979,8 @@ async def run_agent_and_stream(question: str, request_id: str):
             question=question,
             status="failed",
             stage="failed",
+            adapter_name="sqlite-demo",
+            query_tag=query_tag,
             sql_query=state.get("sql_query", ""),
             row_count=len(state.get("db_result", [])),
             retry_count=state.get("retry_count", 0),
@@ -1920,6 +2012,8 @@ async def run_agent_and_stream(question: str, request_id: str):
             question=question,
             status="completed",
             stage="completed",
+            adapter_name="sqlite-demo",
+            query_tag=query_tag,
             sql_query=state.get("sql_query", ""),
             row_count=len(state.get("db_result", [])),
             retry_count=state.get("retry_count", 0),
@@ -1972,6 +2066,7 @@ async def health_endpoint():
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
             "policy_schema": "/api/schema/policy",
+            "query_tag_schema": "/api/schema/query-tag",
             "query_audit_schema": "/api/schema/query-audit",
             "gold_eval": "/api/evals/nl2sql-gold",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
@@ -2002,6 +2097,7 @@ async def meta_endpoint():
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
         "policy_contract": build_policy_schema()["schema"],
+        "query_tag_contract": build_query_tag_contract()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
         "query_session_board_contract": QUERY_SESSION_BOARD_SCHEMA,
         "query_approval_board_contract": QUERY_APPROVAL_BOARD_SCHEMA,
@@ -2148,6 +2244,16 @@ async def policy_schema_endpoint():
     }
 
 
+@app.get("/api/schema/query-tag")
+async def query_tag_schema_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_tag_contract(),
+    }
+
+
 @app.get("/api/schema/query-audit")
 async def query_audit_schema_endpoint():
     return {
@@ -2205,6 +2311,12 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
         "generated_at": utc_now_iso(),
         "schema": build_policy_schema()["schema"],
         "sql": sql,
+        "query_tag_preview": build_query_tag(
+            request_id=str(getattr(request.state, "request_id", "") or "policy-check"),
+            role=role,
+            purpose="policy-check",
+            adapter_name="sqlite-demo",
+        ),
         "verdict": verdict,
         "approval_required": approval_bundle["approval_required"],
         "approval_actions": approval_bundle["approval_actions"],
@@ -2347,11 +2459,19 @@ async def ask_endpoint(req: AskRequest, request: Request):
         raise HTTPException(status_code=413, detail="question is too long")
 
     request_id = uuid4().hex[:12]
+    query_tag = build_query_tag(
+        request_id=request_id,
+        role=DEFAULT_ROLE,
+        purpose="ask",
+        adapter_name="sqlite-demo",
+    )
     write_query_audit_snapshot(
         request_id=request_id,
         question=question,
         status="accepted",
         stage="accepted",
+        adapter_name="sqlite-demo",
+        query_tag=query_tag,
         policy_decision="pending",
         policy_reasons=[],
         fallback_sql_used=False,
@@ -2375,11 +2495,13 @@ async def ask_endpoint(req: AskRequest, request: Request):
         "message": "Use the SSE stream endpoint to receive the full agent trace.",
         "request_id": request_id,
         "question": question,
+        "query_tag_preview": query_tag,
         "stream_url": f"{stream_url}?q={quote_plus(question)}&rid={request_id}",
         "links": {
             "runtime_brief": str(request.url_for("runtime_brief_endpoint")),
             "warehouse_brief": str(request.url_for("warehouse_brief_endpoint")),
             "answer_schema": str(request.url_for("answer_schema_endpoint")),
+            "query_tag_schema": str(request.url_for("query_tag_schema_endpoint")),
             "gold_eval": str(request.url_for("gold_eval_endpoint")),
             "query_session_board": str(request.url_for("query_session_board_endpoint")),
             "query_approval_board": str(request.url_for("query_approval_board_endpoint")),
