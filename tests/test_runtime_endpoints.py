@@ -37,6 +37,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     warehouse_brief = client.get("/api/runtime/warehouse-brief")
+    warehouse_target_scorecard = client.get(
+        "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract"
+    )
     governance_scorecard = client.get("/api/runtime/governance-scorecard?focus=quality")
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
@@ -59,6 +62,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["meta"] == "/api/meta"
     assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health_payload["links"]["warehouse_brief"] == "/api/runtime/warehouse-brief"
+    assert (
+        health_payload["links"]["warehouse_target_scorecard"]
+        == "/api/runtime/warehouse-target-scorecard"
+    )
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
@@ -87,6 +94,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["ops_contract"]["schema"] == "ops-envelope-v1"
     assert meta_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert meta_payload["warehouse_brief_contract"] == "nexus-hive-warehouse-brief-v1"
+    assert (
+        meta_payload["warehouse_target_scorecard_contract"]
+        == "nexus-hive-warehouse-target-scorecard-v1"
+    )
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
@@ -103,6 +114,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
+    assert "/api/runtime/warehouse-target-scorecard" in meta_payload["routes"]
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
     assert "/api/auth/session" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
@@ -152,7 +164,20 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert warehouse_payload["audit_summary"]["schema"] == "nexus-hive-query-audit-summary-v1"
     assert warehouse_payload["gold_eval"]["schema"] == "nexus-hive-gold-eval-v1"
     assert "/api/query-session-board" in warehouse_payload["routes"]
+    assert "/api/runtime/warehouse-target-scorecard" in warehouse_payload["routes"]
     assert isinstance(warehouse_payload["table_profiles"], list)
+
+    assert warehouse_target_scorecard.status_code == 200
+    warehouse_target_payload = warehouse_target_scorecard.json()
+    assert warehouse_target_payload["schema"] == "nexus-hive-warehouse-target-scorecard-v1"
+    assert warehouse_target_payload["filters"]["target"] == "snowflake-sql-contract"
+    assert warehouse_target_payload["summary"]["visible_targets"] == 1
+    assert warehouse_target_payload["targets"][0]["target"] == "snowflake-sql-contract"
+    assert (
+        warehouse_target_payload["links"]["warehouse_target_scorecard"]
+        == "/api/runtime/warehouse-target-scorecard"
+    )
+    assert warehouse_target_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
 
     assert governance_scorecard.status_code == 200
     governance_payload = governance_scorecard.json()
@@ -176,6 +201,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
+    assert "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/schema/metrics" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-session-board" in pack_payload["proof_bundle"]["review_routes"]
@@ -185,6 +211,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert isinstance(pack_payload["executive_promises"], list)
     assert len(pack_payload["two_minute_review"]) == 7
     assert pack_payload["proof_assets"][0]["href"] == "/health"
+    assert any(
+        asset["href"] == "/api/runtime/warehouse-target-scorecard"
+        for asset in pack_payload["proof_assets"]
+    )
     assert any(asset["href"] == "/api/schema/metrics" for asset in pack_payload["proof_assets"])
     assert any(asset["href"] == "/api/runtime/governance-scorecard" for asset in pack_payload["proof_assets"])
     assert any(asset["href"] == "/api/query-session-board" for asset in pack_payload["proof_assets"])
