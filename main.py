@@ -149,6 +149,7 @@ GOVERNANCE_SCORECARD_FOCUS_VALUES = {"throughput", "policy", "quality", "resilie
 GOVERNANCE_SCORECARD_SCHEMA = "nexus-hive-governance-scorecard-v1"
 QUERY_SESSION_BOARD_SCHEMA = "nexus-hive-query-session-board-v1"
 QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
+WAREHOUSE_TARGET_SCORECARD_SCHEMA = "nexus-hive-warehouse-target-scorecard-v1"
 
 import operator
 
@@ -1323,6 +1324,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "policy_check": "/api/policy/check",
@@ -1386,6 +1388,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "query_tag_examples": query_tag_contract["examples"],
         "routes": [
             "/api/runtime/warehouse-brief",
+            "/api/runtime/warehouse-target-scorecard",
             "/api/schema/lineage",
             "/api/schema/metrics",
             "/api/schema/policy",
@@ -1398,6 +1401,116 @@ def build_warehouse_brief() -> Dict[str, Any]:
             "/api/query-audit/summary",
             "/api/query-audit/recent",
         ],
+    }
+
+
+def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, Any]:
+    contracts = get_warehouse_adapter_contracts()
+    allowed_targets = [
+        str(item.get("name", "")).strip().lower()
+        for item in contracts
+        if str(item.get("name", "")).strip()
+    ]
+    normalized_target = str(target or "").strip().lower()
+    if normalized_target and normalized_target not in allowed_targets:
+        raise ValueError(f"invalid warehouse target: {target}")
+
+    metric_layer = build_metric_layer_schema()
+    quality_gate = build_quality_gate()
+    governance_scorecard = build_governance_scorecard("policy")
+    gold_eval_run = run_gold_eval_suite()
+    certified_metrics = [
+        str(item)
+        for item in metric_layer.get("approval_policy", {}).get("certified_metrics", [])
+    ]
+    review_required_when = [
+        str(item)
+        for item in metric_layer.get("approval_policy", {}).get("review_required_when", [])
+    ]
+
+    visible_contracts = [
+        item
+        for item in contracts
+        if not normalized_target
+        or str(item.get("name", "")).strip().lower() == normalized_target
+    ]
+    target_notes = {
+        "sqlite-demo": {
+            "fit": "Deterministic governed BI review path with live local execution.",
+            "primary_surface": "/api/ask",
+        },
+        "snowflake-sql-contract": {
+            "fit": "Snowflake-style governed warehouse contract with query tagging and audit posture kept explicit.",
+            "primary_surface": "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract",
+        },
+        "databricks-sql-contract": {
+            "fit": "Databricks-style lakehouse contract with freshness and quality-gate semantics visible up front.",
+            "primary_surface": "/api/runtime/warehouse-target-scorecard?target=databricks-sql-contract",
+        },
+    }
+
+    cards = []
+    for item in visible_contracts:
+        target_name = str(item.get("name", ""))
+        note = target_notes.get(target_name, {})
+        execution_mode = str(item.get("execution_mode", ""))
+        blockers: List[str] = []
+        if execution_mode == "contract-preview":
+            blockers.append("live_connector_not_configured")
+        if quality_gate.get("status") != "ok":
+            blockers.append("quality_gate_degraded")
+        cards.append(
+            {
+                "target": target_name,
+                "status": (
+                    "ready"
+                    if execution_mode == "local-sqlite" and quality_gate.get("status") == "ok"
+                    else "review-ready"
+                    if quality_gate.get("status") == "ok"
+                    else "attention"
+                ),
+                "sql_dialect": str(item.get("sql_dialect", "")),
+                "execution_mode": execution_mode,
+                "fit": note.get("fit", str(item.get("role", ""))),
+                "primary_surface": note.get("primary_surface", "/api/runtime/warehouse-brief"),
+                "capabilities": [str(capability) for capability in item.get("capabilities", [])],
+                "blockers": blockers,
+                "review_note": str(item.get("review_note", "")),
+            }
+        )
+
+    return {
+        "status": "ok" if quality_gate["status"] == "ok" else "degraded",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": WAREHOUSE_TARGET_SCORECARD_SCHEMA,
+        "headline": "Warehouse target scorecard that makes SQLite, Snowflake, and Databricks fit explicit before platform-native claims are made.",
+        "filters": {
+            "target": normalized_target or None,
+        },
+        "summary": {
+            "visible_targets": len(cards),
+            "certified_metric_count": len(certified_metrics),
+            "review_required_rule_count": len(review_required_when),
+            "quality_gate_status": quality_gate["status"],
+            "gold_eval_pass_count": gold_eval_run["summary"]["pass_count"],
+            "runtime_event_count": governance_scorecard["persistence"]["persisted_count"],
+        },
+        "targets": cards,
+        "review_actions": [
+            "Read this scorecard before claiming Snowflake or Databricks fit from the generic warehouse brief alone.",
+            "Use /api/schema/metrics to verify which certified metrics survive across warehouse targets.",
+            "Pair this view with query approval and policy surfaces before promising platform-native governance behavior.",
+        ],
+        "links": {
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
+            "metric_layer_schema": "/api/schema/metrics",
+            "policy_schema": "/api/schema/policy",
+            "query_approval_board": "/api/query-approval-board",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+        },
     }
 
 # --- LangGraph State Definition ---
@@ -1669,6 +1782,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/warehouse-brief",
+            "/api/runtime/warehouse-target-scorecard",
             "/api/runtime/governance-scorecard",
             "/api/auth/session",
             "/api/review-pack",
@@ -1697,6 +1811,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "sse-agent-trace-streaming",
             "runtime-brief-surface",
             "warehouse-brief-surface",
+            "warehouse-target-scorecard-surface",
             "lineage-schema-surface",
             "metric-layer-schema-surface",
             "policy-schema-surface",
@@ -1839,6 +1954,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/meta",
                 "/api/runtime/brief",
                 "/api/runtime/warehouse-brief",
+                "/api/runtime/warehouse-target-scorecard",
                 "/api/runtime/governance-scorecard",
                 "/api/review-pack",
                 "/api/schema/answer",
@@ -1901,6 +2017,7 @@ def build_review_pack() -> Dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
+            {"label": "Warehouse Target Scorecard", "href": "/api/runtime/warehouse-target-scorecard", "kind": "route"},
             {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
             {"label": "Query Tag Schema", "href": "/api/schema/query-tag", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
@@ -1920,6 +2037,7 @@ def build_review_pack() -> Dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
@@ -2073,6 +2191,7 @@ async def health_endpoint():
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "warehouse_brief": "/api/runtime/warehouse-brief",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
@@ -2106,6 +2225,7 @@ async def meta_endpoint():
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "readiness_contract": "nexus-hive-runtime-brief-v1",
         "warehouse_brief_contract": "nexus-hive-warehouse-brief-v1",
+        "warehouse_target_scorecard_contract": WAREHOUSE_TARGET_SCORECARD_SCHEMA,
         "governance_scorecard_contract": GOVERNANCE_SCORECARD_SCHEMA,
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
@@ -2131,6 +2251,14 @@ async def runtime_brief_endpoint():
 @app.get("/api/runtime/warehouse-brief")
 async def warehouse_brief_endpoint():
     return build_warehouse_brief()
+
+
+@app.get("/api/runtime/warehouse-target-scorecard")
+async def warehouse_target_scorecard_endpoint(target: Optional[str] = None):
+    try:
+        return build_warehouse_target_scorecard(target)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/runtime/governance-scorecard")
