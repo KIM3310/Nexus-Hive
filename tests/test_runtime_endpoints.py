@@ -41,6 +41,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract"
     )
     governance_scorecard = client.get("/api/runtime/governance-scorecard?focus=quality")
+    semantic_governance_pack = client.get("/api/runtime/semantic-governance-pack")
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
@@ -67,6 +68,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "/api/runtime/warehouse-target-scorecard"
     )
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    assert health_payload["links"]["semantic_governance_pack"] == "/api/runtime/semantic-governance-pack"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
@@ -99,6 +101,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "nexus-hive-warehouse-target-scorecard-v1"
     )
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
+    assert meta_payload["semantic_governance_pack_contract"] == "nexus-hive-semantic-governance-pack-v1"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
@@ -116,6 +119,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-target-scorecard" in meta_payload["routes"]
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
+    assert "/api/runtime/semantic-governance-pack" in meta_payload["routes"]
     assert "/api/auth/session" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
@@ -141,6 +145,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["lineage_schema"] == "nexus-hive-lineage-v1"
     assert brief_payload["warehouse_contract"]["metric_layer_schema"] == "nexus-hive-metric-layer-v1"
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
+    assert (
+        brief_payload["warehouse_contract"]["semantic_governance_pack_schema"]
+        == "nexus-hive-semantic-governance-pack-v1"
+    )
     assert brief_payload["warehouse_contract"]["query_tag_schema"] == "nexus-hive-query-tag-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
     assert brief_payload["warehouse_contract"]["query_session_board_schema"] == "nexus-hive-query-session-board-v1"
@@ -178,6 +186,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "/api/runtime/warehouse-target-scorecard"
     )
     assert warehouse_target_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
+    assert (
+        warehouse_target_payload["links"]["semantic_governance_pack"]
+        == "/api/runtime/semantic-governance-pack"
+    )
 
     assert governance_scorecard.status_code == 200
     governance_payload = governance_scorecard.json()
@@ -195,6 +207,26 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert governance_payload["links"]["auth_session"] == "/api/auth/session"
     assert isinstance(governance_payload["score_bands"], list)
 
+    assert semantic_governance_pack.status_code == 200
+    semantic_pack_payload = semantic_governance_pack.json()
+    assert semantic_pack_payload["schema"] == "nexus-hive-semantic-governance-pack-v1"
+    assert semantic_pack_payload["summary"]["certified_metric_count"] >= 1
+    assert semantic_pack_payload["summary"]["target_count"] >= 3
+    assert any(
+        item["status"] == "certified"
+        for item in semantic_pack_payload["certification_board"]
+    )
+    assert any(
+        item["target"] == "snowflake-sql-contract"
+        for item in semantic_pack_payload["target_posture"]
+    )
+    assert (
+        semantic_pack_payload["links"]["semantic_governance_pack"]
+        == "/api/runtime/semantic-governance-pack"
+    )
+    assert semantic_pack_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
+    assert len(semantic_pack_payload["review_path"]) >= 3
+
     assert review_pack.status_code == 200
     pack_payload = review_pack.json()
     assert pack_payload["readiness_contract"] == "nexus-hive-review-pack-v1"
@@ -203,16 +235,21 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
     assert "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
+    assert "/api/runtime/semantic-governance-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/schema/metrics" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-session-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-review-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-audit/summary" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
-    assert len(pack_payload["two_minute_review"]) == 7
+    assert len(pack_payload["two_minute_review"]) == 8
     assert pack_payload["proof_assets"][0]["href"] == "/health"
     assert any(
         asset["href"] == "/api/runtime/warehouse-target-scorecard"
+        for asset in pack_payload["proof_assets"]
+    )
+    assert any(
+        asset["href"] == "/api/runtime/semantic-governance-pack"
         for asset in pack_payload["proof_assets"]
     )
     assert any(asset["href"] == "/api/schema/metrics" for asset in pack_payload["proof_assets"])
