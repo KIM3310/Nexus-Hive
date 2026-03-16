@@ -41,6 +41,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
+    metrics_schema = client.get("/api/schema/metrics")
     query_tag_schema = client.get("/api/schema/query-tag")
     query_audit_schema = client.get("/api/schema/query-audit")
     query_session_board = client.get("/api/query-session-board")
@@ -63,6 +64,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
+    assert health_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
     assert health_payload["links"]["query_audit_schema"] == "/api/schema/query-audit"
     assert health_payload["links"]["query_tag_schema"] == "/api/schema/query-tag"
     assert health_payload["links"]["query_session_board"] == "/api/query-session-board"
@@ -89,6 +91,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
+    assert meta_payload["metric_layer_contract"] == "nexus-hive-metric-layer-v1"
     assert meta_payload["policy_contract"] == "nexus-hive-policy-v1"
     assert meta_payload["query_tag_contract"] == "nexus-hive-query-tag-v1"
     assert meta_payload["query_audit_contract"] == "nexus-hive-query-audit-v1"
@@ -105,6 +108,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
     assert "/api/schema/lineage" in meta_payload["routes"]
+    assert "/api/schema/metrics" in meta_payload["routes"]
     assert "/api/schema/policy" in meta_payload["routes"]
     assert "/api/schema/query-tag" in meta_payload["routes"]
     assert "/api/schema/query-audit" in meta_payload["routes"]
@@ -123,6 +127,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"
     assert brief_payload["warehouse_contract"]["fallback_mode"] in {"heuristic", "disabled"}
     assert brief_payload["warehouse_contract"]["lineage_schema"] == "nexus-hive-lineage-v1"
+    assert brief_payload["warehouse_contract"]["metric_layer_schema"] == "nexus-hive-metric-layer-v1"
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert brief_payload["warehouse_contract"]["query_tag_schema"] == "nexus-hive-query-tag-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
@@ -141,6 +146,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert warehouse_payload["fallback_mode"] in {"heuristic", "disabled"}
     assert warehouse_payload["quality_gate"]["schema"] == "nexus-hive-quality-gate-v1"
     assert warehouse_payload["lineage"]["schema"] == "nexus-hive-lineage-v1"
+    assert warehouse_payload["metric_layer"]["schema"] == "nexus-hive-metric-layer-v1"
     assert warehouse_payload["policy"]["schema"] == "nexus-hive-policy-v1"
     assert warehouse_payload["query_tag_contract"]["schema"] == "nexus-hive-query-tag-v1"
     assert warehouse_payload["audit_summary"]["schema"] == "nexus-hive-query-audit-summary-v1"
@@ -171,13 +177,15 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
     assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
+    assert "/api/schema/metrics" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-session-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-review-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-audit/summary" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
-    assert len(pack_payload["two_minute_review"]) == 6
+    assert len(pack_payload["two_minute_review"]) == 7
     assert pack_payload["proof_assets"][0]["href"] == "/health"
+    assert any(asset["href"] == "/api/schema/metrics" for asset in pack_payload["proof_assets"])
     assert any(asset["href"] == "/api/runtime/governance-scorecard" for asset in pack_payload["proof_assets"])
     assert any(asset["href"] == "/api/query-session-board" for asset in pack_payload["proof_assets"])
     assert any(asset["href"] == "/api/query-review-board" for asset in pack_payload["proof_assets"])
@@ -227,6 +235,17 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     lineage_payload = lineage_schema.json()
     assert lineage_payload["schema"] == "nexus-hive-lineage-v1"
     assert len(lineage_payload["relationships"]) == 2
+
+    assert metrics_schema.status_code == 200
+    metrics_payload = metrics_schema.json()
+    assert metrics_payload["schema"] == "nexus-hive-metric-layer-v1"
+    assert metrics_payload["metrics"][0]["metric_id"] == "net_revenue"
+    assert "gross_revenue" in metrics_payload["approval_policy"]["certified_metrics"]
+    assert metrics_payload["approval_policy"]["warehouse_targets"] == [
+        "sqlite-demo",
+        "snowflake-sql-contract",
+        "databricks-sql-contract",
+    ]
 
     assert gold_eval.status_code == 200
     gold_eval_payload = gold_eval.json()
