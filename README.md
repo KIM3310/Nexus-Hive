@@ -35,8 +35,8 @@ This repo is strongest for governed analytics, warehouse-adjacent AI, and approv
 
 | Team lens | What should stand out fast | Start here |
 |---|---|---|
-| Snowflake | audited SQL, warehouse posture, semantic lineage, certified metrics, and executive-facing review surfaces | `/api/runtime/semantic-governance-pack`, `/api/runtime/warehouse-brief`, `/api/query-audit/recent`, `/api/schema/lineage` |
-| Databricks | NL2SQL eval discipline, semantic governance, approval board, experiment-friendly local runtime, and fallback transparency | `/api/runtime/semantic-governance-pack`, `/api/evals/nl2sql-gold`, `/api/query-approval-board`, `/api/query-review-board` |
+| Snowflake | audited SQL, warehouse posture, semantic lineage, certified metrics, and platform-facing connector posture | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/warehouse-brief`, `/api/query-audit/recent` |
+| Databricks | NL2SQL eval discipline, semantic governance, approval board, lakehouse delivery posture, and fallback transparency | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/evals/nl2sql-gold`, `/api/query-approval-board` |
 | Palantir / high-trust ops | review-required SQL, policy-visible runtime, approval-safe handoff, and request-level audit trails | `/api/policy/check`, `/api/schema/policy`, `/api/query-audit/{request_id}` |
 | Solutions architect / field engineer | executive question -> governed answer -> chart -> review pack walkthrough | `/health`, `/api/review-pack`, local frontend in `frontend/` |
 
@@ -94,7 +94,7 @@ uvicorn main:app --port 8000
 
 - **Recruiter / hiring manager:** open `/health`, then `/api/review-pack`.
 - **AI / analytics engineer:** open `/api/runtime/warehouse-brief` -> `/api/evals/nl2sql-gold/run` -> `src/control_tower/`.
-- **Data / platform architect:** open `/api/runtime/semantic-governance-pack` -> `/api/schema/lineage` -> `/api/schema/policy` -> `/api/query-audit/recent`.
+- **Data / platform architect:** open `/api/runtime/lakehouse-readiness-pack` -> `/api/runtime/semantic-governance-pack` -> `/api/schema/lineage` -> `/api/schema/policy` -> `/api/query-audit/recent`.
 - **Solutions / field reviewer:** use the local frontend -> `/api/query-review-board` -> [`docs/executive-one-pager.md`](docs/executive-one-pager.md).
 
 ## Service-Grade Surfaces
@@ -104,6 +104,7 @@ uvicorn main:app --port 8000
 - `GET /api/runtime/brief`: summarizes the agent contract, retry budget, watchouts, and validation flow before a live demo.
 - `GET /api/runtime/warehouse-brief`: exposes warehouse mode, lineage, quality gate, policy examples, and recent audit volume.
 - `GET /api/runtime/semantic-governance-pack`: compresses metric certification, approval posture, and warehouse-target survival into one reviewer surface.
+- `GET /api/runtime/lakehouse-readiness-pack`: compresses Snowflake/Databricks connector posture, query-tag transport, and delivery boundaries into one platform-facing reviewer surface.
 - `GET /api/review-pack`: ties executive promises, trust boundary, answer contract, and review routes into one reviewer surface.
 - `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
 - `GET /api/schema/lineage`: documents the semantic model and fact-to-dimension relationships.
