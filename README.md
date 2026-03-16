@@ -1,8 +1,8 @@
-# ⬡ Nexus-Hive: Multi-Agent Federated BI Copilot
+# ⬡ Nexus-Hive: Governed Analytics Runtime
 
-**Nexus-Hive** is a governed BI copilot that turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail that a reviewer can inspect.
+**Nexus-Hive** turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail that a reviewer can inspect.
 
-This portfolio project focuses on **Multi-Agent Orchestration (LangGraph)**, **Text-to-SQL Pipelines**, **Data Warehousing Patterns**, and an executive-facing BI review flow.
+The repo focuses on governed analytics, text-to-SQL execution, and an executive-facing BI review flow.
 
 The strongest proof path is straightforward: question -> governed SQL -> query audit -> visualization -> review pack. The repo is structured so that translation, policy checks, execution, and visual output stay inspectable instead of collapsing into one prompt-shaped black box.
 
@@ -10,13 +10,13 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 
 ## Portfolio posture
 - Read this repo like a governed analytics desk for executive questions, not like a free-form text-to-chart demo.
-- Query audit, gold eval, approval board, and review pack are the evidence chain behind any claim of trustworthy BI automation.
+- Query audit, gold eval, approval board, and review pack form the evidence chain behind any claim of trustworthy BI automation.
 
 
 ## Role signals
 - **AI engineer:** text-to-SQL, audit, policy checks, and eval surfaces show more than a prompt-to-chart demo.
-- **Solution / cloud architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
-- **Field / solutions engineer:** the repo is set up for a fast executive question -> governed answer -> review-pack walkthrough.
+- **Solutions architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
+- **Field / solutions engineer:** the repo is set up for a fast executive question to governed answer to review-pack walkthrough.
 
 
 ## Portfolio context
