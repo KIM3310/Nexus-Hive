@@ -24,6 +24,11 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 - **This repo's role:** governed analytics / executive BI branch of the control-tower cluster.
 - **Related repos:** `regulated-case-workbench`, `fab-ops-yield-control-tower`, `smallbiz-ops-copilot`
 
+## Big-Tech Elevation Track
+
+- Canonical execution plan: [`docs/BIGTECH_ELEVATION_PLAN.md`](docs/BIGTECH_ELEVATION_PLAN.md)
+- Goal: turn this repo into a governed analytics runtime proof rather than a text-to-SQL demo.
+
 ## Best target-team fit
 
 This repo is strongest for governed analytics, warehouse-adjacent AI, and approval-safe BI conversations.
