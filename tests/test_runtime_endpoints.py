@@ -45,6 +45,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     lakehouse_readiness_pack = client.get(
         "/api/runtime/lakehouse-readiness-pack?target=databricks-sql-contract"
     )
+    reviewer_query_demo = client.post(
+        "/api/runtime/reviewer-query-demo",
+        json={"question_id": "revenue-by-region"},
+    )
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
@@ -73,6 +77,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
     assert health_payload["links"]["semantic_governance_pack"] == "/api/runtime/semantic-governance-pack"
     assert health_payload["links"]["lakehouse_readiness_pack"] == "/api/runtime/lakehouse-readiness-pack"
+    assert health_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
@@ -107,6 +112,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
     assert meta_payload["semantic_governance_pack_contract"] == "nexus-hive-semantic-governance-pack-v1"
     assert meta_payload["lakehouse_readiness_pack_contract"] == "nexus-hive-lakehouse-readiness-pack-v1"
+    assert meta_payload["openai"]["deploymentMode"] == "review-only-live"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
@@ -126,6 +132,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
     assert "/api/runtime/semantic-governance-pack" in meta_payload["routes"]
     assert "/api/runtime/lakehouse-readiness-pack" in meta_payload["routes"]
+    assert "/api/runtime/reviewer-query-demo" in meta_payload["routes"]
     assert "/api/auth/session" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
@@ -144,6 +151,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert runtime_brief.status_code == 200
     brief_payload = runtime_brief.json()
     assert brief_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
+    assert brief_payload["deploymentMode"] == "review-only-live"
     assert brief_payload["evidence_counts"]["agent_nodes"] == 3
     assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"
@@ -168,6 +176,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["governance_scorecard_schema"] == "nexus-hive-governance-scorecard-v1"
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
     assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
+    assert brief_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
 
     assert warehouse_brief.status_code == 200
     warehouse_payload = warehouse_brief.json()
@@ -256,6 +265,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         for route in lakehouse_payload["platform_cards"][0]["review_surfaces"]
     )
     assert len(semantic_pack_payload["review_path"]) >= 3
+
+    assert reviewer_query_demo.status_code == 503
+    assert "OPENAI_API_KEY" in reviewer_query_demo.json()["detail"]
 
     assert review_pack.status_code == 200
     pack_payload = review_pack.json()
@@ -699,6 +711,48 @@ def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) ->
 
     invalid_filter = client.get("/api/query-audit/summary?fallback_mode=bad")
     assert invalid_filter.status_code == 400
+
+
+def test_reviewer_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-nexus-live")
+    monkeypatch.setenv("OPENAI_PUBLIC_RPM", "3")
+
+    async def _fake_moderation(api_key: str, payload: str) -> None:
+        assert api_key == "sk-nexus-live"
+        assert "revenue-by-region" in payload
+
+    async def _fake_summary(api_key: str, model: str, payload: dict) -> dict:
+        assert api_key == "sk-nexus-live"
+        assert model == "gpt-4.1-mini"
+        assert payload["warehouse_target"] == "snowflake-sql-contract"
+        return {
+            "reviewerSummary": "Certified revenue metric survives the Snowflake contract path.",
+            "warehouseFit": "snowflake-strong",
+            "approvalReason": "Certified metric plus explicit regional grouping",
+            "metricTrust": "certified",
+            "nextAction": "open semantic governance pack",
+        }
+
+    monkeypatch.setattr(APP_MODULE, "call_openai_moderation", _fake_moderation)
+    monkeypatch.setattr(
+        APP_MODULE, "call_openai_reviewer_demo_summary", _fake_summary
+    )
+
+    client = TestClient(APP_MODULE.app)
+    response = client.post(
+        "/api/runtime/reviewer-query-demo",
+        json={"question_id": "revenue-by-region"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema"] == "nexus-hive-reviewer-query-demo-v1"
+    assert payload["mode"] == "public-capped-live"
+    assert payload["model"] == "gpt-4.1-mini"
+    assert payload["scenarioId"] == "revenue-by-region"
+    assert payload["nextReviewPath"] == "/api/runtime/semantic-governance-pack"
+    assert payload["result"]["approvalPosture"] == "allow"
+    assert payload["result"]["warehouseFit"] == "snowflake-strong"
 
 
 def test_query_review_board_prioritizes_attention_items(monkeypatch, tmp_path) -> None:

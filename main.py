@@ -152,6 +152,43 @@ QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
 WAREHOUSE_TARGET_SCORECARD_SCHEMA = "nexus-hive-warehouse-target-scorecard-v1"
 SEMANTIC_GOVERNANCE_PACK_SCHEMA = "nexus-hive-semantic-governance-pack-v1"
 LAKEHOUSE_READINESS_PACK_SCHEMA = "nexus-hive-lakehouse-readiness-pack-v1"
+REVIEWER_QUERY_DEMO_SCHEMA = "nexus-hive-reviewer-query-demo-v1"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+OPENAI_PUBLIC_DEFAULT_MODEL = "gpt-4.1-mini"
+OPENAI_PUBLIC_DEFAULT_DAILY_BUDGET_USD = 4.0
+OPENAI_PUBLIC_DEFAULT_MONTHLY_BUDGET_USD = 120.0
+OPENAI_PUBLIC_DEFAULT_RPM = 6
+OPENAI_TIMEOUT_S = 20.0
+REVIEWER_QUERY_SCENARIOS = {
+    "revenue-by-region": {
+        "question": "Show total net revenue by region",
+        "sql": (
+            "SELECT regions.region_name, SUM(sales.net_revenue) AS total_net_revenue "
+            "FROM sales JOIN regions ON sales.region_id = regions.region_id "
+            "GROUP BY regions.region_name ORDER BY total_net_revenue DESC"
+        ),
+        "metric_ids": ["net_revenue"],
+        "warehouse_target": "snowflake-sql-contract",
+        "approval_posture": "allow",
+        "next_review_path": "/api/runtime/semantic-governance-pack",
+        "estimated_cost_usd": 0.011,
+    },
+    "profit-top-regions": {
+        "question": "Show top 5 regions by total profit",
+        "sql": (
+            "SELECT regions.region_name, SUM(sales.profit) AS total_profit "
+            "FROM sales JOIN regions ON sales.region_id = regions.region_id "
+            "GROUP BY regions.region_name ORDER BY total_profit DESC LIMIT 5"
+        ),
+        "metric_ids": ["profit"],
+        "warehouse_target": "databricks-sql-contract",
+        "approval_posture": "review",
+        "next_review_path": "/api/runtime/lakehouse-readiness-pack",
+        "estimated_cost_usd": 0.012,
+    },
+}
+LAST_OPENAI_LIVE_RUN_AT: Optional[str] = None
+OPENAI_REVIEWER_RATE_BUCKETS: Dict[str, Dict[str, float]] = {}
 
 import operator
 
@@ -162,6 +199,125 @@ def get_db_schema():
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def read_bool_env(name: str, fallback: bool) -> bool:
+    raw = str(os.getenv(name, "")).strip().lower()
+    if not raw:
+        return fallback
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    return fallback
+
+
+def read_usd_env(name: str, fallback: float) -> float:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return fallback
+    try:
+        value = float(raw)
+    except ValueError:
+        return fallback
+    return round(max(0.0, value), 2)
+
+
+def build_openai_runtime_contract() -> Dict[str, Any]:
+    api_key = str(os.getenv("OPENAI_API_KEY", "")).strip()
+    kill_switch = read_bool_env("OPENAI_KILL_SWITCH", False)
+    daily_budget = read_usd_env(
+        "OPENAI_PUBLIC_DAILY_BUDGET_USD", OPENAI_PUBLIC_DEFAULT_DAILY_BUDGET_USD
+    )
+    monthly_budget = read_usd_env(
+        "OPENAI_PUBLIC_MONTHLY_BUDGET_USD", OPENAI_PUBLIC_DEFAULT_MONTHLY_BUDGET_USD
+    )
+    public_live_api = bool(api_key) and not kill_switch and daily_budget > 0 and monthly_budget > 0
+    return {
+        "api_key": api_key,
+        "deploymentMode": "public-capped-live" if public_live_api else "review-only-live",
+        "publicLiveApi": public_live_api,
+        "liveModel": str(os.getenv("OPENAI_MODEL_PUBLIC", "")).strip()
+        or OPENAI_PUBLIC_DEFAULT_MODEL,
+        "refreshModel": str(os.getenv("OPENAI_MODEL_REFRESH", "")).strip() or "gpt-5.2",
+        "dailyBudgetUsd": daily_budget,
+        "monthlyBudgetUsd": monthly_budget,
+        "killSwitch": kill_switch,
+        "moderationEnabled": read_bool_env("OPENAI_MODERATION_ENABLED", True),
+        "publicRpm": max(
+            1,
+            min(
+                120,
+                int(str(os.getenv("OPENAI_PUBLIC_RPM", OPENAI_PUBLIC_DEFAULT_RPM)).strip() or OPENAI_PUBLIC_DEFAULT_RPM),
+            ),
+        ),
+        "lastLiveRunAt": LAST_OPENAI_LIVE_RUN_AT,
+    }
+
+
+def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
+    now = datetime.now(timezone.utc).timestamp()
+    bucket = OPENAI_REVIEWER_RATE_BUCKETS.get(key)
+    if bucket is None or bucket["reset_at"] <= now:
+        OPENAI_REVIEWER_RATE_BUCKETS[key] = {"count": 1.0, "reset_at": now + 60.0}
+        return
+    if bucket["count"] >= float(limit):
+        raise HTTPException(status_code=429, detail="reviewer query demo rate limit exceeded")
+    bucket["count"] += 1.0
+
+
+async def call_openai_moderation(api_key: str, payload: str) -> None:
+    async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S) as client:
+        response = await client.post(
+            f"{OPENAI_BASE_URL}/moderations",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={"model": "omni-moderation-latest", "input": payload},
+        )
+    response.raise_for_status()
+    data = response.json()
+    if data.get("results", [{}])[0].get("flagged"):
+        raise HTTPException(status_code=400, detail="reviewer scenario blocked by moderation")
+
+
+async def call_openai_reviewer_demo_summary(api_key: str, model: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S) as client:
+        response = await client.post(
+            f"{OPENAI_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a governed analytics reviewer. Return JSON with keys "
+                            "reviewerSummary, warehouseFit, approvalReason, metricTrust, nextAction."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(payload, ensure_ascii=True),
+                    },
+                ],
+            },
+        )
+    response.raise_for_status()
+    data = response.json()
+    content = str(data.get("choices", [{}])[0].get("message", {}).get("content", "")).strip()
+    if not content:
+        raise HTTPException(status_code=502, detail="OpenAI reviewer demo returned empty content")
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="OpenAI reviewer demo returned invalid JSON") from exc
 
 
 def log_runtime_event(level: str, event: str, **payload: Any) -> None:
@@ -1912,6 +2068,7 @@ async def session_and_logging_middleware(request: Request, call_next):
 
 def build_runtime_meta() -> Dict[str, Any]:
     active_adapter = get_active_warehouse_adapter()
+    openai_runtime = build_openai_runtime_contract()
     db_exists = DB_PATH.exists()
     db_size_bytes = DB_PATH.stat().st_size if db_exists else 0
     schema_loaded = bool(get_db_schema().strip())
@@ -1930,7 +2087,9 @@ def build_runtime_meta() -> Dict[str, Any]:
         "recent_audit_count": warehouse_brief["recent_audit_count"],
         "runtime_event_count": runtime_persistence["persisted_count"],
         "next_action": (
-            "POST /api/ask with an executive question, then follow the returned /api/stream URL."
+            "POST /api/runtime/reviewer-query-demo with a fixed question_id for the bounded public warehouse demo."
+            if openai_runtime["publicLiveApi"]
+            else "POST /api/ask with an executive question, then follow the returned /api/stream URL."
             if db_exists and schema_loaded and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
             else "Run `python3 seed_db.py` and verify either Ollama or heuristic fallback is enabled before live demos."
         ),
@@ -1953,6 +2112,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "version": 1,
             "required_fields": ["service", "status", "diagnostics.next_action"],
         },
+        "openai": openai_runtime,
         "routes": [
             "/health",
             "/api/meta",
@@ -1962,6 +2122,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/runtime/governance-scorecard",
             "/api/runtime/semantic-governance-pack",
             "/api/runtime/lakehouse-readiness-pack",
+            "/api/runtime/reviewer-query-demo",
             "/api/auth/session",
             "/api/review-pack",
             "/api/schema/answer",
@@ -1992,6 +2153,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "warehouse-target-scorecard-surface",
             "semantic-governance-pack-surface",
             "lakehouse-readiness-pack-surface",
+            "reviewer-query-demo-surface",
             "lineage-schema-surface",
             "metric-layer-schema-surface",
             "policy-schema-surface",
@@ -2045,6 +2207,9 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Federated BI copilot that turns executive questions into audited SQL, executes them safely, and renders chart-ready answers."
         ),
         "diagnostics": diagnostics,
+        "deploymentMode": runtime_meta["openai"]["deploymentMode"],
+        "publicLiveApi": runtime_meta["openai"]["publicLiveApi"],
+        "liveModel": runtime_meta["openai"]["liveModel"],
         "model": MODEL_NAME,
         "report_contract": build_answer_schema(),
         "evidence_counts": {
@@ -2081,6 +2246,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
             "Read /api/runtime/semantic-governance-pack to see metric certification, approval posture, and warehouse survival in one surface.",
             "Read /api/runtime/lakehouse-readiness-pack to compress Snowflake and Databricks delivery posture into one platform-facing surface.",
+            "Use /api/runtime/reviewer-query-demo with a fixed question_id when you need a bounded public live warehouse demo.",
             "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
@@ -2108,6 +2274,9 @@ def build_runtime_brief() -> Dict[str, Any]:
             },
         ],
         "routes": runtime_meta["routes"],
+        "links": {
+            "reviewer_query_demo": "/api/runtime/reviewer-query-demo",
+        },
     }
 
 
@@ -2233,6 +2402,7 @@ def build_review_pack() -> Dict[str, Any]:
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
+            "reviewer_query_demo": "/api/runtime/reviewer-query-demo",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2371,6 +2541,10 @@ class AskRequest(BaseModel):
     question: str
 
 
+class ReviewerQueryDemoRequest(BaseModel):
+    question_id: str
+
+
 class PolicyCheckRequest(BaseModel):
     sql: str
     role: str = DEFAULT_ROLE
@@ -2389,6 +2563,7 @@ async def health_endpoint():
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
+            "reviewer_query_demo": "/api/runtime/reviewer-query-demo",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2487,6 +2662,84 @@ async def lakehouse_readiness_pack_endpoint(target: Optional[str] = None):
         return build_lakehouse_readiness_pack(target)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/runtime/reviewer-query-demo")
+async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest):
+    global LAST_OPENAI_LIVE_RUN_AT
+
+    runtime = build_openai_runtime_contract()
+    if not runtime["publicLiveApi"]:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "public OpenAI reviewer demo is unavailable; configure OPENAI_API_KEY "
+                "and keep budgets above zero"
+            ),
+        )
+
+    scenario_id = str(req.question_id or "").strip().lower()
+    scenario = REVIEWER_QUERY_SCENARIOS.get(scenario_id)
+    if scenario is None:
+        raise HTTPException(
+            status_code=400,
+            detail="question_id must be one of revenue-by-region or profit-top-regions",
+        )
+
+    enforce_openai_public_rate_limit(f"reviewer-demo:{scenario_id}", int(runtime["publicRpm"]))
+
+    payload = {
+        "question_id": scenario_id,
+        "question": scenario["question"],
+        "sql": scenario["sql"],
+        "metric_ids": scenario["metric_ids"],
+        "warehouse_target": scenario["warehouse_target"],
+        "approval_posture": scenario["approval_posture"],
+        "lineage_schema": build_lineage_schema()["schema"],
+        "metric_layer_schema": build_metric_layer_schema()["schema"],
+    }
+    if runtime["moderationEnabled"]:
+        await call_openai_moderation(str(runtime["api_key"]), json.dumps(payload, ensure_ascii=True))
+    live_summary = await call_openai_reviewer_demo_summary(
+        str(runtime["api_key"]),
+        str(runtime["liveModel"]),
+        payload,
+    )
+    LAST_OPENAI_LIVE_RUN_AT = utc_now_iso()
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "reviewer_query_demo",
+            "method": "POST",
+            "path": "/api/runtime/reviewer-query-demo",
+            "status": "ok",
+            "question_id": scenario_id,
+            "at": utc_now_iso(),
+        }
+    )
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "schema": REVIEWER_QUERY_DEMO_SCHEMA,
+        "mode": runtime["deploymentMode"],
+        "model": runtime["liveModel"],
+        "scenarioId": scenario_id,
+        "moderated": True,
+        "capped": True,
+        "traceId": uuid4().hex[:12],
+        "estimatedCostUsd": scenario["estimated_cost_usd"],
+        "nextReviewPath": scenario["next_review_path"],
+        "result": {
+            "question": scenario["question"],
+            "sql": scenario["sql"],
+            "metricIds": scenario["metric_ids"],
+            "approvalPosture": scenario["approval_posture"],
+            "warehouseFit": scenario["warehouse_target"],
+            "lineage": build_lineage_schema()["schema"],
+            "metricLayer": build_metric_layer_schema()["schema"],
+            **live_summary,
+        },
+    }
 
 
 @app.get("/api/auth/session")
