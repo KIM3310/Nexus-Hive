@@ -74,6 +74,53 @@ LINEAGE_RELATIONSHIPS = [
         "semantic_role": "regional ownership",
     },
 ]
+METRIC_LAYER_DEFINITIONS = [
+    {
+        "metric_id": "net_revenue",
+        "label": "Net Revenue",
+        "sql_expression": "SUM(sales.net_revenue)",
+        "grain": "transaction_id",
+        "owner": "finance-analytics",
+        "certified": True,
+        "default_dimensions": ["region_name", "category", "month"],
+    },
+    {
+        "metric_id": "gross_revenue",
+        "label": "Gross Revenue",
+        "sql_expression": "SUM(sales.gross_revenue)",
+        "grain": "transaction_id",
+        "owner": "finance-analytics",
+        "certified": True,
+        "default_dimensions": ["region_name", "category", "month"],
+    },
+    {
+        "metric_id": "profit",
+        "label": "Profit",
+        "sql_expression": "SUM(sales.profit)",
+        "grain": "transaction_id",
+        "owner": "finance-analytics",
+        "certified": True,
+        "default_dimensions": ["region_name", "category", "month"],
+    },
+    {
+        "metric_id": "average_discount",
+        "label": "Average Discount",
+        "sql_expression": "AVG(sales.discount_applied)",
+        "grain": "transaction_id",
+        "owner": "pricing-ops",
+        "certified": False,
+        "default_dimensions": ["category", "month"],
+    },
+    {
+        "metric_id": "units_sold",
+        "label": "Units Sold",
+        "sql_expression": "SUM(sales.quantity)",
+        "grain": "transaction_id",
+        "owner": "supply-analytics",
+        "certified": True,
+        "default_dimensions": ["region_name", "category", "product_name"],
+    },
+]
 GOLD_EVAL_CASES = [
     {
         "case_id": "revenue_by_region",
@@ -260,6 +307,35 @@ def build_lineage_schema() -> Dict[str, Any]:
             "Aggregate metrics should be traced back to fact_sales grain before approval.",
             "Dimension joins must stay auditable and consistent with the modeled foreign-key relationships.",
             "Reviewers should inspect lineage and quality gates before trusting NL2SQL output.",
+        ],
+    }
+
+
+def build_metric_layer_schema() -> Dict[str, Any]:
+    certified_metrics = [metric["metric_id"] for metric in METRIC_LAYER_DEFINITIONS if metric["certified"]]
+    return {
+        "schema": "nexus-hive-metric-layer-v1",
+        "headline": "Semantic metric contract for governed warehouse questions before SQL or dashboards are trusted.",
+        "metrics": METRIC_LAYER_DEFINITIONS,
+        "dimensions": [
+            {"dimension_id": "region_name", "source": "regions.region_name", "join_path": "sales.region_id -> regions.region_id"},
+            {"dimension_id": "category", "source": "products.category", "join_path": "sales.product_id -> products.product_id"},
+            {"dimension_id": "month", "source": "SUBSTR(sales.date, 1, 7)", "join_path": "derived from sales.date"},
+            {"dimension_id": "product_name", "source": "products.product_name", "join_path": "sales.product_id -> products.product_id"},
+        ],
+        "approval_policy": {
+            "certified_metrics": certified_metrics,
+            "review_required_when": [
+                "request references a non-certified metric",
+                "query mixes certified and non-certified metrics without an explicit purpose",
+                "dimension grain is ambiguous relative to transaction_id",
+            ],
+            "warehouse_targets": ["sqlite-demo", "snowflake-sql-contract", "databricks-sql-contract"],
+        },
+        "operator_rules": [
+            "Certified metrics are the front door for executive analytics claims.",
+            "Non-certified metrics stay visible but require explicit reviewer approval before external sharing.",
+            "Metric definitions must map back to fact_sales grain and known lineage edges.",
         ],
     }
 
@@ -1294,6 +1370,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "date_window": date_window,
         "quality_gate": quality_gate,
         "lineage": build_lineage_schema(),
+        "metric_layer": build_metric_layer_schema(),
         "policy": policy_schema,
         "query_tag_contract": query_tag_contract,
         "gold_eval": gold_eval,
@@ -1310,6 +1387,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "routes": [
             "/api/runtime/warehouse-brief",
             "/api/schema/lineage",
+            "/api/schema/metrics",
             "/api/schema/policy",
             "/api/schema/query-tag",
             "/api/schema/query-audit",
@@ -1596,6 +1674,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/review-pack",
             "/api/schema/answer",
             "/api/schema/lineage",
+            "/api/schema/metrics",
             "/api/schema/policy",
             "/api/schema/query-tag",
             "/api/schema/query-audit",
@@ -1619,6 +1698,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "runtime-brief-surface",
             "warehouse-brief-surface",
             "lineage-schema-surface",
+            "metric-layer-schema-surface",
             "policy-schema-surface",
             "query-tag-schema-surface",
             "query-audit-surface",
@@ -1683,6 +1763,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "fallback_mode": warehouse_brief["fallback_mode"],
             "quality_gate_schema": warehouse_brief["quality_gate"]["schema"],
             "lineage_schema": warehouse_brief["lineage"]["schema"],
+            "metric_layer_schema": warehouse_brief["metric_layer"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
             "query_tag_schema": warehouse_brief["query_tag_contract"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
@@ -1700,6 +1781,7 @@ def build_runtime_brief() -> Dict[str, Any]:
         "review_flow": [
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
+            "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
             "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
@@ -1761,6 +1843,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/review-pack",
                 "/api/schema/answer",
                 "/api/schema/lineage",
+                "/api/schema/metrics",
                 "/api/schema/policy",
                 "/api/schema/query-tag",
                 "/api/schema/query-audit",
@@ -1796,6 +1879,7 @@ def build_review_pack() -> Dict[str, Any]:
         "review_sequence": [
             "Open /health to confirm warehouse and model posture.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
+            "Read /api/schema/metrics before warehouse-specific demos so certified metrics stay explicit.",
             "Read /api/schema/query-tag before warehouse-target demos so the governance dimensions stay explicit.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
@@ -1808,6 +1892,7 @@ def build_review_pack() -> Dict[str, Any]:
         "two_minute_review": [
             "Open /health to confirm database posture and review links.",
             "Read /api/runtime/warehouse-brief for quality-gate, lineage, and policy posture.",
+            "Read /api/schema/metrics to verify which measures are certified before demoing executive questions.",
             "Read /api/evals/nl2sql-gold/run before making correctness claims.",
             "Open /api/query-session-board to inspect reusable governed sessions.",
             "Open /api/query-review-board to inspect current governed analytics risks.",
@@ -1816,6 +1901,7 @@ def build_review_pack() -> Dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
+            {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
             {"label": "Query Tag Schema", "href": "/api/schema/query-tag", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
             {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
@@ -1839,6 +1925,7 @@ def build_review_pack() -> Dict[str, Any]:
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
+            "metric_layer_schema": "/api/schema/metrics",
             "policy_schema": "/api/schema/policy",
             "query_tag_schema": "/api/schema/query-tag",
             "query_audit_schema": "/api/schema/query-audit",
@@ -1991,6 +2078,7 @@ async def health_endpoint():
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
             "lineage_schema": "/api/schema/lineage",
+            "metric_layer_schema": "/api/schema/metrics",
             "policy_schema": "/api/schema/policy",
             "query_tag_schema": "/api/schema/query-tag",
             "query_audit_schema": "/api/schema/query-audit",
@@ -2022,6 +2110,7 @@ async def meta_endpoint():
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
+        "metric_layer_contract": build_metric_layer_schema()["schema"],
         "policy_contract": build_policy_schema()["schema"],
         "query_tag_contract": build_query_tag_contract()["schema"],
         "query_audit_contract": build_query_audit_schema()["schema"],
@@ -2157,6 +2246,16 @@ async def lineage_schema_endpoint():
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         **build_lineage_schema(),
+    }
+
+
+@app.get("/api/schema/metrics")
+async def metric_layer_schema_endpoint():
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_metric_layer_schema(),
     }
 
 
