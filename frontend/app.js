@@ -8,6 +8,10 @@ let latestSessionBoardPayload = null;
 let recordedReviewActive = false;
 let currentLens = 'analyst';
 
+function shouldPreferRecordedReview() {
+    return !['localhost:8000', '127.0.0.1:8000'].includes(window.location.host);
+}
+
 const REVIEW_LENSES = {
     analyst: {
         headline: 'Reviewer-first governed path',
@@ -641,6 +645,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadRuntimeBrief() {
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.runtimeBrief;
+            activateRecordedReview('runtime brief');
+            const diagnostics = payload.diagnostics || {};
+            const reportContract = payload.report_contract || {};
+            const evidenceCounts = payload.evidence_counts || {};
+            briefHeadline.innerText = payload.headline;
+            briefBadge.innerText = 'RECORDED';
+            briefSchema.innerText = reportContract.schema || 'Unavailable';
+            briefModel.innerText = payload.model || 'Unavailable';
+            briefDbReady.innerText = diagnostics.db_ready ? 'Ready' : 'Degraded';
+            briefRetryBudget.innerText = `${evidenceCounts.retry_budget || 0} retries`;
+            renderBriefList(briefReviewFlow, payload.review_flow || []);
+            renderBriefList(briefOperatorRules, reportContract.operator_rules || []);
+            renderAgentContract(briefAgentContract, payload.agent_contract || []);
+            renderBriefList(briefWatchouts, [...(payload.watchouts || []), 'Recorded mode demonstrates workflow shape, not live warehouse latency or freshness.']);
+            return;
+        }
         try {
             const response = await fetch('/api/runtime/brief');
             if (!response.ok) {
@@ -666,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAgentContract(briefAgentContract, payload.agent_contract || []);
             renderBriefList(briefWatchouts, [...(payload.watchouts || []), 'Live runtime evidence is valid only when these endpoints respond in the current session.']);
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded runtime brief fallback:', error);
             const payload = RECORDED_REVIEW.runtimeBrief;
             activateRecordedReview('runtime brief');
             const diagnostics = payload.diagnostics || {};
@@ -686,6 +708,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadReviewPack() {
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.reviewPack;
+            activateRecordedReview('review pack');
+            const proofBundle = payload.proof_bundle || {};
+            const answerContract = payload.answer_contract || {};
+            const proofAssets = (payload.proof_assets || []).map((item) =>
+                `Proof: ${item.label} -> ${item.href || item.path || '-'}`
+            );
+            const twoMinuteReview = (payload.two_minute_review || []).map((item) => `2-minute: ${item}`);
+            latestReviewRoutes = proofBundle.review_routes || [];
+            reviewPackHeadline.innerText = payload.headline;
+            reviewPackBadge.innerText = 'RECORDED';
+            reviewPackReady.innerText = proofBundle.warehouse_ready ? 'Auditable' : 'Degraded';
+            reviewPackRoutes.innerText = `${(proofBundle.review_routes || []).length} routes`;
+            reviewPackSchema.innerText = answerContract.schema || 'Unavailable';
+            reviewPackRetry.innerText = `${proofBundle.retry_budget || 0} retries`;
+            renderReviewList(reviewPackPromises, [...(payload.executive_promises || []), ...proofAssets]);
+            renderReviewList(reviewPackBoundary, payload.trust_boundary || []);
+            renderReviewList(reviewPackSequence, [...twoMinuteReview, ...(payload.review_sequence || [])]);
+            renderReviewList(reviewPackWatchouts, [...(payload.watchouts || []), 'Recorded review pack shows workflow shape only; avoid implying live warehouse execution.']);
+            renderStoryboard();
+            return;
+        }
         try {
             const response = await fetch('/api/review-pack');
             if (!response.ok) {
@@ -716,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(reviewPackWatchouts, [...(payload.watchouts || []), 'Keep one request ID attached through approval, chart, and audit when presenting this pack.']);
             renderStoryboard();
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded review pack fallback:', error);
             const payload = RECORDED_REVIEW.reviewPack;
             activateRecordedReview('review pack');
             const proofBundle = payload.proof_bundle || {};
@@ -741,6 +786,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadWarehouseBrief() {
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.warehouseBrief;
+            activateRecordedReview('warehouse brief');
+            const evalSummary = payload.gold_eval_run?.summary || payload.gold_eval?.summary || {};
+            warehouseHeadline.innerText = payload.headline;
+            warehouseBadge.innerText = 'RECORDED';
+            warehouseMode.innerText = `${payload.warehouse_mode || 'Unavailable'} / ${payload.fallback_mode || 'unknown'}`;
+            warehouseTableCount.innerText = `${(payload.table_profiles || []).length} tables / ${evalSummary.pass_count || 0}/${evalSummary.case_count || 0} evals`;
+            warehouseQuality.innerText = (payload.quality_gate?.status || 'unknown').toUpperCase();
+            warehouseAuditCount.innerText = `${payload.recent_audit_count || 0} requests`;
+            renderObjectList(warehouseLineage, payload.lineage?.relationships || [], (item) =>
+                `${item.from_table}.${item.from_column} -> ${item.to_table}.${item.to_column} (${item.semantic_role})`
+            );
+            renderObjectList(warehouseQualityChecks, payload.quality_gate?.checks || [], (item) =>
+                `${item.name}: ${item.status.toUpperCase()} (${item.violations} violations)`
+            );
+            const policyRules = [
+                ...(payload.policy?.deny_rules || []).map((item) => `DENY: ${item}`),
+                ...(payload.policy?.review_rules || []).map((item) => `REVIEW: ${item}`),
+                ...(payload.policy_examples || []).map((item) => `FLOW: ${item}`),
+            ];
+            renderReviewList(warehousePolicies, policyRules);
+            return;
+        }
         try {
             const response = await fetch('/api/runtime/warehouse-brief');
             if (!response.ok) {
@@ -770,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ];
             renderReviewList(warehousePolicies, policyRules);
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded warehouse brief fallback:', error);
             const payload = RECORDED_REVIEW.warehouseBrief;
             activateRecordedReview('warehouse brief');
             const evalSummary = payload.gold_eval_run?.summary || payload.gold_eval?.summary || {};
@@ -796,6 +865,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadQueryAuditFeed() {
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.queryAuditFeed;
+            activateRecordedReview('query audit feed');
+            const items = payload.items || [];
+            if (items.length === 0) {
+                renderReviewList(warehouseAuditFeed, ['No governed query requests recorded yet.']);
+                warehouseAuditCount.innerText = '0 requests';
+                return;
+            }
+
+            latestAuditRequestId = items[0].request_id || latestAuditRequestId;
+            warehouseAuditFeed.innerHTML = '';
+            items.forEach((item) => {
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const rowPart = Number.isFinite(item.row_count) ? ` | ${item.row_count} rows` : '';
+                const policyPart = item.policy_decision ? ` | ${item.policy_decision}` : '';
+                const fallbackPart = item.fallback_sql_used || item.fallback_chart_used ? ' | fallback' : '';
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${item.stage.toUpperCase()} | ${item.request_id}${policyPart}${chartPart}${rowPart}${fallbackPart} | ${item.question}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                warehouseAuditFeed.appendChild(listItem);
+            });
+            warehouseAuditCount.innerText = `${items.length} requests`;
+            return;
+        }
         try {
             const response = await fetch('/api/query-audit/recent');
             if (!response.ok) {
@@ -827,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             warehouseAuditCount.innerText = `${items.length} requests`;
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded query audit fallback:', error);
             const payload = RECORDED_REVIEW.queryAuditFeed;
             activateRecordedReview('query audit feed');
             const items = payload.items || [];
@@ -851,6 +948,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadQuerySessionBoard() {
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.querySessionBoard;
+            activateRecordedReview('saved sessions');
+            latestSessionBoardPayload = payload;
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            renderDetailCard(sessionBoardSummary, [
+                `Sessions: ${summary.total_sessions || 0}`,
+                `Ready: ${summary.ready_count || 0}`,
+                `Attention: ${summary.attention_count || 0}`,
+                `Review: ${summary.review_count || 0}`,
+                `Compare: ${summary.compare_count || 0}`,
+            ]);
+            sessionBoardList.innerHTML = '';
+            items.forEach((item) => {
+                const fallbackPart = item.fallback_mode?.sql || item.fallback_mode?.chart ? ' | fallback' : '';
+                const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
+                const listItem = document.createElement('li');
+                listItem.className = 'brief-list-item interactive-item';
+                listItem.innerText = `${String(item.session_state || 'unknown').toUpperCase()} | ${item.request_id}${chartPart}${fallbackPart} | ${item.headline}`;
+                listItem.addEventListener('click', () => {
+                    loadQueryAuditDetail(item.request_id);
+                });
+                sessionBoardList.appendChild(listItem);
+            });
+            renderStoryboard();
+            return;
+        }
         try {
             const response = await fetch('/api/query-session-board?limit=6');
             if (!response.ok) {
@@ -888,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             renderStoryboard();
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded session board fallback:', error);
             const payload = RECORDED_REVIEW.querySessionBoard;
             activateRecordedReview('saved sessions');
             latestSessionBoardPayload = payload;
@@ -952,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             renderStoryboard();
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded audit detail fallback:', error);
             const payload = RECORDED_REVIEW.auditDetails[requestId];
             if (!payload) {
                 latestAuditDetailPayload = null;
@@ -1017,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
             addLog(`Policy preview ${String(verdict.decision || 'unknown').toUpperCase()} for role ${role}.`, verdict.decision === 'deny' ? 'error' : 'system');
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded policy preview fallback:', error);
             renderDetailCard(policyVerdict, ['Policy check unavailable.']);
             addLog('Failed to run policy preview.', 'error');
         } finally {
@@ -1029,6 +1154,28 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadGoldEvalRun() {
         runGoldEvalBtn.disabled = true;
         runGoldEvalBtn.innerText = 'RUNNING...';
+        if (shouldPreferRecordedReview()) {
+            const payload = RECORDED_REVIEW.goldEval;
+            activateRecordedReview('gold eval');
+            latestGoldEvalPayload = payload;
+            const summary = payload.summary || {};
+            const items = payload.items || [];
+            const failing = items.filter((item) => item.status !== 'pass');
+            renderDetailCard(goldEvalSummary, [
+                `Cases: ${summary.case_count || items.length}`,
+                `Pass: ${summary.pass_count || 0}`,
+                `Fail: ${summary.fail_count || 0}`,
+            ]);
+            if (failing.length > 0) {
+                renderObjectList(goldEvalFailures, failing, (item) => `${item.question} | ${item.status.toUpperCase()} | missing ${item.missing_features.join(', ')}`);
+            } else {
+                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local recruiter review run.']);
+            }
+            runGoldEvalBtn.disabled = false;
+            runGoldEvalBtn.innerText = 'Run Gold Eval';
+            renderStoryboard();
+            return;
+        }
         try {
             const response = await fetch('/api/evals/nl2sql-gold/run');
             if (!response.ok) {
@@ -1052,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog(`Gold eval run completed: ${(summary.pass_count || 0)}/${summary.case_count || items.length} cases passed.`, 'success');
             renderStoryboard();
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded gold eval fallback:', error);
             const payload = RECORDED_REVIEW.goldEval;
             activateRecordedReview('gold eval');
             latestGoldEvalPayload = payload;
@@ -1356,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', () => {
             latestAuditRequestId = askPayload.request_id;
             addLog(`Audit Request ID: ${askPayload.request_id}`, 'system');
         } catch (error) {
-            console.error(error);
+            console.warn('Recorded ask fallback:', error);
             addLog('Failed to register governed query request.', 'error');
             askBtn.disabled = false;
             nlInput.disabled = false;
@@ -1396,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         eventSource.onerror = function (err) {
-            console.error("EventSource failed:", err);
+            console.warn("EventSource failed, keeping recorded review mode:", err);
             addLog("Lost connection to the LangGraph Hive Engine.", "error");
             eventSource.close();
             loadWarehouseBrief();
