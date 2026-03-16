@@ -150,6 +150,7 @@ GOVERNANCE_SCORECARD_SCHEMA = "nexus-hive-governance-scorecard-v1"
 QUERY_SESSION_BOARD_SCHEMA = "nexus-hive-query-session-board-v1"
 QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
 WAREHOUSE_TARGET_SCORECARD_SCHEMA = "nexus-hive-warehouse-target-scorecard-v1"
+SEMANTIC_GOVERNANCE_PACK_SCHEMA = "nexus-hive-semantic-governance-pack-v1"
 
 import operator
 
@@ -1506,10 +1507,93 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "governance_scorecard": "/api/runtime/governance-scorecard",
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "metric_layer_schema": "/api/schema/metrics",
             "policy_schema": "/api/schema/policy",
             "query_approval_board": "/api/query-approval-board",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
+        },
+    }
+
+
+def build_semantic_governance_pack() -> Dict[str, Any]:
+    metric_layer = build_metric_layer_schema()
+    policy_schema = build_policy_schema()
+    governance_scorecard = build_governance_scorecard("policy")
+    warehouse_target_scorecard = build_warehouse_target_scorecard()
+    query_approval_board = build_query_approval_board(limit=5)
+
+    certified_metrics = [
+        metric for metric in metric_layer["metrics"] if bool(metric.get("certified"))
+    ]
+    attention_metrics = [
+        metric for metric in metric_layer["metrics"] if not bool(metric.get("certified"))
+    ]
+
+    return {
+        "status": "ok" if governance_scorecard["status"] == "ok" else "degraded",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
+        "headline": "Semantic governance pack that compresses metric certification, approval posture, and warehouse-target survival into one reviewer surface.",
+        "summary": {
+            "certified_metric_count": len(certified_metrics),
+            "review_required_metric_count": len(attention_metrics),
+            "approval_queue_count": query_approval_board["summary"]["pending_count"],
+            "review_required_rule_count": len(metric_layer["approval_policy"]["review_required_when"]),
+            "target_count": warehouse_target_scorecard["summary"]["visible_targets"],
+            "guarded_rate_pct": governance_scorecard["summary"]["guarded_rate_pct"],
+        },
+        "certification_board": [
+            {
+                "metric_id": str(metric.get("metric_id", "")),
+                "label": str(metric.get("label", "")),
+                "owner": str(metric.get("owner", "")),
+                "grain": str(metric.get("grain", "")),
+                "status": "certified" if bool(metric.get("certified")) else "review-required",
+                "default_dimensions": [str(item) for item in metric.get("default_dimensions", [])],
+                "warehouse_targets": metric_layer["approval_policy"]["warehouse_targets"],
+            }
+            for metric in metric_layer["metrics"]
+        ],
+        "target_posture": [
+            {
+                "target": str(item.get("target", "")),
+                "status": str(item.get("status", "")),
+                "execution_mode": str(item.get("execution_mode", "")),
+                "fit": str(item.get("fit", "")),
+                "blockers": [str(blocker) for blocker in item.get("blockers", [])],
+            }
+            for item in warehouse_target_scorecard["targets"]
+        ],
+        "approval_boundary": {
+            "review_required_when": metric_layer["approval_policy"]["review_required_when"],
+            "deny_rules": policy_schema["deny_rules"],
+            "query_approval_pending_count": query_approval_board["summary"]["pending_count"],
+            "latest_pending_updated_at": query_approval_board["summary"]["latest_updated_at"],
+        },
+        "review_path": [
+            "Open /api/runtime/semantic-governance-pack first when the question is metric trust, not just SQL generation.",
+            "Use /api/schema/metrics to inspect the exact certification boundary behind each measure.",
+            "Pair this pack with /api/runtime/warehouse-target-scorecard and /api/query-approval-board before claiming Snowflake or Databricks fit.",
+        ],
+        "reviewer_notes": [
+            "Certified metrics are the front door for external analytics claims.",
+            "Warehouse target fit stays a contract preview unless the live connector posture changes.",
+            "Review-required metrics remain visible so governance is explicit instead of silently hidden.",
+        ],
+        "links": {
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
+            "runtime_brief": "/api/runtime/brief",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
+            "metric_layer_schema": "/api/schema/metrics",
+            "policy_schema": "/api/schema/policy",
+            "query_approval_board": "/api/query-approval-board",
+            "query_review_board": "/api/query-review-board",
+            "gold_eval_run": "/api/evals/nl2sql-gold/run",
+            "review_pack": "/api/review-pack",
         },
     }
 
@@ -1784,6 +1868,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/runtime/warehouse-brief",
             "/api/runtime/warehouse-target-scorecard",
             "/api/runtime/governance-scorecard",
+            "/api/runtime/semantic-governance-pack",
             "/api/auth/session",
             "/api/review-pack",
             "/api/schema/answer",
@@ -1812,6 +1897,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "runtime-brief-surface",
             "warehouse-brief-surface",
             "warehouse-target-scorecard-surface",
+            "semantic-governance-pack-surface",
             "lineage-schema-surface",
             "metric-layer-schema-surface",
             "policy-schema-surface",
@@ -1880,6 +1966,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "lineage_schema": warehouse_brief["lineage"]["schema"],
             "metric_layer_schema": warehouse_brief["metric_layer"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
+            "semantic_governance_pack_schema": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
             "query_tag_schema": warehouse_brief["query_tag_contract"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "query_session_board_schema": QUERY_SESSION_BOARD_SCHEMA,
@@ -1897,6 +1984,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
             "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
+            "Read /api/runtime/semantic-governance-pack to see metric certification, approval posture, and warehouse survival in one surface.",
             "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
@@ -1956,6 +2044,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/runtime/warehouse-brief",
                 "/api/runtime/warehouse-target-scorecard",
                 "/api/runtime/governance-scorecard",
+                "/api/runtime/semantic-governance-pack",
                 "/api/review-pack",
                 "/api/schema/answer",
                 "/api/schema/lineage",
@@ -1996,6 +2085,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Open /health to confirm warehouse and model posture.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
             "Read /api/schema/metrics before warehouse-specific demos so certified metrics stay explicit.",
+            "Read /api/runtime/semantic-governance-pack to connect metric certification, warehouse fit, and approval posture in one pass.",
             "Read /api/schema/query-tag before warehouse-target demos so the governance dimensions stay explicit.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
@@ -2009,6 +2099,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Open /health to confirm database posture and review links.",
             "Read /api/runtime/warehouse-brief for quality-gate, lineage, and policy posture.",
             "Read /api/schema/metrics to verify which measures are certified before demoing executive questions.",
+            "Read /api/runtime/semantic-governance-pack to validate which metrics survive across warehouse targets.",
             "Read /api/evals/nl2sql-gold/run before making correctness claims.",
             "Open /api/query-session-board to inspect reusable governed sessions.",
             "Open /api/query-review-board to inspect current governed analytics risks.",
@@ -2018,6 +2109,7 @@ def build_review_pack() -> Dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {"label": "Warehouse Target Scorecard", "href": "/api/runtime/warehouse-target-scorecard", "kind": "route"},
+            {"label": "Semantic Governance Pack", "href": "/api/runtime/semantic-governance-pack", "kind": "route"},
             {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
             {"label": "Query Tag Schema", "href": "/api/schema/query-tag", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
@@ -2039,6 +2131,7 @@ def build_review_pack() -> Dict[str, Any]:
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2193,6 +2286,7 @@ async def health_endpoint():
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2227,6 +2321,7 @@ async def meta_endpoint():
         "warehouse_brief_contract": "nexus-hive-warehouse-brief-v1",
         "warehouse_target_scorecard_contract": WAREHOUSE_TARGET_SCORECARD_SCHEMA,
         "governance_scorecard_contract": GOVERNANCE_SCORECARD_SCHEMA,
+        "semantic_governance_pack_contract": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
@@ -2276,6 +2371,11 @@ async def governance_scorecard_endpoint(focus: Optional[str] = None):
         }
     )
     return build_governance_scorecard(normalized_focus)
+
+
+@app.get("/api/runtime/semantic-governance-pack")
+async def semantic_governance_pack_endpoint():
+    return build_semantic_governance_pack()
 
 
 @app.get("/api/auth/session")
