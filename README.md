@@ -24,6 +24,17 @@ The strongest proof path is straightforward: question -> governed SQL -> query a
 - **This repo's role:** governed analytics / executive BI branch of the control-tower cluster.
 - **Related repos:** `regulated-case-workbench`, `fab-ops-yield-control-tower`, `smallbiz-ops-copilot`
 
+## Best target-team fit
+
+This repo is strongest for governed analytics, warehouse-adjacent AI, and approval-safe BI conversations.
+
+| Team lens | What should stand out fast | Start here |
+|---|---|---|
+| Snowflake | audited SQL, warehouse posture, semantic lineage, and executive-facing review surfaces | `/api/runtime/warehouse-brief`, `/api/query-audit/recent`, `/api/schema/lineage` |
+| Databricks | NL2SQL eval discipline, approval board, experiment-friendly local runtime, and fallback transparency | `/api/evals/nl2sql-gold`, `/api/query-approval-board`, `/api/query-review-board` |
+| Palantir / high-trust ops | review-required SQL, policy-visible runtime, approval-safe handoff, and request-level audit trails | `/api/policy/check`, `/api/schema/policy`, `/api/query-audit/{request_id}` |
+| Solutions architect / field engineer | executive question -> governed answer -> chart -> review pack walkthrough | `/health`, `/api/review-pack`, local frontend in `frontend/` |
+
 ## 🏗️ Architecture: The AI Federation
 
 Nexus-Hive replaces single-prompt LLMs with a **Stateful Multi-Agent Graph Architecture**.
@@ -73,6 +84,13 @@ uvicorn main:app --port 8000
 1. Use the seeded warehouse and review APIs to walk one executive question from policy preview to audited answer.
 2. Read the local frontend as the live runtime shell for that same story, not as a separate demo track.
 3. Treat docs as supporting context after the audit trail, approval board, and eval surfaces have already earned trust.
+
+## Reviewer Front Door
+
+- **Recruiter / hiring manager:** open `/health`, then `/api/review-pack`.
+- **AI / analytics engineer:** open `/api/runtime/warehouse-brief` -> `/api/evals/nl2sql-gold/run` -> `src/control_tower/`.
+- **Data / platform architect:** open `/api/schema/lineage` -> `/api/schema/policy` -> `/api/query-audit/recent`.
+- **Solutions / field reviewer:** use the local frontend -> `/api/query-review-board` -> [`docs/executive-one-pager.md`](docs/executive-one-pager.md).
 
 ## Service-Grade Surfaces
 
