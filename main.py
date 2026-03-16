@@ -37,6 +37,7 @@ from security import (
     require_operator_token,
 )
 from runtime_store import append_runtime_event, build_runtime_store_summary
+from warehouse_adapter import get_active_warehouse_adapter, get_warehouse_adapter_contracts
 DB_PATH = Path(os.getenv("NEXUS_HIVE_DB_PATH", str(BASE_DIR / "nexus_enterprise.db"))).expanduser()
 OLLAMA_URL = str(os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")).strip()
 MODEL_NAME = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
@@ -54,41 +55,6 @@ SENSITIVE_COLUMNS_BY_ROLE = {
     "analyst": {"margin_percentage"},
     "viewer": {"margin_percentage", "manager"},
 }
-WAREHOUSE_ADAPTERS = [
-    {
-        "name": "sqlite-demo",
-        "status": "active",
-        "role": "Local warehouse stand-in for governed analytics review",
-        "capabilities": [
-            "read-only SQL execution",
-            "pandas result preview",
-            "local schema introspection",
-            "query tag preview",
-        ],
-    },
-    {
-        "name": "snowflake-sql-contract",
-        "status": "planned",
-        "role": "Parameterized warehouse adapter contract for Snowflake-style governed SQL warehouses",
-        "capabilities": [
-            "query tagging",
-            "role simulation",
-            "audit sink integration",
-            "statement id capture",
-        ],
-    },
-    {
-        "name": "databricks-sql-contract",
-        "status": "planned",
-        "role": "Lakehouse SQL adapter contract for medallion-style modeled tables",
-        "capabilities": [
-            "modeled view registration",
-            "freshness metadata",
-            "quality gate attachment",
-            "query tagging",
-        ],
-    },
-]
 QUERY_TAG_SCHEMA = "nexus-hive-query-tag-v1"
 LINEAGE_RELATIONSHIPS = [
     {
@@ -139,20 +105,9 @@ QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
 
 import operator
 
-# Read DB Schema for the LLM
-def get_db_schema():
-    if not DB_PATH.exists():
-        return ""
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
-        schema = ""
-        for table, ddl in tables:
-            schema += f"Table: {table}\nDDL: {ddl}\n\n"
-        return schema
 
-DB_SCHEMA = get_db_schema()
+def get_db_schema():
+    return get_active_warehouse_adapter().get_schema(DB_PATH)
 
 
 def utc_now_iso() -> str:
@@ -183,48 +138,15 @@ def normalize_operator_roles(value: Any) -> list[str]:
 
 
 def run_scalar_query(sql: str) -> int:
-    if not DB_PATH.exists():
-        return 0
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        row = cursor.fetchone()
-        return int(row[0] or 0) if row else 0
+    return get_active_warehouse_adapter().run_scalar_query(sql, DB_PATH)
 
 
 def fetch_date_window() -> Dict[str, Optional[str]]:
-    if not DB_PATH.exists():
-        return {"min_date": None, "max_date": None}
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT MIN(date), MAX(date) FROM sales")
-        min_date, max_date = cursor.fetchone() or (None, None)
-        return {"min_date": min_date, "max_date": max_date}
+    return get_active_warehouse_adapter().fetch_date_window(DB_PATH)
 
 
 def build_table_profiles() -> List[Dict[str, Any]]:
-    if not DB_PATH.exists():
-        return []
-
-    profiles: List[Dict[str, Any]] = []
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-        tables = [row[0] for row in cursor.fetchall()]
-        for table in tables:
-            cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
-            row_count = int(cursor.fetchone()[0] or 0)
-            cursor.execute(f'PRAGMA table_info("{table}")')
-            columns = cursor.fetchall()
-            profiles.append(
-                {
-                    "table": table,
-                    "row_count": row_count,
-                    "column_count": len(columns),
-                    "columns": [column[1] for column in columns],
-                }
-            )
-    return profiles
+    return get_active_warehouse_adapter().build_table_profiles(DB_PATH)
 
 
 def build_quality_gate() -> Dict[str, Any]:
@@ -605,16 +527,7 @@ def build_gold_eval_pack() -> Dict[str, Any]:
 
 
 def execute_sql_preview(sql: str) -> Dict[str, Any]:
-    started_at = datetime.now(timezone.utc)
-    with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(sql, conn)
-    elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
-    rows = df.head(5).to_dict(orient="records")
-    return {
-        "row_count": int(len(df.index)),
-        "preview": rows,
-        "elapsed_ms": elapsed_ms,
-    }
+    return get_active_warehouse_adapter().execute_sql_preview(sql, DB_PATH)
 
 
 def run_gold_eval_suite(strategy: str = "heuristic") -> Dict[str, Any]:
@@ -1207,7 +1120,8 @@ def normalize_governance_focus(focus: Optional[str]) -> str:
 
 def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
     normalized_focus = normalize_governance_focus(focus)
-    db_ready = DB_PATH.exists() and bool(DB_SCHEMA.strip())
+    active_adapter = get_active_warehouse_adapter()
+    db_ready = DB_PATH.exists() and bool(get_db_schema().strip())
     quality_gate = build_quality_gate()
     gold_eval_run = run_gold_eval_suite()
     audit_summary = build_query_audit_summary(limit=10)
@@ -1308,7 +1222,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
         "focus": normalized_focus,
         "summary": {
             "db_ready": db_ready,
-            "warehouse_mode": "sqlite-demo",
+            "warehouse_mode": active_adapter.contract.name,
             "fallback_mode": "heuristic" if ALLOW_HEURISTIC_FALLBACK else "disabled",
             "quality_gate_status": quality_gate["status"],
             "quality_gate_failures": quality_failures,
@@ -1356,6 +1270,7 @@ def get_query_audit_history(request_id: str) -> List[Dict[str, Any]]:
 
 
 def build_warehouse_brief() -> Dict[str, Any]:
+    active_adapter = get_active_warehouse_adapter()
     table_profiles = build_table_profiles()
     quality_gate = build_quality_gate()
     date_window = fetch_date_window()
@@ -1371,9 +1286,10 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "generated_at": utc_now_iso(),
         "readiness_contract": "nexus-hive-warehouse-brief-v1",
         "headline": "Governed analytics brief tying warehouse mode, lineage, quality gate, and audit trail into one reviewable surface.",
-        "warehouse_mode": "sqlite-demo",
+        "warehouse_mode": active_adapter.contract.name,
+        "selected_adapter": active_adapter.describe(),
         "fallback_mode": "heuristic" if ALLOW_HEURISTIC_FALLBACK else "disabled",
-        "adapter_contracts": WAREHOUSE_ADAPTERS,
+        "adapter_contracts": get_warehouse_adapter_contracts(),
         "table_profiles": table_profiles,
         "date_window": date_window,
         "quality_gate": quality_gate,
@@ -1432,13 +1348,16 @@ async def ask_ollama(prompt: str) -> str:
 # --- Node 1: SQL Translator ---
 async def translator_node(state: AgentState) -> AgentState:
     state["log_stream"].append(f"[Agent 1: Translator] Analyzing prompt: '{state['user_query']}'")
+    active_adapter = get_active_warehouse_adapter()
+    schema_text = get_db_schema()
     
     prompt = f"""You are a senior analytics engineer for governed data platforms.
-Translate the following executive question into a valid SQL query for SQLite.
+Translate the following executive question into a valid SQL query for {active_adapter.prompt_sql_target()}.
+Current execution posture: {active_adapter.prompt_execution_note()}
 Use only the tables provided in the schema. Return ONLY the SQL query, nothing else (no markdown blocks, no explanations).
 
 Schema:
-{DB_SCHEMA}
+{schema_text}
 
 Question: {state['user_query']}
 
@@ -1463,7 +1382,10 @@ If previous error exists, fix this issue: {state.get('error', 'None')}
 # --- Node 2: Data Executor ---
 def executor_node(state: AgentState) -> AgentState:
     sql = state["sql_query"]
-    state["log_stream"].append(f"[Agent 2: Executor] Auditing and executing SQL against nexus_enterprise.db...")
+    active_adapter = get_active_warehouse_adapter()
+    state["log_stream"].append(
+        f"[Agent 2: Executor] Auditing and executing SQL through {active_adapter.contract.name} ({active_adapter.contract.execution_mode})..."
+    )
 
     policy = evaluate_sql_policy(sql)
     state["policy_verdict"] = policy
@@ -1477,13 +1399,13 @@ def executor_node(state: AgentState) -> AgentState:
         )
 
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            df = pd.read_sql_query(sql, conn)
-            # Limit to 50 rows for frontend visualization
-            result = df.head(50).to_dict(orient="records")
-            state["db_result"] = result
-            state["error"] = ""
-            state["log_stream"].append(f"[Agent 2: Executor] ✅ Query successful. Retrieved {len(result)} rows.")
+        execution = active_adapter.execute_sql_preview(sql, DB_PATH)
+        result = list(execution.get("preview") or [])
+        state["db_result"] = result
+        state["error"] = ""
+        state["log_stream"].append(
+            f"[Agent 2: Executor] ✅ Query successful via {active_adapter.contract.name}. Retrieved {execution.get('row_count', len(result))} rows."
+        )
     except Exception as e:
         state["error"] = str(e)
         state["log_stream"].append(f"[Agent 2: Executor] ❌ SQL Execution Error: {e}")
@@ -1622,15 +1544,18 @@ async def session_and_logging_middleware(request: Request, call_next):
 
 
 def build_runtime_meta() -> Dict[str, Any]:
+    active_adapter = get_active_warehouse_adapter()
     db_exists = DB_PATH.exists()
     db_size_bytes = DB_PATH.stat().st_size if db_exists else 0
-    schema_loaded = bool(DB_SCHEMA.strip())
+    schema_loaded = bool(get_db_schema().strip())
     warehouse_brief = build_warehouse_brief()
     runtime_persistence = build_runtime_store_summary(5)
     diagnostics = {
         "db_ready": db_exists and schema_loaded,
         "db_size_bytes": db_size_bytes,
         "schema_loaded": schema_loaded,
+        "adapter_name": active_adapter.contract.name,
+        "adapter_execution_mode": active_adapter.contract.execution_mode,
         "ollama_configured": OLLAMA_URL.startswith("http"),
         "warehouse_mode": warehouse_brief["warehouse_mode"],
         "fallback_mode": warehouse_brief["fallback_mode"],
@@ -1648,6 +1573,7 @@ def build_runtime_meta() -> Dict[str, Any]:
         "model": MODEL_NAME,
         "ollama_url": OLLAMA_URL,
         "db_path": str(DB_PATH),
+        "warehouse_adapter": active_adapter.describe(),
         "diagnostics": diagnostics,
         "auth": {
             "operator_token_enabled": operator_token_enabled(),
