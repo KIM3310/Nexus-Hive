@@ -641,3 +641,15 @@ def test_query_review_board_prioritizes_attention_items(monkeypatch, tmp_path) -
 
     invalid = client.get("/api/query-review-board?fallback_mode=bad")
     assert invalid.status_code == 400
+
+
+def test_runtime_surfaces_can_switch_adapter_contract(monkeypatch) -> None:
+    monkeypatch.setenv("NEXUS_HIVE_WAREHOUSE_ADAPTER", "databricks-sql-contract")
+
+    warehouse_brief = APP_MODULE.build_warehouse_brief()
+    runtime_brief = APP_MODULE.build_runtime_brief()
+
+    assert warehouse_brief["warehouse_mode"] == "databricks-sql-contract"
+    assert warehouse_brief["selected_adapter"]["execution_mode"] == "contract-preview"
+    assert runtime_brief["warehouse_contract"]["mode"] == "databricks-sql-contract"
+    assert runtime_brief["warehouse_contract"]["query_tag_schema"] == "nexus-hive-query-tag-v1"
