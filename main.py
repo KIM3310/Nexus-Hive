@@ -151,6 +151,7 @@ QUERY_SESSION_BOARD_SCHEMA = "nexus-hive-query-session-board-v1"
 QUERY_APPROVAL_BOARD_SCHEMA = "nexus-hive-query-approval-board-v1"
 WAREHOUSE_TARGET_SCORECARD_SCHEMA = "nexus-hive-warehouse-target-scorecard-v1"
 SEMANTIC_GOVERNANCE_PACK_SCHEMA = "nexus-hive-semantic-governance-pack-v1"
+LAKEHOUSE_READINESS_PACK_SCHEMA = "nexus-hive-lakehouse-readiness-pack-v1"
 
 import operator
 
@@ -1597,6 +1598,97 @@ def build_semantic_governance_pack() -> Dict[str, Any]:
         },
     }
 
+
+def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, Any]:
+    normalized_target = (target or "").strip().lower()
+    query_tag_contract = build_query_tag_contract()
+    governance_scorecard = build_governance_scorecard("policy")
+    semantic_governance_pack = build_semantic_governance_pack()
+    warehouse_target_scorecard = build_warehouse_target_scorecard()
+    query_approval_board = build_query_approval_board(limit=5)
+
+    allowed_targets = {
+        "snowflake-sql-contract",
+        "databricks-sql-contract",
+    }
+    if normalized_target and normalized_target not in allowed_targets:
+        raise ValueError("target must be snowflake-sql-contract or databricks-sql-contract")
+
+    target_rows = [
+        item
+        for item in warehouse_target_scorecard["targets"]
+        if str(item.get("target", "")) in allowed_targets
+        and (
+            not normalized_target
+            or str(item.get("target", "")).strip().lower() == normalized_target
+        )
+    ]
+    adapter_notes = {
+        str(item.get("adapter", "")): str(item.get("tag_transport", ""))
+        for item in query_tag_contract["adapter_notes"]
+    }
+
+    return {
+        "status": "ok" if governance_scorecard["status"] == "ok" else "degraded",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": LAKEHOUSE_READINESS_PACK_SCHEMA,
+        "headline": "Lakehouse readiness pack that turns Snowflake and Databricks fit into explicit connector, governance, and delivery proof.",
+        "filters": {
+            "target": normalized_target or None,
+        },
+        "summary": {
+            "visible_targets": len(target_rows),
+            "contract_preview_count": sum(
+                1 for item in target_rows if str(item.get("execution_mode", "")) == "contract-preview"
+            ),
+            "approval_queue_count": query_approval_board["summary"]["pending_count"],
+            "guarded_rate_pct": governance_scorecard["summary"]["guarded_rate_pct"],
+            "query_tag_example_count": len(query_tag_contract["examples"]),
+        },
+        "platform_cards": [
+            {
+                "target": str(item.get("target", "")),
+                "status": str(item.get("status", "")),
+                "execution_mode": str(item.get("execution_mode", "")),
+                "sql_dialect": str(item.get("sql_dialect", "")),
+                "fit": str(item.get("fit", "")),
+                "tag_transport": adapter_notes.get(str(item.get("target", "")), ""),
+                "blockers": [str(blocker) for blocker in item.get("blockers", [])],
+                "review_surfaces": [
+                    "/api/runtime/lakehouse-readiness-pack",
+                    "/api/runtime/warehouse-target-scorecard",
+                    "/api/runtime/semantic-governance-pack",
+                    "/api/schema/query-tag",
+                    "/api/query-approval-board",
+                ],
+            }
+            for item in target_rows
+        ],
+        "delivery_path": [
+            "Start with certified metrics and approval rules so adapter claims stay governed before connector work begins.",
+            "Preview warehouse tagging and request metadata through /api/schema/query-tag before any platform-native story is repeated.",
+            "Treat Snowflake and Databricks as explicit contract-preview targets until live connector posture changes.",
+            "Keep the approval board in the loop so warehouse-native demos still show human review boundaries.",
+        ],
+        "reviewer_notes": [
+            "Snowflake and Databricks fit is expressed as an explicit contract preview with governance artifacts, not as fake live connectivity.",
+            "The strongest public claim is governed warehouse-readiness, not production connector throughput.",
+            "Lakehouse posture stays credible only when target scorecard, semantic pack, and query-tag contract all agree.",
+        ],
+        "links": {
+            "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
+            "query_tag_schema": "/api/schema/query-tag",
+            "query_approval_board": "/api/query-approval-board",
+            "query_review_board": "/api/query-review-board",
+            "review_pack": "/api/review-pack",
+        },
+    }
+
 # --- LangGraph State Definition ---
 class AgentState(TypedDict):
     user_query: str
@@ -1869,6 +1961,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/api/runtime/warehouse-target-scorecard",
             "/api/runtime/governance-scorecard",
             "/api/runtime/semantic-governance-pack",
+            "/api/runtime/lakehouse-readiness-pack",
             "/api/auth/session",
             "/api/review-pack",
             "/api/schema/answer",
@@ -1898,6 +1991,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "warehouse-brief-surface",
             "warehouse-target-scorecard-surface",
             "semantic-governance-pack-surface",
+            "lakehouse-readiness-pack-surface",
             "lineage-schema-surface",
             "metric-layer-schema-surface",
             "policy-schema-surface",
@@ -1967,6 +2061,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "metric_layer_schema": warehouse_brief["metric_layer"]["schema"],
             "policy_schema": warehouse_brief["policy"]["schema"],
             "semantic_governance_pack_schema": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
+            "lakehouse_readiness_pack_schema": LAKEHOUSE_READINESS_PACK_SCHEMA,
             "query_tag_schema": warehouse_brief["query_tag_contract"]["schema"],
             "query_audit_schema": build_query_audit_schema()["schema"],
             "query_session_board_schema": QUERY_SESSION_BOARD_SCHEMA,
@@ -1985,6 +2080,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
             "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
             "Read /api/runtime/semantic-governance-pack to see metric certification, approval posture, and warehouse survival in one surface.",
+            "Read /api/runtime/lakehouse-readiness-pack to compress Snowflake and Databricks delivery posture into one platform-facing surface.",
             "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
             "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
@@ -2045,6 +2141,7 @@ def build_review_pack() -> Dict[str, Any]:
                 "/api/runtime/warehouse-target-scorecard",
                 "/api/runtime/governance-scorecard",
                 "/api/runtime/semantic-governance-pack",
+                "/api/runtime/lakehouse-readiness-pack",
                 "/api/review-pack",
                 "/api/schema/answer",
                 "/api/schema/lineage",
@@ -2086,6 +2183,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
             "Read /api/schema/metrics before warehouse-specific demos so certified metrics stay explicit.",
             "Read /api/runtime/semantic-governance-pack to connect metric certification, warehouse fit, and approval posture in one pass.",
+            "Read /api/runtime/lakehouse-readiness-pack before repeating Snowflake or Databricks fit so connector posture stays explicit.",
             "Read /api/schema/query-tag before warehouse-target demos so the governance dimensions stay explicit.",
             "Read /api/evals/nl2sql-gold for the canonical review set and fallback verdicts.",
             "Use /api/policy/check to preview SQL before execution when reviewing risky changes.",
@@ -2100,6 +2198,7 @@ def build_review_pack() -> Dict[str, Any]:
             "Read /api/runtime/warehouse-brief for quality-gate, lineage, and policy posture.",
             "Read /api/schema/metrics to verify which measures are certified before demoing executive questions.",
             "Read /api/runtime/semantic-governance-pack to validate which metrics survive across warehouse targets.",
+            "Read /api/runtime/lakehouse-readiness-pack to see the platform-facing connector and delivery posture in one route.",
             "Read /api/evals/nl2sql-gold/run before making correctness claims.",
             "Open /api/query-session-board to inspect reusable governed sessions.",
             "Open /api/query-review-board to inspect current governed analytics risks.",
@@ -2110,6 +2209,7 @@ def build_review_pack() -> Dict[str, Any]:
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {"label": "Warehouse Target Scorecard", "href": "/api/runtime/warehouse-target-scorecard", "kind": "route"},
             {"label": "Semantic Governance Pack", "href": "/api/runtime/semantic-governance-pack", "kind": "route"},
+            {"label": "Lakehouse Readiness Pack", "href": "/api/runtime/lakehouse-readiness-pack", "kind": "route"},
             {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
             {"label": "Query Tag Schema", "href": "/api/schema/query-tag", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
@@ -2132,6 +2232,7 @@ def build_review_pack() -> Dict[str, Any]:
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
+            "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2287,6 +2388,7 @@ async def health_endpoint():
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
+            "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
             "auth_session": "/api/auth/session",
             "review_pack": "/api/review-pack",
             "answer_schema": "/api/schema/answer",
@@ -2322,6 +2424,7 @@ async def meta_endpoint():
         "warehouse_target_scorecard_contract": WAREHOUSE_TARGET_SCORECARD_SCHEMA,
         "governance_scorecard_contract": GOVERNANCE_SCORECARD_SCHEMA,
         "semantic_governance_pack_contract": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
+        "lakehouse_readiness_pack_contract": LAKEHOUSE_READINESS_PACK_SCHEMA,
         "review_pack_contract": "nexus-hive-review-pack-v1",
         "report_contract": build_answer_schema(),
         "lineage_contract": build_lineage_schema()["schema"],
@@ -2376,6 +2479,14 @@ async def governance_scorecard_endpoint(focus: Optional[str] = None):
 @app.get("/api/runtime/semantic-governance-pack")
 async def semantic_governance_pack_endpoint():
     return build_semantic_governance_pack()
+
+
+@app.get("/api/runtime/lakehouse-readiness-pack")
+async def lakehouse_readiness_pack_endpoint(target: Optional[str] = None):
+    try:
+        return build_lakehouse_readiness_pack(target)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/auth/session")

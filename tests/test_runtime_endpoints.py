@@ -42,6 +42,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     governance_scorecard = client.get("/api/runtime/governance-scorecard?focus=quality")
     semantic_governance_pack = client.get("/api/runtime/semantic-governance-pack")
+    lakehouse_readiness_pack = client.get(
+        "/api/runtime/lakehouse-readiness-pack?target=databricks-sql-contract"
+    )
     review_pack = client.get("/api/review-pack")
     answer_schema = client.get("/api/schema/answer")
     policy_schema = client.get("/api/schema/policy")
@@ -69,6 +72,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
     assert health_payload["links"]["semantic_governance_pack"] == "/api/runtime/semantic-governance-pack"
+    assert health_payload["links"]["lakehouse_readiness_pack"] == "/api/runtime/lakehouse-readiness-pack"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
@@ -102,6 +106,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
     assert meta_payload["semantic_governance_pack_contract"] == "nexus-hive-semantic-governance-pack-v1"
+    assert meta_payload["lakehouse_readiness_pack_contract"] == "nexus-hive-lakehouse-readiness-pack-v1"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
@@ -120,6 +125,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/warehouse-target-scorecard" in meta_payload["routes"]
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
     assert "/api/runtime/semantic-governance-pack" in meta_payload["routes"]
+    assert "/api/runtime/lakehouse-readiness-pack" in meta_payload["routes"]
     assert "/api/auth/session" in meta_payload["routes"]
     assert "/api/review-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
@@ -148,6 +154,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert (
         brief_payload["warehouse_contract"]["semantic_governance_pack_schema"]
         == "nexus-hive-semantic-governance-pack-v1"
+    )
+    assert (
+        brief_payload["warehouse_contract"]["lakehouse_readiness_pack_schema"]
+        == "nexus-hive-lakehouse-readiness-pack-v1"
     )
     assert brief_payload["warehouse_contract"]["query_tag_schema"] == "nexus-hive-query-tag-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
@@ -225,6 +235,26 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "/api/runtime/semantic-governance-pack"
     )
     assert semantic_pack_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
+    assert (
+        semantic_pack_payload["links"]["query_approval_board"]
+        == "/api/query-approval-board"
+    )
+
+    assert lakehouse_readiness_pack.status_code == 200
+    lakehouse_payload = lakehouse_readiness_pack.json()
+    assert lakehouse_payload["schema"] == "nexus-hive-lakehouse-readiness-pack-v1"
+    assert lakehouse_payload["filters"]["target"] == "databricks-sql-contract"
+    assert lakehouse_payload["summary"]["visible_targets"] == 1
+    assert lakehouse_payload["platform_cards"][0]["target"] == "databricks-sql-contract"
+    assert (
+        lakehouse_payload["links"]["lakehouse_readiness_pack"]
+        == "/api/runtime/lakehouse-readiness-pack"
+    )
+    assert lakehouse_payload["links"]["query_tag_schema"] == "/api/schema/query-tag"
+    assert any(
+        route == "/api/runtime/lakehouse-readiness-pack"
+        for route in lakehouse_payload["platform_cards"][0]["review_surfaces"]
+    )
     assert len(semantic_pack_payload["review_path"]) >= 3
 
     assert review_pack.status_code == 200
@@ -236,13 +266,14 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/semantic-governance-pack" in pack_payload["proof_bundle"]["review_routes"]
+    assert "/api/runtime/lakehouse-readiness-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/schema/metrics" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-session-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/evals/nl2sql-gold" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-review-board" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/query-audit/summary" in pack_payload["proof_bundle"]["review_routes"]
     assert isinstance(pack_payload["executive_promises"], list)
-    assert len(pack_payload["two_minute_review"]) == 8
+    assert len(pack_payload["two_minute_review"]) >= 9
     assert pack_payload["proof_assets"][0]["href"] == "/health"
     assert any(
         asset["href"] == "/api/runtime/warehouse-target-scorecard"
@@ -250,6 +281,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert any(
         asset["href"] == "/api/runtime/semantic-governance-pack"
+        for asset in pack_payload["proof_assets"]
+    )
+    assert any(
+        asset["href"] == "/api/runtime/lakehouse-readiness-pack"
         for asset in pack_payload["proof_assets"]
     )
     assert any(asset["href"] == "/api/schema/metrics" for asset in pack_payload["proof_assets"])
