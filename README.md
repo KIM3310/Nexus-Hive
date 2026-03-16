@@ -35,8 +35,8 @@ This repo is strongest for governed analytics, warehouse-adjacent AI, and approv
 
 | Team lens | What should stand out fast | Start here |
 |---|---|---|
-| Snowflake | audited SQL, warehouse posture, semantic lineage, certified metrics, and platform-facing connector posture | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/warehouse-brief`, `/api/query-audit/recent` |
-| Databricks | NL2SQL eval discipline, semantic governance, approval board, lakehouse delivery posture, and fallback transparency | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/evals/nl2sql-gold`, `/api/query-approval-board` |
+| Snowflake | audited SQL, warehouse posture, semantic lineage, certified metrics, platform-facing connector posture, and a bounded reviewer demo | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/warehouse-brief`, `/api/runtime/reviewer-query-demo`, `/api/query-audit/recent` |
+| Databricks | NL2SQL eval discipline, semantic governance, approval board, lakehouse delivery posture, fallback transparency, and a bounded reviewer demo | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/reviewer-query-demo`, `/api/evals/nl2sql-gold`, `/api/query-approval-board` |
 | Palantir / high-trust ops | review-required SQL, policy-visible runtime, approval-safe handoff, and request-level audit trails | `/api/policy/check`, `/api/schema/policy`, `/api/query-audit/{request_id}` |
 | Solutions architect / field engineer | executive question -> governed answer -> chart -> review pack walkthrough | `/health`, `/api/review-pack`, local frontend in `frontend/` |
 
