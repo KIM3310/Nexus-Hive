@@ -12,6 +12,15 @@ function shouldPreferRecordedReview() {
     return !['localhost:8000', '127.0.0.1:8000'].includes(window.location.host);
 }
 
+const nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+    const target = typeof input === 'string' ? input : input?.url || '';
+    if (shouldPreferRecordedReview() && target.startsWith('/api/')) {
+        throw new Error(`Recorded review mode blocks live API call: ${target}`);
+    }
+    return nativeFetch(input, init);
+};
+
 const REVIEW_LENSES = {
     analyst: {
         headline: 'Reviewer-first governed path',
