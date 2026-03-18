@@ -65,6 +65,22 @@ class WarehouseAdapter:
         raise NotImplementedError
 
 
+_BLOCKED_SQL_KEYWORDS = {"DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE"}
+
+
+def _validate_sql_readonly(sql: str) -> None:
+    """Reject DDL/DML statements to enforce read-only query execution."""
+    normalized = sql.strip().rstrip(";").upper()
+    # Check the leading keyword of each statement (handles multi-statement strings)
+    for statement in normalized.split(";"):
+        first_word = statement.strip().split()[0] if statement.strip() else ""
+        if first_word in _BLOCKED_SQL_KEYWORDS:
+            raise ValueError(
+                f"Blocked SQL statement: '{first_word}' operations are not allowed. "
+                "Only SELECT queries are permitted."
+            )
+
+
 class SqliteWarehouseAdapter(WarehouseAdapter):
     def get_schema(self, db_path: Path) -> str:
         if not db_path.exists():
@@ -79,6 +95,7 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         return schema
 
     def run_scalar_query(self, sql: str, db_path: Path) -> int:
+        _validate_sql_readonly(sql)
         if not db_path.exists():
             return 0
         with sqlite3.connect(db_path) as conn:
@@ -121,6 +138,7 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         return profiles
 
     def execute_sql_preview(self, sql: str, db_path: Path) -> Dict[str, Any]:
+        _validate_sql_readonly(sql)
         started_at = datetime.now(timezone.utc)
         with sqlite3.connect(db_path) as conn:
             df = pd.read_sql_query(sql, conn)
