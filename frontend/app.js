@@ -1,3 +1,28 @@
+// Sidebar collapse toggle
+document.addEventListener('DOMContentLoaded', () => {
+    const collapseBtn = document.getElementById('sidebarCollapseBtn');
+    const sidebar = document.querySelector('.sidebar');
+    if (collapseBtn && sidebar) {
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('is-collapsed');
+            collapseBtn.textContent = sidebar.classList.contains('is-collapsed')
+                ? 'Show trace log'
+                : 'Toggle trace log';
+        });
+    }
+});
+
+function showToast(message, duration = 2400) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('is-visible');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+    }, duration);
+}
+
 let currentChart = null;
 let latestRequestId = null;
 let latestAuditRequestId = null;
@@ -1238,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : ['/health', '/api/runtime/brief', '/api/review-pack', '/api/query-audit/recent'];
         const ok = await copyTextToClipboard(routes.join('\n'));
         addLog(ok ? 'Copied reviewer route checklist.' : 'Failed to copy reviewer route checklist.', ok ? 'success' : 'error');
+        showToast(ok ? 'Review routes copied' : 'Copy failed');
     }
 
     async function copyGovernedClaim() {
