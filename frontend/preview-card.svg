@@ -20,7 +20,7 @@
   </g>
   <text x="96" y="148" fill="#9ae6ff" font-size="28" font-family="Inter, Arial, sans-serif" letter-spacing="8">EXECUTIVE BI COPILOT</text>
   <text x="96" y="254" fill="#ffffff" font-size="88" font-weight="700" font-family="Inter, Arial, sans-serif">Nexus-Hive</text>
-  <text x="96" y="332" fill="#cbd5f5" font-size="34" font-family="Inter, Arial, sans-serif">Audited SQL, governance scorecards, and reviewer-ready runtime proof.</text>
+  <text x="96" y="332" fill="#cbd5f5" font-size="34" font-family="Inter, Arial, sans-serif">Audited SQL, governance scorecards, and runtime analytics.</text>
   <rect x="96" y="402" width="312" height="72" rx="22" fill="url(#accent)" opacity="0.94" />
   <text x="132" y="448" fill="#06111d" font-size="30" font-weight="700" font-family="Inter, Arial, sans-serif">Warehouse + Review Pack</text>
   <g transform="translate(760 156)">

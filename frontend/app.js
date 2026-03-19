@@ -85,7 +85,7 @@ const RECORDED_REVIEW = {
         ],
     },
     reviewPack: {
-        headline: 'Recorded executive pack with approval, audit, and proof surfaces already stitched together.',
+        headline: 'Executive summary with approval, audit, and governance data.',
         status: 'recorded-review',
         proof_bundle: {
             warehouse_ready: true,
