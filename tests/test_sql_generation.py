@@ -30,7 +30,7 @@ from policy.engine import (
     infer_chart_config_from_question,
     infer_sql_from_question,
 )
-from warehouse_adapter import _validate_sql_readonly, validate_sql_safety
+from warehouse_adapter import validate_sql_safety
 from exceptions import (
     SQLValidationError,
     PolicyDeniedError,

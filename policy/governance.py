@@ -693,7 +693,7 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
     normalized_target = (target or "").strip().lower()
     query_tag_contract = build_query_tag_contract()
     governance_scorecard = build_governance_scorecard("policy")
-    semantic_governance_pack = build_semantic_governance_pack()
+    build_semantic_governance_pack()
     warehouse_target_scorecard = build_warehouse_target_scorecard()
     query_approval_board = build_query_approval_board(limit=5)
 
