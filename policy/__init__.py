@@ -42,7 +42,6 @@ from policy.governance import (
     build_quality_gate,
     build_lineage_schema,
     build_metric_layer_schema,
-    build_query_audit_schema,
     execute_sql_preview,
 )
 

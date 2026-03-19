@@ -410,8 +410,6 @@ def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
     Raises:
         HTTPException: If the rate limit has been exceeded (HTTP 429).
     """
-    from fastapi import HTTPException
-
     now: float = datetime.now(timezone.utc).timestamp()
     bucket: Optional[Dict[str, float]] = OPENAI_REVIEWER_RATE_BUCKETS.get(key)
     if bucket is None or bucket["reset_at"] <= now:
