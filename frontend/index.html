@@ -24,6 +24,7 @@
 </head>
 
 <body>
+    <a class="skip-link" href="#nl-input">Skip to query input</a>
     <div class="glow-orb primary"></div>
     <div class="glow-orb secondary"></div>
 
@@ -439,6 +440,7 @@
                 <span class="badge sidebar-badge">SECONDARY</span>
             </div>
 
+            <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button">Toggle trace log</button>
             <div class="agent-feed" id="agent-logs">
                 <div class="log-entry system">
                     <span class="timestamp">System initialized.</span>
@@ -448,6 +450,7 @@
         </aside>
     </div>
 
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
 </body>
 
