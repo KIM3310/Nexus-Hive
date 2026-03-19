@@ -470,7 +470,8 @@ async def run_agent_and_stream(question: str, request_id: str):
     )
 
     if state["error"] and state["retry_count"] >= 3:
-        yield f"data: {json.dumps({'type': 'log', 'content': f'[System] Agent failed after 3 retries. Error: {state.get(\"error\")}'})}\n\n"
+        error_msg = state.get("error", "unknown")
+        yield f"data: {json.dumps({'type': 'log', 'content': '[System] Agent failed after 3 retries. Error: ' + str(error_msg)})}\n\n"
         write_query_audit_snapshot(status="failed", stage="failed", **audit_kwargs)
         append_runtime_event({"service": "nexus-hive", "event_type": "stream_failed", "method": "GET", "path": "/api/stream", "request_id": request_id, "status": "failed", "at": utc_now_iso()})
     else:
