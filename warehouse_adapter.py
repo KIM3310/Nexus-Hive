@@ -41,7 +41,7 @@ class WarehouseAdapterContract:
         execution_mode: How queries are executed ('local-sqlite', 'contract-preview').
         capabilities: List of supported feature strings.
         backing_store: Description of the underlying data store.
-        review_note: Reviewer-facing note about the adapter's limitations.
+        review_note: Note about the adapter's limitations.
     """
 
     name: str

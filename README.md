@@ -1,66 +1,32 @@
-# ⬡ Nexus-Hive: Governed Analytics Runtime
+# Nexus-Hive: Governed Analytics Runtime
 
-**Nexus-Hive** turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail that a reviewer can inspect.
+**Nexus-Hive** turns a business question into SQL, executes it against a warehouse, and returns both a chart and an audit trail.
 
-The repo focuses on governed analytics, text-to-SQL execution, and an executive-facing BI review flow.
-
-The strongest proof path is straightforward: question -> governed SQL -> query audit -> visualization -> review pack. The repo is structured so that translation, policy checks, execution, and visual output stay inspectable instead of collapsing into one prompt-shaped black box.
+The pipeline flow is: question -> governed SQL -> query audit -> visualization -> summary. Translation, policy checks, execution, and visual output stay separate so each step can be inspected independently.
 
 ---
 
-## Portfolio posture
-- Read this repo like a governed analytics desk for executive questions, not like a free-form text-to-chart demo.
-- Query audit, gold eval, approval board, and review pack form the evidence chain behind any claim of trustworthy BI automation.
+## Architecture
 
+Nexus-Hive uses a **Stateful Multi-Agent Graph** instead of a single-prompt LLM.
 
-## Role signals
-- **AI engineer:** text-to-SQL, audit, policy checks, and eval surfaces show more than a prompt-to-chart demo.
-- **Solutions architect:** the translation, execution, and visualization layers stay separate enough to explain trust boundaries clearly.
-- **Field / solutions engineer:** the repo is set up for a fast executive question to governed answer to review-pack walkthrough.
-
-
-## Portfolio context
-- **Portfolio family:** governed ops and control towers
-- **This repo's role:** governed analytics / executive BI branch of the control-tower cluster.
-- **Related repos:** `regulated-case-workbench`, `fab-ops-yield-control-tower`, `smallbiz-ops-copilot`
-
-## Big-Tech Elevation Track
-
-- Canonical execution plan: [`docs/BIGTECH_ELEVATION_PLAN.md`](docs/BIGTECH_ELEVATION_PLAN.md)
-- Goal: turn this repo into a governed analytics runtime proof rather than a text-to-SQL demo.
-
-## Best target-team fit
-
-This repo is strongest for governed analytics, warehouse-adjacent AI, and approval-safe BI conversations.
-
-| Team lens | What should stand out fast | Start here |
-|---|---|---|
-| Governed analytics | audited SQL, warehouse posture, semantic lineage, certified metrics, platform-facing connector posture, and a bounded reviewer demo | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/warehouse-brief`, `/api/runtime/reviewer-query-demo`, `/api/query-audit/recent` |
-| Lakehouse delivery | NL2SQL eval discipline, semantic governance, approval board, lakehouse delivery posture, fallback transparency, and a bounded reviewer demo | `/api/runtime/lakehouse-readiness-pack`, `/api/runtime/semantic-governance-pack`, `/api/runtime/reviewer-query-demo`, `/api/evals/nl2sql-gold`, `/api/query-approval-board` |
-| High-trust workflow systems | review-required SQL, policy-visible runtime, approval-safe handoff, and request-level audit trails | `/api/policy/check`, `/api/schema/policy`, `/api/query-audit/{request_id}` |
-| Solutions architect / field engineer | executive question -> governed answer -> chart -> review pack walkthrough | `/health`, `/api/review-pack`, local frontend in `frontend/` |
-
-## 🏗️ Architecture: The AI Federation
-
-Nexus-Hive replaces single-prompt LLMs with a **Stateful Multi-Agent Graph Architecture**.
-
-1. **The Translator Agent (Node 1)**: Ingests the Database DDL Schema and the executive's natural language question. Generates a strict SQL query (SQLite/PostgreSQL compatible).
-2. **The Auditor & Executor Agent (Node 2)**: Intercepts the query. If a destructive command (`DROP`, `DELETE`) is detected, it returns an error state. Otherwise, it executes the payload against the Warehouse (SQLite DB seeded with 10k rows of historical enterprise data) and extracts raw JSON.
-3. **The Visualizer Agent (Node 3)**: Analyzes the shape of the raw JSON data and autonomously determines the optimal Chart.js configuration structure (e.g., choosing a `doughnut` chart for categorical group-bys, or a `line` chart for time-series).
-4. **The Self-Correction Loop (Edges)**: If the SQL query throws a syntax error, the LangGraph state machine dynamically routes the error back to the Translator Agent to self-correct up to 3 times before failing gracefully.
+1. **Translator Agent (Node 1)**: Takes the database DDL schema and a natural language question, generates a strict SQL query (SQLite/PostgreSQL compatible).
+2. **Auditor & Executor Agent (Node 2)**: Intercepts the query. Blocks destructive commands (`DROP`, `DELETE`). Otherwise executes against the warehouse (SQLite DB seeded with 10k rows) and extracts raw JSON.
+3. **Visualizer Agent (Node 3)**: Analyzes the JSON shape and picks the right Chart.js config (e.g., `doughnut` for categorical, `line` for time-series).
+4. **Self-Correction Loop (Edges)**: On SQL syntax errors, the state machine routes back to the Translator for up to 3 retries before failing gracefully.
 
 ---
 
-## 🚀 Quick Start (Local Sandbox)
+## Quick start
 
-The entire backend is powered by **FastAPI** streaming **Server-Sent Events (SSE)**, with inference handled *locally* via **Ollama (Phi-3)** to guarantee strict B2B Data Privacy compliance.
+The backend uses **FastAPI** with **SSE streaming**, and inference is handled locally via **Ollama (Phi-3)** for data privacy.
 
-### 1. Prerequisites
+### Prerequisites
 - Python 3.11+
-- `ollama` installed via Homebrew (`brew install ollama`)
+- `ollama` installed (`brew install ollama`)
 - Phi-3 model pulled (`ollama pull phi3`)
 
-### 2. Initialization & Data Seeding
+### Setup
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -69,100 +35,58 @@ python -m pip install -e ".[dev]"
 python3 seed_db.py  # Generates 10,000 realistic enterprise sales records
 ```
 
-### 3. Launch the Hive
+### Run
 ```bash
 uvicorn main:app --port 8000
 ```
 
-### 4. Experience the Platform
-1. Navigate to **http://localhost:8000** in your browser.
-2. Ask a natural language SQL query such as *"Show me total net revenue by region grouped as a bar chart"*
-3. Watch the left **Thought Process Sidebar** as the AI Agents construct the SQL, test it against the Database, and dynamically render the chart for you.
+Open **http://localhost:8000**, ask something like *"Show me total net revenue by region as a bar chart"*, and watch the agent pipeline work through each step in the sidebar.
 
-## Canonical runtime + artifact map
-- Canonical runtime: `uvicorn main:app` serves both the governed analytics API and the lightweight local frontend in `frontend/`.
-- `nexus_enterprise.db` is the seeded local demo warehouse checked in for reproducible review; `seed_db.py` regenerates it when needed. Treat that database as the recorded baseline for walkthroughs, while fresh query traces live in runtime artifacts.
-- `.runtime/` stores local query-audit and event artifacts for the review surfaces and should be treated as ephemeral runtime state.
-- `docs/` is explanatory context; the review APIs and local frontend are the canonical proof surfaces.
+## Runtime notes
+- `uvicorn main:app` serves both the API and the local frontend in `frontend/`.
+- `nexus_enterprise.db` is the seeded demo warehouse (checked in for reproducibility); `seed_db.py` regenerates it.
+- `.runtime/` stores local query-audit and event artifacts (ephemeral).
 
-## Reviewer walkthrough in one story
-1. Use the seeded warehouse and review APIs to walk one executive question from policy preview to audited answer.
-2. Read the local frontend as the live runtime shell for that same story, not as a separate demo track.
-3. Treat docs as supporting context after the audit trail, approval board, and eval surfaces have already earned trust.
+## API endpoints
 
-## Reviewer Front Door
+### Core
+- `GET /health` -- runtime status and config
+- `GET /api/meta` -- service capabilities and routes
+- `POST /api/ask` -- submit a question, get a stable `request_id` and stream URL
 
-- **Recruiter / hiring manager:** open `/health`, then `/api/review-pack`.
-- **AI / analytics engineer:** open `/api/runtime/warehouse-brief` -> `/api/evals/nl2sql-gold/run` -> `src/control_tower/`.
-- **Data / platform architect:** open `/api/runtime/lakehouse-readiness-pack` -> `/api/runtime/semantic-governance-pack` -> `/api/schema/lineage` -> `/api/schema/policy` -> `/api/query-audit/recent`.
-- **Solutions / field reviewer:** use the local frontend -> `/api/query-review-board` -> [`docs/executive-one-pager.md`](docs/executive-one-pager.md).
+### Governance
+- `GET /api/runtime/brief` -- agent contract, retry budget, and validation flow
+- `GET /api/runtime/warehouse-brief` -- warehouse mode, lineage, quality gate, and policy info
+- `GET /api/runtime/semantic-governance-pack` -- metric certification and approval posture
+- `GET /api/runtime/lakehouse-readiness-pack` -- connector posture and delivery boundaries
+- `GET /api/review-pack` -- executive summary, trust boundary, and answer contract
+- `POST /api/policy/check` -- preview SQL policy decisions before execution
 
-## Service-Grade Surfaces
+### Schema
+- `GET /api/schema/answer` -- expected answer structure (SQL, chart, trace)
+- `GET /api/schema/lineage` -- semantic model and fact-to-dimension relationships
+- `GET /api/schema/policy` -- deny/review rules and role-sensitive columns
+- `GET /api/schema/query-audit` -- append-only audit contract keyed by `request_id`
 
-- `GET /health`: exposes runtime posture, demo readiness, and direct links to the review surfaces.
-- `GET /api/meta`: returns the core ops contract, capabilities, and service routes for reviewers.
-- `GET /api/runtime/brief`: summarizes the agent contract, retry budget, watchouts, and validation flow before a live demo.
-- `GET /api/runtime/warehouse-brief`: exposes warehouse mode, lineage, quality gate, policy examples, and recent audit volume.
-- `GET /api/runtime/semantic-governance-pack`: compresses metric certification, approval posture, and warehouse-target survival into one reviewer surface.
-- `GET /api/runtime/lakehouse-readiness-pack`: compresses connector posture, query-tag transport, and delivery boundaries into one platform-facing reviewer surface.
-- `GET /api/review-pack`: ties executive promises, trust boundary, answer contract, and review routes into one reviewer surface.
-- `GET /api/schema/answer`: pins the expected answer structure for SQL, chart payload, trace, and runtime posture.
-- `GET /api/schema/lineage`: documents the semantic model and fact-to-dimension relationships.
-- `GET /api/schema/policy`: documents deny/review rules, role-sensitive columns, and current policy posture.
-- `GET /api/schema/query-audit`: documents the append-only query audit contract keyed by `request_id`.
-- `GET /api/query-review-board`: prioritizes failed, denied, review-required, and fallback-heavy requests into one operator triage surface.
-- `GET /api/query-approval-board`: isolates review-required queries that still need an explicit human approval pass.
-- `GET /api/evals/nl2sql-gold`: exposes the canonical NL2SQL review set and fallback verdicts for each question.
-- `GET /api/evals/nl2sql-gold/run`: executes the deterministic review suite against the local warehouse and reports pass/fail status.
-- `POST /api/policy/check`: previews SQL policy decisions before execution.
-- `GET /api/query-audit/recent`: shows the latest governed query requests with stage, SQL, retries, and row counts.
-- `GET /api/query-audit/{request_id}`: returns the latest audit record and event history for one governed query.
-- `POST /api/ask`: now issues a stable `request_id` and a stream URL so every question can be traced through the audit surface.
-- Deterministic fallback: if Ollama is unavailable, heuristic SQL and chart inference keep the governed review path alive with explicit logs.
-- Frontend runtime brief + review pack: the landing screen now shows answer schema, model, warehouse readiness, executive promises, trust boundary, and agent responsibilities before a query is run.
-- Frontend governed analytics board: the landing screen now adds warehouse mode, fallback mode, lineage relations, quality checks, policy rules, runnable eval status, recent query audit history, and request-level audit summaries before a query is trusted.
-- Frontend governance workbench: reviewers can now run a live SQL policy preview, execute the deterministic gold eval suite, and inspect request-level audit detail from the landing screen without leaving the main demo surface.
+### Audit and evaluation
+- `GET /api/query-audit/recent` -- latest governed query requests
+- `GET /api/query-audit/{request_id}` -- audit record and event history for one query
+- `GET /api/query-review-board` -- triage view for failed, denied, and fallback requests
+- `GET /api/query-approval-board` -- review-required queries needing human approval
+- `GET /api/evals/nl2sql-gold` -- canonical NL2SQL evaluation set
+- `GET /api/evals/nl2sql-gold/run` -- execute the eval suite and report pass/fail
 
-## Review Flow
+### Fallback behavior
+If Ollama is unavailable, heuristic SQL and chart inference keep the pipeline working with explicit logging.
 
-1. Open `/health` to confirm database posture and review links.
-2. Read `/api/runtime/warehouse-brief` for quality-gate, lineage, and policy posture.
-3. Use the governance workbench to run `/api/policy/check` and `/api/evals/nl2sql-gold/run` before making correctness claims.
-4. Open `/api/query-approval-board` to isolate review-required SQL before treating it as execution-ready.
-5. Open `/api/query-review-board` to inspect current failed, denied, and fallback-heavy requests.
-6. Use `/api/ask` together with `/api/query-audit/{request_id}` to inspect one governed answer end to end.
-
-## Further Reading
-
-- Architecture: [`docs/solution-architecture.md`](docs/solution-architecture.md)
-- Overview: [`docs/executive-one-pager.md`](docs/executive-one-pager.md)
-- Discovery notes: [`docs/discovery-guide.md`](docs/discovery-guide.md)
-
-## Supporting Files
-
-- `/health`
-- `/api/runtime/warehouse-brief`
-- `/api/query-review-board`
-- `/api/evals/nl2sql-gold/run`
-- `/api/query-audit/{request_id}`
-
-## Platform Expansion
-
-Nexus-Hive is also the best anchor repo to grow into a stronger governed analytics system.
-
-- current proof: natural language -> audited SQL -> chart -> agent trace
-- next proof: warehouse adapters, lineage, data-quality gates, policy simulation, and governed NL2SQL evaluation
-
-## Local Verification
+## Verification
 ```bash
-/Library/Developer/CommandLineTools/usr/bin/python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -U pip
 python -m pip install -e ".[dev]"
 python -m compileall -q main.py tests
 python -m pytest
 ```
 
-## Repository Hygiene
-- Keep runtime artifacts out of commits (`.codex_runs/`, cache folders, temporary venvs).
-- Prefer running verification commands above before opening a PR.
+## Further reading
+- Architecture: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- Overview: [`docs/executive-one-pager.md`](docs/executive-one-pager.md)
+- Discovery notes: [`docs/discovery-guide.md`](docs/discovery-guide.md)
