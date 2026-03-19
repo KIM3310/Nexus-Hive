@@ -1,17 +1,49 @@
+"""
+Warehouse adapter layer for Nexus-Hive.
+
+Provides a pluggable adapter pattern for SQL execution against different
+warehouse backends (SQLite local, Snowflake contract preview, Databricks
+contract preview). Each adapter implements schema introspection, read-only
+SQL execution, and data profiling.
+"""
+
 from __future__ import annotations
 
+import logging
+import re
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
-import pandas as pd
-import sqlite3
 import os
+import pandas as pd
+
+from exceptions import SQLValidationError
+
+_logger = logging.getLogger("nexus_hive.warehouse_adapter")
+
+# ---------------------------------------------------------------------------
+# Adapter contract (immutable descriptor)
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class WarehouseAdapterContract:
+    """Immutable descriptor for a warehouse adapter's capabilities and posture.
+
+    Attributes:
+        name: Unique adapter identifier (e.g., 'sqlite-demo').
+        status: Lifecycle status ('active' or 'planned').
+        role: Human-readable description of the adapter's purpose.
+        sql_dialect: SQL dialect supported by this adapter.
+        execution_mode: How queries are executed ('local-sqlite', 'contract-preview').
+        capabilities: List of supported feature strings.
+        backing_store: Description of the underlying data store.
+        review_note: Reviewer-facing note about the adapter's limitations.
+    """
+
     name: str
     status: str
     role: str
@@ -22,6 +54,11 @@ class WarehouseAdapterContract:
     review_note: str
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize the contract to a plain dictionary.
+
+        Returns:
+            A dictionary representation of all contract fields.
+        """
         return {
             "name": self.name,
             "status": self.status,
@@ -34,46 +71,150 @@ class WarehouseAdapterContract:
         }
 
 
+# ---------------------------------------------------------------------------
+# Base adapter
+# ---------------------------------------------------------------------------
+
+
 class WarehouseAdapter:
+    """Base warehouse adapter defining the interface for SQL execution backends.
+
+    Subclasses must implement schema introspection, query execution, and
+    profiling methods. The base class provides contract description and
+    prompt-generation helpers.
+    """
+
     contract: WarehouseAdapterContract
 
-    def __init__(self, contract: WarehouseAdapterContract):
+    def __init__(self, contract: WarehouseAdapterContract) -> None:
+        """Initialize the adapter with a contract descriptor.
+
+        Args:
+            contract: Immutable contract describing this adapter's capabilities.
+        """
         self.contract = contract
 
     def describe(self) -> Dict[str, Any]:
+        """Return a dictionary description of this adapter's contract.
+
+        Returns:
+            The serialized adapter contract.
+        """
         return self.contract.to_dict()
 
     def prompt_sql_target(self) -> str:
+        """Return the SQL dialect string for LLM prompt construction.
+
+        Returns:
+            The SQL dialect name (e.g., 'SQLite', 'Snowflake SQL').
+        """
         return self.contract.sql_dialect
 
     def prompt_execution_note(self) -> str:
+        """Return a reviewer note for LLM prompt construction.
+
+        Returns:
+            A human-readable note about execution posture.
+        """
         return self.contract.review_note
 
     def get_schema(self, db_path: Path) -> str:
+        """Retrieve the database schema DDL text.
+
+        Args:
+            db_path: Path to the database file.
+
+        Returns:
+            Schema DDL as a string.
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method.
+        """
         raise NotImplementedError
 
     def run_scalar_query(self, sql: str, db_path: Path) -> int:
+        """Execute a SQL query that returns a single integer scalar.
+
+        Args:
+            sql: The SQL query to execute.
+            db_path: Path to the database file.
+
+        Returns:
+            The integer result of the scalar query.
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method.
+        """
         raise NotImplementedError
 
     def fetch_date_window(self, db_path: Path) -> Dict[str, Optional[str]]:
+        """Retrieve the min and max date from the sales table.
+
+        Args:
+            db_path: Path to the database file.
+
+        Returns:
+            Dictionary with 'min_date' and 'max_date' string values.
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method.
+        """
         raise NotImplementedError
 
     def build_table_profiles(self, db_path: Path) -> List[Dict[str, Any]]:
+        """Build row-count and column profiles for all tables.
+
+        Args:
+            db_path: Path to the database file.
+
+        Returns:
+            A list of profile dictionaries, one per table.
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method.
+        """
         raise NotImplementedError
 
     def execute_sql_preview(self, sql: str, db_path: Path) -> Dict[str, Any]:
+        """Execute a SQL query and return a preview of results.
+
+        Args:
+            sql: The SQL query to execute.
+            db_path: Path to the database file.
+
+        Returns:
+            Dictionary with row_count, preview rows, elapsed_ms, and adapter info.
+
+        Raises:
+            NotImplementedError: Subclasses must implement this method.
+        """
         raise NotImplementedError
 
 
-_BLOCKED_SQL_KEYWORDS = {"DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE"}
-_ALLOWED_FIRST_KEYWORDS = {"SELECT", "WITH", "EXPLAIN"}
+# ---------------------------------------------------------------------------
+# SQL validation
+# ---------------------------------------------------------------------------
+
+_BLOCKED_SQL_KEYWORDS: Set[str] = {
+    "DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE",
+}
+_ALLOWED_FIRST_KEYWORDS: Set[str] = {"SELECT", "WITH", "EXPLAIN"}
 
 
 def _strip_sql_comments_and_strings(sql: str) -> str:
-    """Remove SQL comments and string literals so keyword checks cannot be bypassed."""
-    import re
+    """Remove SQL comments and string literals so keyword checks cannot be bypassed.
+
+    Strips block comments, single-line comments, single-quoted strings,
+    and double-quoted identifiers from the SQL text.
+
+    Args:
+        sql: Raw SQL string.
+
+    Returns:
+        Cleaned SQL with comments and literals replaced.
+    """
     # Remove block comments (/* ... */)
-    cleaned = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
+    cleaned: str = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
     # Remove single-line comments (-- ...)
     cleaned = re.sub(r'--[^\n]*', ' ', cleaned)
     # Remove single-quoted string literals ('...')
@@ -88,53 +229,110 @@ def _validate_sql_readonly(sql: str) -> None:
 
     Uses a whitelist approach: only SELECT/WITH/EXPLAIN statements are allowed.
     Comments and string literals are stripped before validation to prevent bypass.
+
+    Args:
+        sql: The SQL statement to validate.
+
+    Raises:
+        SQLValidationError: If the SQL contains write operations or blocked keywords.
     """
-    stripped = sql.strip()
+    stripped: str = sql.strip()
     if not stripped:
-        raise ValueError("Empty SQL statement is not allowed.")
+        raise SQLValidationError(
+            "Empty SQL statement is not allowed.",
+            sql=sql,
+            violation_type="empty_sql",
+        )
 
-    cleaned = _strip_sql_comments_and_strings(stripped).strip().rstrip(";")
+    cleaned: str = _strip_sql_comments_and_strings(stripped).strip().rstrip(";")
 
-    # Check each statement after stripping comments and strings
     for statement in cleaned.split(";"):
         statement = statement.strip()
         if not statement:
             continue
-        first_word = statement.split()[0].upper() if statement.split() else ""
+        first_word: str = statement.split()[0].upper() if statement.split() else ""
 
-        # Whitelist: only allow SELECT, WITH, and EXPLAIN
         if first_word not in _ALLOWED_FIRST_KEYWORDS:
-            raise ValueError(
+            raise SQLValidationError(
                 f"Blocked SQL statement: '{first_word}' operations are not allowed. "
-                "Only SELECT queries are permitted."
+                "Only SELECT queries are permitted.",
+                sql=sql,
+                violation_type="blocked_first_keyword",
             )
 
-        # Also scan for blocked keywords in the body (e.g., subquery injection)
-        upper_statement = statement.upper()
+        upper_statement: str = statement.upper()
         for keyword in _BLOCKED_SQL_KEYWORDS:
-            # Check for blocked keywords as standalone tokens
-            import re
             if re.search(r'\b' + keyword + r'\b', upper_statement):
-                raise ValueError(
+                raise SQLValidationError(
                     f"Blocked SQL keyword '{keyword}' found in statement. "
-                    "Only read-only SELECT queries are permitted."
+                    "Only read-only SELECT queries are permitted.",
+                    sql=sql,
+                    violation_type="blocked_keyword",
                 )
 
 
+def validate_sql_safety(sql: str) -> None:
+    """Public SQL validation entry point for pre-execution safety checks.
+
+    Validates that the SQL is non-empty, read-only, and free of blocked keywords.
+    This function is intended to be called before any SQL execution.
+
+    Args:
+        sql: The SQL statement to validate.
+
+    Raises:
+        SQLValidationError: If the SQL fails any safety check.
+    """
+    _logger.debug("Validating SQL safety: %s", sql[:100])
+    _validate_sql_readonly(sql)
+    _logger.debug("SQL validation passed")
+
+
+# ---------------------------------------------------------------------------
+# SQLite adapter
+# ---------------------------------------------------------------------------
+
+
 class SqliteWarehouseAdapter(WarehouseAdapter):
+    """Warehouse adapter for local SQLite database execution.
+
+    Provides full read-only SQL execution, schema introspection, and
+    data profiling against a local SQLite database file.
+    """
+
     def get_schema(self, db_path: Path) -> str:
+        """Retrieve the SQLite database schema DDL.
+
+        Args:
+            db_path: Path to the SQLite database file.
+
+        Returns:
+            Concatenated DDL for all tables, or empty string if DB does not exist.
+        """
         if not db_path.exists():
             return ""
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
             tables = cursor.fetchall()
-        schema = ""
+        schema: str = ""
         for table, ddl in tables:
             schema += f"Table: {table}\nDDL: {ddl}\n\n"
         return schema
 
     def run_scalar_query(self, sql: str, db_path: Path) -> int:
+        """Execute a SQL query that returns a single integer scalar.
+
+        Args:
+            sql: The SQL query (must be read-only).
+            db_path: Path to the SQLite database file.
+
+        Returns:
+            The integer result, or 0 if the database does not exist.
+
+        Raises:
+            SQLValidationError: If the SQL contains write operations.
+        """
         _validate_sql_readonly(sql)
         if not db_path.exists():
             return 0
@@ -145,6 +343,14 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         return int(row[0] or 0) if row else 0
 
     def fetch_date_window(self, db_path: Path) -> Dict[str, Optional[str]]:
+        """Retrieve the date range from the sales table.
+
+        Args:
+            db_path: Path to the SQLite database file.
+
+        Returns:
+            Dictionary with 'min_date' and 'max_date' strings.
+        """
         if not db_path.exists():
             return {"min_date": None, "max_date": None}
         with sqlite3.connect(db_path) as conn:
@@ -154,17 +360,28 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         return {"min_date": min_date, "max_date": max_date}
 
     def build_table_profiles(self, db_path: Path) -> List[Dict[str, Any]]:
+        """Build row-count and column profiles for all user tables.
+
+        Args:
+            db_path: Path to the SQLite database file.
+
+        Returns:
+            A list of profile dictionaries with table, row_count, column_count, columns.
+        """
         if not db_path.exists():
             return []
 
         profiles: List[Dict[str, Any]] = []
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-            tables = [row[0] for row in cursor.fetchall()]
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            )
+            tables: List[str] = [row[0] for row in cursor.fetchall()]
             for table in tables:
                 cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
-                row_count = int(cursor.fetchone()[0] or 0)
+                row_count: int = int(cursor.fetchone()[0] or 0)
                 cursor.execute(f'PRAGMA table_info("{table}")')
                 columns = cursor.fetchall()
                 profiles.append(
@@ -178,12 +395,36 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         return profiles
 
     def execute_sql_preview(self, sql: str, db_path: Path) -> Dict[str, Any]:
+        """Execute a SQL query and return a preview of the first 5 rows.
+
+        Args:
+            sql: The SQL query to execute (must be read-only).
+            db_path: Path to the SQLite database file.
+
+        Returns:
+            Dictionary with row_count, preview, elapsed_ms, adapter_name,
+            and execution_mode.
+
+        Raises:
+            SQLValidationError: If the SQL contains write operations.
+        """
         _validate_sql_readonly(sql)
-        started_at = datetime.now(timezone.utc)
+        _logger.info(
+            "Executing SQL preview via %s", self.contract.name,
+            extra={"extra_fields": {"sql_preview": sql[:200]}},
+        )
+        started_at: datetime = datetime.now(timezone.utc)
         with sqlite3.connect(db_path) as conn:
-            df = pd.read_sql_query(sql, conn)
-        elapsed_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
-        rows = df.head(5).to_dict(orient="records")
+            df: pd.DataFrame = pd.read_sql_query(sql, conn)
+        elapsed_ms: int = int(
+            (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
+        )
+        rows: List[Dict[str, Any]] = df.head(5).to_dict(orient="records")
+        _logger.info(
+            "SQL preview complete: %d rows in %dms",
+            len(df.index),
+            elapsed_ms,
+        )
         return {
             "row_count": int(len(df.index)),
             "preview": rows,
@@ -194,10 +435,29 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
 
 
 class ContractPreviewWarehouseAdapter(SqliteWarehouseAdapter):
+    """Warehouse adapter for Snowflake/Databricks contract previews.
+
+    Inherits SQLite execution to provide deterministic previews while
+    maintaining the contract metadata for the target warehouse platform.
+    """
+
     pass
 
 
+# ---------------------------------------------------------------------------
+# Adapter registry
+# ---------------------------------------------------------------------------
+
+
 def _build_contracts() -> Dict[str, WarehouseAdapter]:
+    """Build and return the warehouse adapter registry.
+
+    Creates adapters for SQLite (active), Snowflake (planned), and
+    Databricks (planned) with their respective contract metadata.
+
+    Returns:
+        A dictionary mapping adapter names to adapter instances.
+    """
     sqlite_adapter = SqliteWarehouseAdapter(
         WarehouseAdapterContract(
             name="sqlite-demo",
@@ -256,13 +516,32 @@ def _build_contracts() -> Dict[str, WarehouseAdapter]:
     }
 
 
-WAREHOUSE_ADAPTER_REGISTRY = _build_contracts()
+WAREHOUSE_ADAPTER_REGISTRY: Dict[str, WarehouseAdapter] = _build_contracts()
 
 
 def get_warehouse_adapter_contracts() -> List[Dict[str, Any]]:
+    """Return a list of all registered warehouse adapter contract descriptions.
+
+    Returns:
+        List of adapter contract dictionaries.
+    """
     return [adapter.describe() for adapter in WAREHOUSE_ADAPTER_REGISTRY.values()]
 
 
 def get_active_warehouse_adapter() -> WarehouseAdapter:
-    requested = str(os.getenv("NEXUS_HIVE_WAREHOUSE_ADAPTER", "sqlite-demo")).strip() or "sqlite-demo"
-    return WAREHOUSE_ADAPTER_REGISTRY.get(requested, WAREHOUSE_ADAPTER_REGISTRY["sqlite-demo"])
+    """Return the currently active warehouse adapter based on environment configuration.
+
+    Falls back to 'sqlite-demo' if the requested adapter is not registered.
+
+    Returns:
+        The active warehouse adapter instance.
+    """
+    requested: str = (
+        str(os.getenv("NEXUS_HIVE_WAREHOUSE_ADAPTER", "sqlite-demo")).strip()
+        or "sqlite-demo"
+    )
+    adapter = WAREHOUSE_ADAPTER_REGISTRY.get(
+        requested, WAREHOUSE_ADAPTER_REGISTRY["sqlite-demo"]
+    )
+    _logger.debug("Active warehouse adapter: %s", adapter.contract.name)
+    return adapter

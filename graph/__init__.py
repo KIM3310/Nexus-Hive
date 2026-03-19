@@ -1,5 +1,8 @@
 """
 LangGraph agent nodes for the NL2SQL pipeline: translator, executor, visualizer.
+
+This package exposes the core agent nodes, the graph builder, and the
+Ollama communication function for the Nexus-Hive multi-agent BI copilot.
 """
 
 from graph.nodes import (
@@ -13,7 +16,7 @@ from graph.nodes import (
     _sanitize_user_input,
 )
 
-__all__ = [
+__all__: list[str] = [
     "AgentState",
     "translator_node",
     "executor_node",
