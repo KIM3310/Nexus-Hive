@@ -32,6 +32,7 @@ if str(BASE_DIR) not in sys.path:
 # -- Configuration --
 from config import (
     ALLOW_HEURISTIC_FALLBACK,
+    AUDIT_LOG_PATH,
     DB_PATH,
     DEFAULT_ROLE,
     GOVERNANCE_SCORECARD_SCHEMA,
@@ -100,8 +101,22 @@ from policy.audit import (
     normalize_audit_status_filter,
     normalize_fallback_mode_filter,
     normalize_policy_decision_filter,
-    write_query_audit_snapshot,
+    write_query_audit_snapshot as _write_query_audit_snapshot,
 )
+
+
+def _sync_audit_log_path() -> None:
+    """Propagate any monkeypatched AUDIT_LOG_PATH back to config so audit I/O sees the override."""
+    # Use globals() to read the current module-level AUDIT_LOG_PATH,
+    # which may have been overridden by monkeypatch.setattr.
+    current = globals().get("AUDIT_LOG_PATH")
+    if current is not None and current != _config_module.AUDIT_LOG_PATH:
+        _config_module.AUDIT_LOG_PATH = current
+
+
+def write_query_audit_snapshot(**kwargs):
+    _sync_audit_log_path()
+    return _write_query_audit_snapshot(**kwargs)
 from policy.governance import (
     build_gold_eval_pack,
     build_governance_scorecard,
@@ -117,7 +132,7 @@ from policy.governance import (
 )
 
 # -- LangGraph agent --
-from graph import build_graph
+from graph import ask_ollama, build_graph, translator_node, executor_node, visualizer_node
 
 # -- OpenAI helpers (kept inline since they are small and route-specific) --
 import httpx
@@ -419,6 +434,12 @@ def build_review_pack() -> Dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
+            {"label": "Warehouse Target Scorecard", "href": "/api/runtime/warehouse-target-scorecard", "kind": "route"},
+            {"label": "Semantic Governance Pack", "href": "/api/runtime/semantic-governance-pack", "kind": "route"},
+            {"label": "Lakehouse Readiness Pack", "href": "/api/runtime/lakehouse-readiness-pack", "kind": "route"},
+            {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
+            {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
+            {"label": "Query Review Board", "href": "/api/query-review-board", "kind": "route"},
         ],
         "answer_contract": {
             "schema": report_contract["schema"],
@@ -508,6 +529,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 
 @app.middleware("http")
 async def session_and_logging_middleware(request: Request, call_next):
+    _sync_audit_log_path()
     request_id = str(request.headers.get("x-request-id") or uuid4().hex[:12]).strip()
     request.state.request_id = request_id
     request.state.operator_session = apply_operator_session(request)
@@ -532,12 +554,59 @@ async def session_and_logging_middleware(request: Request, call_next):
 @app.get("/health")
 async def health_endpoint():
     runtime_meta = build_runtime_meta()
-    return {"status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded", **runtime_meta}
+    return {
+        "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
+        **runtime_meta,
+        "links": {
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
+            "governance_scorecard": "/api/runtime/governance-scorecard",
+            "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
+            "lakehouse_readiness_pack": "/api/runtime/lakehouse-readiness-pack",
+            "reviewer_query_demo": "/api/runtime/reviewer-query-demo",
+            "auth_session": "/api/auth/session",
+            "review_pack": "/api/review-pack",
+            "answer_schema": "/api/schema/answer",
+            "lineage_schema": "/api/schema/lineage",
+            "metric_layer_schema": "/api/schema/metrics",
+            "query_audit_schema": "/api/schema/query-audit",
+            "query_tag_schema": "/api/schema/query-tag",
+            "query_session_board": "/api/query-session-board",
+            "query_approval_board": "/api/query-approval-board",
+            "query_review_board": "/api/query-review-board",
+            "query_audit_summary": "/api/query-audit/summary",
+            "query_audit_recent": "/api/query-audit/recent",
+        },
+    }
 
 @app.get("/api/meta")
 async def meta_endpoint():
     runtime_meta = build_runtime_meta()
-    return {"status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded", "generated_at": utc_now_iso(), **runtime_meta}
+    return {
+        "status": "ok" if runtime_meta["diagnostics"]["db_ready"] else "degraded",
+        "generated_at": utc_now_iso(),
+        **runtime_meta,
+        "readiness_contract": "nexus-hive-runtime-brief-v1",
+        "warehouse_brief_contract": "nexus-hive-warehouse-brief-v1",
+        "warehouse_target_scorecard_contract": "nexus-hive-warehouse-target-scorecard-v1",
+        "governance_scorecard_contract": "nexus-hive-governance-scorecard-v1",
+        "semantic_governance_pack_contract": "nexus-hive-semantic-governance-pack-v1",
+        "lakehouse_readiness_pack_contract": "nexus-hive-lakehouse-readiness-pack-v1",
+        "review_pack_contract": "nexus-hive-review-pack-v1",
+        "report_contract": build_answer_schema(),
+        "lineage_contract": "nexus-hive-lineage-v1",
+        "metric_layer_contract": "nexus-hive-metric-layer-v1",
+        "policy_contract": "nexus-hive-policy-v1",
+        "query_tag_contract": "nexus-hive-query-tag-v1",
+        "query_audit_contract": "nexus-hive-query-audit-v1",
+        "query_session_board_contract": "nexus-hive-query-session-board-v1",
+        "query_approval_board_contract": "nexus-hive-query-approval-board-v1",
+        "query_review_board_contract": "nexus-hive-query-review-board-v1",
+        "query_audit_summary_contract": "nexus-hive-query-audit-summary-v1",
+        "gold_eval_contract": "nexus-hive-gold-eval-v1",
+    }
 
 @app.get("/api/runtime/brief")
 async def runtime_brief_endpoint():
@@ -673,7 +742,26 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
     verdict = evaluate_sql_policy(sql, role=role)
     approval_bundle = build_policy_approval_bundle(verdict)
     append_runtime_event({"service": "nexus-hive", "event_type": "policy_check", "method": "POST", "path": "/api/policy/check", "status": "ok", "role": role, "policy_decision": verdict["decision"], "at": utc_now_iso()})
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), "schema": build_policy_schema()["schema"], "sql": sql, "query_tag_preview": build_query_tag(request_id=str(getattr(request.state, "request_id", "") or "policy-check"), role=role, purpose="policy-check", adapter_name="sqlite-demo"), "verdict": verdict, "approval_required": approval_bundle["approval_required"], "approval_actions": approval_bundle["approval_actions"], "review_rationale": approval_bundle["review_rationale"]}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": build_policy_schema()["schema"],
+        "sql": sql,
+        "query_tag_preview": build_query_tag(
+            request_id=str(getattr(request.state, "request_id", "") or "policy-check"),
+            role=role,
+            purpose="policy-check",
+            adapter_name="sqlite-demo",
+        ),
+        "verdict": verdict,
+        "approval_required": approval_bundle["approval_required"],
+        "approval_actions": approval_bundle["approval_actions"],
+        "review_rationale": approval_bundle["review_rationale"],
+        "links": {
+            "query_approval_board": "/api/query-approval-board",
+        },
+    }
 
 @app.get("/api/query-audit/summary")
 async def query_audit_summary_endpoint(limit: int = 5, fallback_mode: Optional[str] = None, status: Optional[str] = None, policy_decision: Optional[str] = None):
@@ -719,7 +807,26 @@ async def ask_endpoint(req: AskRequest, request: Request):
     write_query_audit_snapshot(request_id=request_id, question=question, status="accepted", stage="accepted", adapter_name="sqlite-demo", query_tag=query_tag, policy_decision="pending", policy_reasons=[], fallback_sql_used=False, fallback_chart_used=False)
     append_runtime_event({"service": "nexus-hive", "event_type": "ask_accepted", "method": "POST", "path": "/api/ask", "request_id": request_id, "status": "accepted", "question": question, "at": utc_now_iso()})
     stream_url = str(request.url_for("stream_endpoint"))
-    return {"status": "accepted", "message": "Use the SSE stream endpoint to receive the full agent trace.", "request_id": request_id, "question": question, "query_tag_preview": query_tag, "stream_url": f"{stream_url}?q={quote_plus(question)}&rid={request_id}"}
+    return {
+        "status": "accepted",
+        "message": "Use the SSE stream endpoint to receive the full agent trace.",
+        "request_id": request_id,
+        "question": question,
+        "query_tag_preview": query_tag,
+        "stream_url": f"{stream_url}?q={quote_plus(question)}&rid={request_id}",
+        "links": {
+            "runtime_brief": "/api/runtime/brief",
+            "warehouse_brief": "/api/runtime/warehouse-brief",
+            "answer_schema": "/api/schema/answer",
+            "query_tag_schema": "/api/schema/query-tag",
+            "gold_eval": "/api/evals/nl2sql-gold",
+            "query_session_board": "/api/query-session-board",
+            "query_approval_board": "/api/query-approval-board",
+            "query_audit_summary": "/api/query-audit/summary",
+            "query_audit_recent": "/api/query-audit/recent",
+            "query_audit_detail": f"/api/query-audit/{request_id}",
+        },
+    }
 
 @app.get("/api/stream")
 async def stream_endpoint(q: str, rid: Optional[str] = None):
