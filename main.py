@@ -385,7 +385,7 @@ def build_review_pack() -> Dict[str, Any]:
         "service": "nexus-hive",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "readiness_contract": "nexus-hive-review-pack-v1",
-        "headline": "Executive BI review pack tying question, safe SQL, chart output, and agent trace into one audited workflow.",
+        "headline": "Executive BI summary tying question, safe SQL, chart output, and agent trace into one audited workflow.",
         "proof_bundle": {
             "warehouse_ready": diagnostics["db_ready"],
             "agent_nodes": runtime_brief["evidence_counts"]["agent_nodes"],

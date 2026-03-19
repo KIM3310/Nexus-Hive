@@ -626,7 +626,7 @@ def build_semantic_governance_pack() -> Dict[str, Any]:
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         "schema": SEMANTIC_GOVERNANCE_PACK_SCHEMA,
-        "headline": "Semantic governance pack that compresses metric certification, approval posture, and warehouse-target survival into one reviewer surface.",
+        "headline": "Semantic governance pack covering metric certification, approval posture, and warehouse-target status.",
         "summary": {
             "certified_metric_count": len(certified_metrics),
             "review_required_metric_count": len(attention_metrics),
