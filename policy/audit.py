@@ -7,8 +7,9 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 
+import config as _config
+
 from config import (
-    AUDIT_LOG_PATH,
     AUDIT_POLICY_DECISION_VALUES,
     AUDIT_STATUS_VALUES,
     QUERY_APPROVAL_BOARD_SCHEMA,
@@ -47,8 +48,8 @@ def build_query_audit_schema() -> Dict[str, Any]:
 
 
 def append_query_audit_snapshot(snapshot: Dict[str, Any]) -> None:
-    AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
+    _config.AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _config.AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(snapshot, ensure_ascii=True) + "\n")
 
 
@@ -95,11 +96,11 @@ def write_query_audit_snapshot(
 
 
 def iter_query_audit_snapshots() -> List[Dict[str, Any]]:
-    if not AUDIT_LOG_PATH.exists():
+    if not _config.AUDIT_LOG_PATH.exists():
         return []
 
     snapshots: List[Dict[str, Any]] = []
-    with AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
+    with _config.AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.strip()
             if not line:
