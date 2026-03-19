@@ -532,7 +532,17 @@ class PolicyCheckRequest(BaseModel):
 
 graph = build_graph()
 
-app = FastAPI(title="Nexus-Hive Agent API")
+app = FastAPI(
+    title="Nexus-Hive Agent API",
+    description=(
+        "Multi-agent NL-to-SQL BI copilot with governed analytics, "
+        "audit trails, and multi-warehouse support (SQLite, Snowflake, Databricks)."
+    ),
+    version="0.2.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 

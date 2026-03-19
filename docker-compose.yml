@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-hive-app
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - NEXUS_HIVE_DB_PATH=/app/nexus_enterprise.db
+      - NEXUS_HIVE_OLLAMA_URL=http://ollama:11434/api/generate
+      - NEXUS_HIVE_MODEL=${NEXUS_HIVE_MODEL:-phi3}
+      - NEXUS_HIVE_ROLE=${NEXUS_HIVE_ROLE:-analyst}
+      - NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK=${NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK:-1}
+      - NEXUS_HIVE_LOG_LEVEL=${NEXUS_HIVE_LOG_LEVEL:-INFO}
+      - NEXUS_HIVE_WAREHOUSE_ADAPTER=${NEXUS_HIVE_WAREHOUSE_ADAPTER:-sqlite-demo}
+      - NEXUS_HIVE_OPERATOR_TOKEN=${NEXUS_HIVE_OPERATOR_TOKEN:-}
+      - NEXUS_HIVE_OPERATOR_ALLOWED_ROLES=${NEXUS_HIVE_OPERATOR_ALLOWED_ROLES:-}
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:-}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:-}
+      - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD:-}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE:-}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-}
+      - DATABRICKS_HOST=${DATABRICKS_HOST:-}
+      - DATABRICKS_TOKEN=${DATABRICKS_TOKEN:-}
+      - DATABRICKS_HTTP_PATH=${DATABRICKS_HTTP_PATH:-}
+      - DATABRICKS_CATALOG=${DATABRICKS_CATALOG:-}
+      - DATABRICKS_SCHEMA=${DATABRICKS_SCHEMA:-}
+    volumes:
+      - runtime-data:/app/.runtime
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexus-hive-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    profiles:
+      - with-ollama
+      - full
+
+volumes:
+  runtime-data:
+  ollama-models:
