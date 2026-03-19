@@ -66,19 +66,59 @@ class WarehouseAdapter:
 
 
 _BLOCKED_SQL_KEYWORDS = {"DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE"}
+_ALLOWED_FIRST_KEYWORDS = {"SELECT", "WITH", "EXPLAIN"}
+
+
+def _strip_sql_comments_and_strings(sql: str) -> str:
+    """Remove SQL comments and string literals so keyword checks cannot be bypassed."""
+    import re
+    # Remove block comments (/* ... */)
+    cleaned = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
+    # Remove single-line comments (-- ...)
+    cleaned = re.sub(r'--[^\n]*', ' ', cleaned)
+    # Remove single-quoted string literals ('...')
+    cleaned = re.sub(r"'(?:[^'\\]|\\.)*'", "''", cleaned)
+    # Remove double-quoted identifiers ("...")
+    cleaned = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cleaned)
+    return cleaned
 
 
 def _validate_sql_readonly(sql: str) -> None:
-    """Reject DDL/DML statements to enforce read-only query execution."""
-    normalized = sql.strip().rstrip(";").upper()
-    # Check the leading keyword of each statement (handles multi-statement strings)
-    for statement in normalized.split(";"):
-        first_word = statement.strip().split()[0] if statement.strip() else ""
-        if first_word in _BLOCKED_SQL_KEYWORDS:
+    """Reject DDL/DML statements to enforce read-only query execution.
+
+    Uses a whitelist approach: only SELECT/WITH/EXPLAIN statements are allowed.
+    Comments and string literals are stripped before validation to prevent bypass.
+    """
+    stripped = sql.strip()
+    if not stripped:
+        raise ValueError("Empty SQL statement is not allowed.")
+
+    cleaned = _strip_sql_comments_and_strings(stripped).strip().rstrip(";")
+
+    # Check each statement after stripping comments and strings
+    for statement in cleaned.split(";"):
+        statement = statement.strip()
+        if not statement:
+            continue
+        first_word = statement.split()[0].upper() if statement.split() else ""
+
+        # Whitelist: only allow SELECT, WITH, and EXPLAIN
+        if first_word not in _ALLOWED_FIRST_KEYWORDS:
             raise ValueError(
                 f"Blocked SQL statement: '{first_word}' operations are not allowed. "
                 "Only SELECT queries are permitted."
             )
+
+        # Also scan for blocked keywords in the body (e.g., subquery injection)
+        upper_statement = statement.upper()
+        for keyword in _BLOCKED_SQL_KEYWORDS:
+            # Check for blocked keywords as standalone tokens
+            import re
+            if re.search(r'\b' + keyword + r'\b', upper_statement):
+                raise ValueError(
+                    f"Blocked SQL keyword '{keyword}' found in statement. "
+                    "Only read-only SELECT queries are permitted."
+                )
 
 
 class SqliteWarehouseAdapter(WarehouseAdapter):
