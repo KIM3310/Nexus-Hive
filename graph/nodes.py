@@ -4,6 +4,7 @@ LangGraph node implementations: translator, executor, visualizer, and graph buil
 
 import json
 import operator
+import re
 from typing import Annotated, Any, Dict, List, TypedDict
 
 import httpx
@@ -24,6 +25,38 @@ from policy.engine import (
 from warehouse_adapter import get_active_warehouse_adapter
 
 
+_MAX_QUESTION_LENGTH = 500
+_PROMPT_INJECTION_PATTERNS = [
+    re.compile(r"ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)", re.IGNORECASE),
+    re.compile(r"(system|assistant)\s*:\s*", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+", re.IGNORECASE),
+    re.compile(r"forget\s+(all\s+)?(previous|prior|your)\s+", re.IGNORECASE),
+    re.compile(r"new\s+instructions?\s*:", re.IGNORECASE),
+    re.compile(r"<\s*/?\s*system\s*>", re.IGNORECASE),
+]
+
+
+def _sanitize_user_input(question: str) -> str:
+    """Sanitize user question to mitigate prompt injection attacks.
+
+    - Truncates to a maximum length
+    - Strips characters that could be used for prompt manipulation
+    - Detects common injection patterns
+    """
+    sanitized = str(question or "").strip()
+    if len(sanitized) > _MAX_QUESTION_LENGTH:
+        sanitized = sanitized[:_MAX_QUESTION_LENGTH]
+    # Remove null bytes and other control characters (keep newlines and tabs for readability)
+    sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', sanitized)
+    for pattern in _PROMPT_INJECTION_PATTERNS:
+        if pattern.search(sanitized):
+            raise ValueError(
+                "The question contains patterns that resemble prompt injection. "
+                "Please rephrase your analytics question."
+            )
+    return sanitized
+
+
 class AgentState(TypedDict):
     user_query: str
     sql_query: str
@@ -38,13 +71,24 @@ class AgentState(TypedDict):
 
 
 async def ask_ollama(prompt: str) -> str:
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(OLLAMA_URL, json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        })
-        return response.json().get("response", "")
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+            response = await client.post(OLLAMA_URL, json={
+                "model": MODEL_NAME,
+                "prompt": prompt,
+                "stream": False
+            })
+            return response.json().get("response", "")
+    except httpx.TimeoutException:
+        raise RuntimeError(
+            f"Ollama request timed out after 120s. "
+            f"The model '{MODEL_NAME}' at {OLLAMA_URL} may be overloaded or unreachable."
+        )
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Could not connect to Ollama at {OLLAMA_URL}. "
+            "Ensure the Ollama service is running."
+        )
 
 
 async def translator_node(state: AgentState) -> AgentState:
@@ -52,17 +96,28 @@ async def translator_node(state: AgentState) -> AgentState:
     active_adapter = get_active_warehouse_adapter()
     schema_text = get_db_schema()
 
+    try:
+        sanitized_question = _sanitize_user_input(state["user_query"])
+    except ValueError as exc:
+        state["error"] = str(exc)
+        state["sql_query"] = ""
+        state["log_stream"].append(f"[Agent 1: Translator] Input rejected: {exc}")
+        return state
+
+    sanitized_error = str(state.get("error", "None"))[:200]
+
     prompt = f"""You are a senior analytics engineer for governed data platforms.
 Translate the following executive question into a valid SQL query for {active_adapter.prompt_sql_target()}.
 Current execution posture: {active_adapter.prompt_execution_note()}
 Use only the tables provided in the schema. Return ONLY the SQL query, nothing else (no markdown blocks, no explanations).
+IMPORTANT: Only generate SELECT queries. Never generate DROP, DELETE, INSERT, UPDATE, ALTER, CREATE, or TRUNCATE statements.
 
 Schema:
 {schema_text}
 
-Question: {state['user_query']}
+Question: {sanitized_question}
 
-If previous error exists, fix this issue: {state.get('error', 'None')}
+If previous error exists, fix this issue: {sanitized_error}
 """
     sql = ""
     try:
@@ -87,6 +142,17 @@ def executor_node(state: AgentState) -> AgentState:
     state["log_stream"].append(
         f"[Agent 2: Executor] Auditing and executing SQL through {active_adapter.contract.name} ({active_adapter.contract.execution_mode})..."
     )
+
+    if not sql or not sql.strip():
+        state["error"] = "Translator produced empty SQL. Cannot execute."
+        state["log_stream"].append(f"[Agent 2: Executor] ERROR: {state['error']}")
+        state["policy_verdict"] = {
+            "role": "analyst",
+            "decision": "deny",
+            "deny_reasons": ["empty_sql_from_translator"],
+            "review_reasons": [],
+        }
+        return state
 
     policy = evaluate_sql_policy(sql)
     state["policy_verdict"] = policy
@@ -119,12 +185,17 @@ async def visualizer_node(state: AgentState) -> AgentState:
 
     sample_data = state["db_result"][:3]
 
+    try:
+        sanitized_viz_question = _sanitize_user_input(state["user_query"])
+    except ValueError:
+        sanitized_viz_question = "analytics question"
+
     prompt = f"""You are a Frontend Data Visualization Expert.
 Look at the user's original question and the sample data structure extracted from the database.
 Determine the best Chart.js configuration string (just a valid JSON object).
 Do NOT include any markdown formatting, just the raw JSON text.
 
-User Question: {state['user_query']}
+User Question: {sanitized_viz_question}
 Sample Data: {json.dumps(sample_data)}
 
 Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
