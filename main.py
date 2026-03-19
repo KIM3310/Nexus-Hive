@@ -5,13 +5,17 @@ Business logic is delegated to:
   - config.py: shared configuration, constants, utility functions
   - policy/: SQL policy engine, audit trail, governance scorecards
   - graph/: LangGraph agent nodes (translator, executor, visualizer)
+  - logging_config.py: structured JSON logging with request ID propagation
+  - circuit_breaker.py: Ollama circuit breaker for resilient fallback
+  - exceptions.py: specific exception types for governed error handling
 """
 
 import json
+import logging
 import os
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 from urllib.parse import quote_plus
 from uuid import uuid4
 
@@ -28,6 +32,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
+
+# -- Structured logging --
+from logging_config import configure_logging, set_request_id, clear_request_id
+
+_logger: logging.Logger = configure_logging()
 
 # -- Configuration --
 from config import (
@@ -529,21 +538,43 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 
 @app.middleware("http")
 async def session_and_logging_middleware(request: Request, call_next):
+    """Middleware that propagates request IDs, applies operator sessions, and logs request lifecycle."""
     _sync_audit_log_path()
-    request_id = str(request.headers.get("x-request-id") or uuid4().hex[:12]).strip()
+    request_id: str = str(request.headers.get("x-request-id") or uuid4().hex[:12]).strip()
     request.state.request_id = request_id
+    set_request_id(request_id)
     request.state.operator_session = apply_operator_session(request)
-    started = datetime.now(timezone.utc)
+    _logger.info(
+        "Request started: %s %s",
+        request.method,
+        request.url.path,
+        extra={"extra_fields": {"request_id": request_id, "method": request.method, "path": request.url.path}},
+    )
+    started: datetime = datetime.now(timezone.utc)
     try:
         response = await call_next(request)
     except Exception as error:
-        elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+        elapsed_ms: int = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+        _logger.error(
+            "Request failed: %s %s (%dms) - %s",
+            request.method, request.url.path, elapsed_ms, error,
+            extra={"extra_fields": {"request_id": request_id, "elapsed_ms": elapsed_ms, "error": str(error)}},
+        )
         log_runtime_event("error", "request-failed", elapsed_ms=elapsed_ms, error=str(error), method=request.method, path=request.url.path, request_id=request_id)
+        clear_request_id()
         raise
     response.headers["x-request-id"] = request_id
     response.headers["cache-control"] = "no-store"
     elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
-    log_runtime_event("warn" if response.status_code >= 400 or elapsed_ms >= 4000 else "info", "request-finished", elapsed_ms=elapsed_ms, method=request.method, path=request.url.path, request_id=request_id, status_code=response.status_code)
+    log_level: str = "warn" if response.status_code >= 400 or elapsed_ms >= 4000 else "info"
+    _logger.log(
+        logging.WARNING if log_level == "warn" else logging.INFO,
+        "Request finished: %s %s -> %d (%dms)",
+        request.method, request.url.path, response.status_code, elapsed_ms,
+        extra={"extra_fields": {"request_id": request_id, "status_code": response.status_code, "elapsed_ms": elapsed_ms}},
+    )
+    log_runtime_event(log_level, "request-finished", elapsed_ms=elapsed_ms, method=request.method, path=request.url.path, request_id=request_id, status_code=response.status_code)
+    clear_request_id()
     return response
 
 

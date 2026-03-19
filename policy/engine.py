@@ -1,8 +1,13 @@
 """
 Core policy engine: SQL evaluation, query tagging, SQL inference, and chart config inference.
+
+Provides the governance layer that evaluates SQL queries against security
+policies, builds query tags for audit trails, and offers heuristic fallback
+paths for SQL generation and chart configuration.
 """
 
-from typing import Any, Dict, List
+import logging
+from typing import Any, Dict, List, Set
 
 from config import (
     DB_PATH,
@@ -16,8 +21,16 @@ from config import (
 )
 from warehouse_adapter import get_active_warehouse_adapter
 
+_logger = logging.getLogger("nexus_hive.policy.engine")
+
 
 def build_policy_schema() -> Dict[str, Any]:
+    """Build the policy schema descriptor for API responses.
+
+    Returns:
+        Dictionary describing policy rules, deny rules, review rules,
+        and sensitive column mappings.
+    """
     return {
         "schema": "nexus-hive-policy-v1",
         "default_role": DEFAULT_ROLE,
@@ -34,6 +47,11 @@ def build_policy_schema() -> Dict[str, Any]:
 
 
 def build_query_tag_contract() -> Dict[str, Any]:
+    """Build the query tag contract describing governance metadata dimensions.
+
+    Returns:
+        Dictionary with schema, required dimensions, examples, and adapter notes.
+    """
     return {
         "schema": QUERY_TAG_SCHEMA,
         "default_adapter": "sqlite-demo",
@@ -66,24 +84,57 @@ def build_query_tag_contract() -> Dict[str, Any]:
     }
 
 
-def build_query_tag(*, request_id: str, role: str, purpose: str, adapter_name: str = "sqlite-demo") -> str:
-    safe_role = str(role or DEFAULT_ROLE).strip().lower() or DEFAULT_ROLE
-    safe_purpose = str(purpose or "ask").strip().lower() or "ask"
-    safe_request_id = str(request_id or "unknown").strip() or "unknown"
-    safe_adapter = str(adapter_name or "sqlite-demo").strip() or "sqlite-demo"
+def build_query_tag(
+    *,
+    request_id: str,
+    role: str,
+    purpose: str,
+    adapter_name: str = "sqlite-demo",
+) -> str:
+    """Build a governance query tag string for audit trail attachment.
+
+    Args:
+        request_id: Unique request identifier.
+        role: Operator role (e.g., 'analyst', 'viewer').
+        purpose: Query purpose (e.g., 'ask', 'policy-check').
+        adapter_name: Warehouse adapter name.
+
+    Returns:
+        A semicolon-delimited query tag string.
+    """
+    safe_role: str = str(role or DEFAULT_ROLE).strip().lower() or DEFAULT_ROLE
+    safe_purpose: str = str(purpose or "ask").strip().lower() or "ask"
+    safe_request_id: str = str(request_id or "unknown").strip() or "unknown"
+    safe_adapter: str = str(adapter_name or "sqlite-demo").strip() or "sqlite-demo"
     return (
         f"service=nexus-hive;adapter={safe_adapter};role={safe_role};"
         f"request_id={safe_request_id};purpose={safe_purpose}"
     )
 
 
-def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
-    normalized_sql = str(sql or "").strip()
-    upper_sql = normalized_sql.upper()
-    lower_sql = normalized_sql.lower()
+def evaluate_sql_policy(
+    sql: str,
+    role: str = DEFAULT_ROLE,
+) -> Dict[str, Any]:
+    """Evaluate a SQL query against the governance policy rules.
+
+    Checks for write operations, wildcard projections, sensitive column access,
+    and non-aggregated queries without LIMIT clauses.
+
+    Args:
+        sql: The SQL query to evaluate.
+        role: The operator role for sensitive column checks.
+
+    Returns:
+        Dictionary with role, decision ('allow', 'review', or 'deny'),
+        deny_reasons, and review_reasons lists.
+    """
+    normalized_sql: str = str(sql or "").strip()
+    upper_sql: str = normalized_sql.upper()
+    lower_sql: str = normalized_sql.lower()
     deny_reasons: List[str] = []
     review_reasons: List[str] = []
-    sensitive_columns = SENSITIVE_COLUMNS_BY_ROLE.get(role, set())
+    sensitive_columns: Set[str] = SENSITIVE_COLUMNS_BY_ROLE.get(role, set())
 
     if any(keyword in upper_sql for keyword in READ_ONLY_BLOCKLIST):
         deny_reasons.append("write_operations_blocked")
@@ -92,9 +143,18 @@ def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
     if any(column in lower_sql for column in sensitive_columns):
         deny_reasons.append("sensitive_columns_require_privileged_role")
     if "GROUP BY" not in upper_sql and "LIMIT" not in upper_sql:
-        review_reasons.append("non_aggregated_queries_without_limit_require_operator_review")
+        review_reasons.append(
+            "non_aggregated_queries_without_limit_require_operator_review"
+        )
 
-    decision = "deny" if deny_reasons else "review" if review_reasons else "allow"
+    decision: str = "deny" if deny_reasons else "review" if review_reasons else "allow"
+
+    _logger.info(
+        "Policy evaluation: decision=%s, sql_preview=%s",
+        decision,
+        normalized_sql[:80],
+    )
+
     return {
         "role": role,
         "decision": decision,
@@ -104,8 +164,19 @@ def evaluate_sql_policy(sql: str, role: str = DEFAULT_ROLE) -> Dict[str, Any]:
 
 
 def build_policy_approval_bundle(verdict: Dict[str, Any]) -> Dict[str, Any]:
-    review_reasons = list(verdict.get("review_reasons") or [])
-    approval_required = str(verdict.get("decision") or "").strip().lower() == "review"
+    """Build an approval action bundle from a policy verdict.
+
+    Args:
+        verdict: The policy verdict dictionary from evaluate_sql_policy.
+
+    Returns:
+        Dictionary with approval_required flag, approval_actions list,
+        and review_rationale.
+    """
+    review_reasons: List[str] = list(verdict.get("review_reasons") or [])
+    approval_required: bool = (
+        str(verdict.get("decision") or "").strip().lower() == "review"
+    )
     return {
         "approval_required": approval_required,
         "approval_actions": [
@@ -119,12 +190,31 @@ def build_policy_approval_bundle(verdict: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def evaluate_sql_case(sql: str, expected_features: List[str]) -> Dict[str, Any]:
-    upper_sql = str(sql or "").upper()
-    matched = [feature for feature in expected_features if feature.upper() in upper_sql]
+def evaluate_sql_case(
+    sql: str,
+    expected_features: List[str],
+) -> Dict[str, Any]:
+    """Evaluate a generated SQL query against expected feature patterns.
+
+    Used by the gold eval suite to score heuristic SQL quality.
+
+    Args:
+        sql: The generated SQL query.
+        expected_features: List of SQL feature strings to match against.
+
+    Returns:
+        Dictionary with matched_features, missing_features, score, max_score,
+        and status ('pass' or 'partial').
+    """
+    upper_sql: str = str(sql or "").upper()
+    matched: List[str] = [
+        feature for feature in expected_features if feature.upper() in upper_sql
+    ]
     return {
         "matched_features": matched,
-        "missing_features": [feature for feature in expected_features if feature not in matched],
+        "missing_features": [
+            feature for feature in expected_features if feature not in matched
+        ],
         "score": len(matched),
         "max_score": len(expected_features),
         "status": "pass" if len(matched) == len(expected_features) else "partial",
@@ -132,11 +222,31 @@ def evaluate_sql_case(sql: str, expected_features: List[str]) -> Dict[str, Any]:
 
 
 def normalize_question_text(question: str) -> str:
+    """Normalize question text for comparison using the shared normalizer.
+
+    Args:
+        question: Raw question string.
+
+    Returns:
+        Normalized, lowercase, single-spaced string.
+    """
     return normalize_question(question)
 
 
 def infer_sql_from_question(question: str) -> str:
-    normalized = normalize_question(question)
+    """Infer a SQL query from a natural language question using heuristic rules.
+
+    Matches question patterns against known analytics scenarios and returns
+    pre-built SQL. Falls back to a default revenue-by-region query.
+
+    Args:
+        question: The natural language question.
+
+    Returns:
+        A SQL query string.
+    """
+    normalized: str = normalize_question(question)
+    _logger.debug("Heuristic SQL inference for: %s", normalized[:80])
 
     if "discount" in normalized and "category" in normalized:
         return (
@@ -149,7 +259,7 @@ def infer_sql_from_question(question: str) -> str:
         )
 
     if "profit" in normalized and "region" in normalized:
-        limit = 5 if "top 5" in normalized else 10
+        limit: int = 5 if "top 5" in normalized else 10
         return (
             "SELECT r.region_name, ROUND(SUM(s.profit), 2) AS total_profit "
             "FROM sales s "
@@ -159,7 +269,11 @@ def infer_sql_from_question(question: str) -> str:
             f"LIMIT {limit}"
         )
 
-    if ("monthly" in normalized or "trend" in normalized or "month" in normalized) and "revenue" in normalized:
+    if (
+        "monthly" in normalized
+        or "trend" in normalized
+        or "month" in normalized
+    ) and "revenue" in normalized:
         return (
             "SELECT SUBSTR(s.date, 1, 7) AS month, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue "
             "FROM sales s "
@@ -198,7 +312,22 @@ def infer_sql_from_question(question: str) -> str:
     )
 
 
-def infer_chart_config_from_question(question: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def infer_chart_config_from_question(
+    question: str,
+    rows: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Infer a Chart.js configuration from the question and result rows.
+
+    Uses keyword matching to select chart type (bar, line, doughnut)
+    and picks label/data keys from the first row's column names.
+
+    Args:
+        question: The original user question.
+        rows: List of result row dictionaries.
+
+    Returns:
+        Chart.js configuration dictionary with type, labels_key, data_key, title.
+    """
     if not rows:
         return {
             "type": "bar",
@@ -207,15 +336,17 @@ def infer_chart_config_from_question(question: str, rows: List[Dict[str, Any]]) 
             "title": "Data Visualization",
         }
 
-    keys = list(rows[0].keys())
-    label_key = keys[0]
-    data_key = keys[1] if len(keys) > 1 else keys[0]
-    normalized = normalize_question(question)
-    chart_type = "bar"
+    keys: List[str] = list(rows[0].keys())
+    label_key: str = keys[0]
+    data_key: str = keys[1] if len(keys) > 1 else keys[0]
+    normalized: str = normalize_question(question)
+    chart_type: str = "bar"
 
     if "trend" in normalized or "month" in normalized or "date" in normalized:
         chart_type = "line"
-    elif len(rows) <= 6 and any(keyword in normalized for keyword in ["share", "mix", "category", "region"]):
+    elif len(rows) <= 6 and any(
+        keyword in normalized for keyword in ["share", "mix", "category", "region"]
+    ):
         chart_type = "doughnut"
 
     return {

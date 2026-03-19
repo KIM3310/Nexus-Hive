@@ -1,14 +1,17 @@
 """
 Query audit trail: snapshot storage, filtering, summary, review board, session board, approval board.
+
+Provides append-only audit snapshot persistence, filtering by status/policy/fallback,
+and aggregated views for review boards and governance dashboards.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
 
 import config as _config
-
 from config import (
     AUDIT_POLICY_DECISION_VALUES,
     AUDIT_STATUS_VALUES,
@@ -18,24 +21,23 @@ from config import (
     utc_now_iso,
 )
 
+_logger = logging.getLogger("nexus_hive.policy.audit")
+
 
 def build_query_audit_schema() -> Dict[str, Any]:
+    """Build the query audit schema descriptor for API responses.
+
+    Returns:
+        Dictionary describing the audit schema, required fields, stages,
+        and operator rules.
+    """
     return {
         "schema": "nexus-hive-query-audit-v1",
         "storage_mode": "append-only jsonl snapshots with latest-state views per request_id",
         "required_fields": [
-            "request_id",
-            "question",
-            "status",
-            "stage",
-            "adapter_name",
-            "query_tag",
-            "sql_query",
-            "row_count",
-            "retry_count",
-            "policy_decision",
-            "fallback_sql_used",
-            "fallback_chart_used",
+            "request_id", "question", "status", "stage", "adapter_name",
+            "query_tag", "sql_query", "row_count", "retry_count",
+            "policy_decision", "fallback_sql_used", "fallback_chart_used",
             "updated_at",
         ],
         "stages": ["accepted", "completed", "failed"],
@@ -48,9 +50,21 @@ def build_query_audit_schema() -> Dict[str, Any]:
 
 
 def append_query_audit_snapshot(snapshot: Dict[str, Any]) -> None:
+    """Append an audit snapshot to the JSONL audit log file.
+
+    Creates the parent directory if it does not exist.
+
+    Args:
+        snapshot: Dictionary containing the audit snapshot fields.
+    """
     _config.AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with _config.AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(snapshot, ensure_ascii=True) + "\n")
+    _logger.debug(
+        "Audit snapshot appended: request_id=%s, status=%s",
+        snapshot.get("request_id", "unknown"),
+        snapshot.get("status", "unknown"),
+    )
 
 
 def write_query_audit_snapshot(
@@ -71,7 +85,32 @@ def write_query_audit_snapshot(
     fallback_sql_used: bool = False,
     fallback_chart_used: bool = False,
 ) -> None:
-    timestamp = utc_now_iso()
+    """Write a structured query audit snapshot to the audit log.
+
+    Args:
+        request_id: Unique request identifier.
+        question: The original user question.
+        status: Current status (accepted, completed, failed).
+        stage: Pipeline stage at snapshot time.
+        adapter_name: Warehouse adapter name.
+        query_tag: Governance query tag string.
+        sql_query: The generated SQL query.
+        row_count: Number of result rows.
+        retry_count: Number of retries performed.
+        chart_type: Chart type if visualization was generated.
+        error: Error message if any.
+        policy_decision: Policy decision (allow, review, deny, pending).
+        policy_reasons: List of policy rule reasons.
+        fallback_sql_used: Whether heuristic SQL was used.
+        fallback_chart_used: Whether heuristic chart config was used.
+    """
+    timestamp: str = utc_now_iso()
+    _logger.info(
+        "Writing audit snapshot: request_id=%s, status=%s, stage=%s",
+        request_id,
+        status,
+        stage,
+    )
     append_query_audit_snapshot(
         {
             "service": "nexus-hive",
@@ -96,17 +135,22 @@ def write_query_audit_snapshot(
 
 
 def iter_query_audit_snapshots() -> List[Dict[str, Any]]:
+    """Read all audit snapshots from the JSONL audit log.
+
+    Returns:
+        List of snapshot dictionaries in file order.
+    """
     if not _config.AUDIT_LOG_PATH.exists():
         return []
 
     snapshots: List[Dict[str, Any]] = []
     with _config.AUDIT_LOG_PATH.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
-            line = raw_line.strip()
+            line: str = raw_line.strip()
             if not line:
                 continue
             try:
-                payload = json.loads(line)
+                payload: Dict[str, Any] = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if isinstance(payload, dict):
@@ -116,13 +160,34 @@ def iter_query_audit_snapshots() -> List[Dict[str, Any]]:
 
 
 def clamp_audit_limit(limit: int, *, default: int = 5, maximum: int = 20) -> int:
+    """Clamp an audit query limit to a safe range.
+
+    Args:
+        limit: The requested limit.
+        default: Default value for non-integer input.
+        maximum: Upper bound for the limit.
+
+    Returns:
+        Clamped integer limit between 1 and maximum.
+    """
     if not isinstance(limit, int):
         return default
     return max(1, min(limit, maximum))
 
 
 def normalize_audit_status_filter(status: Optional[str]) -> Optional[str]:
-    normalized = str(status or "").strip().lower()
+    """Normalize and validate an audit status filter value.
+
+    Args:
+        status: Raw status filter string.
+
+    Returns:
+        Normalized lowercase status string, or None if empty.
+
+    Raises:
+        HTTPException: 400 if the status value is not valid.
+    """
+    normalized: str = str(status or "").strip().lower()
     if not normalized:
         return None
     if normalized not in AUDIT_STATUS_VALUES:
@@ -130,8 +195,21 @@ def normalize_audit_status_filter(status: Optional[str]) -> Optional[str]:
     return normalized
 
 
-def normalize_policy_decision_filter(policy_decision: Optional[str]) -> Optional[str]:
-    normalized = str(policy_decision or "").strip().lower()
+def normalize_policy_decision_filter(
+    policy_decision: Optional[str],
+) -> Optional[str]:
+    """Normalize and validate a policy decision filter value.
+
+    Args:
+        policy_decision: Raw policy decision filter string.
+
+    Returns:
+        Normalized lowercase decision string, or None if empty.
+
+    Raises:
+        HTTPException: 400 if the decision value is not valid.
+    """
+    normalized: str = str(policy_decision or "").strip().lower()
     if not normalized:
         return None
     if normalized not in AUDIT_POLICY_DECISION_VALUES:
@@ -139,8 +217,21 @@ def normalize_policy_decision_filter(policy_decision: Optional[str]) -> Optional
     return normalized
 
 
-def normalize_fallback_mode_filter(fallback_mode: Optional[str]) -> Optional[str]:
-    normalized = str(fallback_mode or "").strip().lower()
+def normalize_fallback_mode_filter(
+    fallback_mode: Optional[str],
+) -> Optional[str]:
+    """Normalize and validate a fallback mode filter value.
+
+    Args:
+        fallback_mode: Raw fallback mode filter string.
+
+    Returns:
+        Normalized lowercase mode string, or None if empty.
+
+    Raises:
+        HTTPException: 400 if the mode value is not valid.
+    """
+    normalized: str = str(fallback_mode or "").strip().lower()
     if not normalized:
         return None
     if normalized not in {"none", "sql", "chart", "any"}:
@@ -149,10 +240,19 @@ def normalize_fallback_mode_filter(fallback_mode: Optional[str]) -> Optional[str
 
 
 def matches_fallback_mode(item: Dict[str, Any], fallback_mode: Optional[str]) -> bool:
+    """Check whether an audit item matches the specified fallback mode filter.
+
+    Args:
+        item: Audit snapshot dictionary.
+        fallback_mode: Filter value ('none', 'sql', 'chart', 'any', or None).
+
+    Returns:
+        True if the item matches the filter.
+    """
     if fallback_mode is None:
         return True
-    fallback_sql = bool(item.get("fallback_sql_used"))
-    fallback_chart = bool(item.get("fallback_chart_used"))
+    fallback_sql: bool = bool(item.get("fallback_sql_used"))
+    fallback_chart: bool = bool(item.get("fallback_chart_used"))
     if fallback_mode == "sql":
         return fallback_sql
     if fallback_mode == "chart":
@@ -168,24 +268,41 @@ def list_latest_query_audits(
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
+    """List the latest audit snapshot per request_id with optional filters.
+
+    Args:
+        fallback_mode: Filter by fallback mode.
+        status: Filter by audit status.
+        policy_decision: Filter by policy decision.
+
+    Returns:
+        List of latest audit snapshots, sorted by updated_at descending.
+    """
     latest_by_request: Dict[str, Dict[str, Any]] = {}
     for payload in iter_query_audit_snapshots():
-        request_id = str(payload.get("request_id") or "").strip()
+        request_id: str = str(payload.get("request_id") or "").strip()
         if not request_id:
             continue
         latest_by_request[request_id] = payload
 
-    items = list(latest_by_request.values())
+    items: List[Dict[str, Any]] = list(latest_by_request.values())
     if status:
-        items = [item for item in items if str(item.get("status") or "").strip().lower() == status]
+        items = [
+            item
+            for item in items
+            if str(item.get("status") or "").strip().lower() == status
+        ]
     if policy_decision:
         items = [
             item
             for item in items
-            if str(item.get("policy_decision") or "").strip().lower() == policy_decision
+            if str(item.get("policy_decision") or "").strip().lower()
+            == policy_decision
         ]
     if fallback_mode:
-        items = [item for item in items if matches_fallback_mode(item, fallback_mode)]
+        items = [
+            item for item in items if matches_fallback_mode(item, fallback_mode)
+        ]
 
     return sorted(
         items,
@@ -201,15 +318,34 @@ def list_recent_query_audits(
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    items = list_latest_query_audits(
+    """List recent audit snapshots with filtering and limit.
+
+    Args:
+        limit: Maximum number of items to return.
+        fallback_mode: Filter by fallback mode.
+        status: Filter by audit status.
+        policy_decision: Filter by policy decision.
+
+    Returns:
+        List of recent audit snapshots, clamped to limit.
+    """
+    items: List[Dict[str, Any]] = list_latest_query_audits(
         fallback_mode=fallback_mode,
         status=status,
         policy_decision=policy_decision,
     )
-    return items[:clamp_audit_limit(limit)]
+    return items[: clamp_audit_limit(limit)]
 
 
 def get_query_audit_history(request_id: str) -> List[Dict[str, Any]]:
+    """Retrieve the full audit history for a specific request_id.
+
+    Args:
+        request_id: The request identifier to look up.
+
+    Returns:
+        List of audit snapshots for the request, sorted by updated_at.
+    """
     history: List[Dict[str, Any]] = []
     for payload in iter_query_audit_snapshots():
         if str(payload.get("request_id") or "").strip() == request_id:
@@ -225,32 +361,50 @@ def build_query_audit_summary(
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> Dict[str, Any]:
-    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
-    status_filter = normalize_audit_status_filter(status)
-    policy_filter = normalize_policy_decision_filter(policy_decision)
-    recent_limit = clamp_audit_limit(limit, maximum=50)
-    latest_items = list_latest_query_audits(
+    """Build an aggregated audit summary for dashboards.
+
+    Args:
+        fallback_mode: Filter by fallback mode.
+        limit: Maximum number of recent items.
+        status: Filter by audit status.
+        policy_decision: Filter by policy decision.
+
+    Returns:
+        Dictionary with schema, filters, summary counts, top reasons,
+        top questions, and recent items.
+    """
+    fallback_filter: Optional[str] = normalize_fallback_mode_filter(fallback_mode)
+    status_filter: Optional[str] = normalize_audit_status_filter(status)
+    policy_filter: Optional[str] = normalize_policy_decision_filter(policy_decision)
+    recent_limit: int = clamp_audit_limit(limit, maximum=50)
+    latest_items: List[Dict[str, Any]] = list_latest_query_audits(
         fallback_mode=fallback_filter,
         status=status_filter,
         policy_decision=policy_filter,
     )
-    recent_items = latest_items[:recent_limit]
+    recent_items: List[Dict[str, Any]] = latest_items[:recent_limit]
 
     status_counts: Dict[str, int] = {}
     policy_counts: Dict[str, int] = {}
     adapter_counts: Dict[str, int] = {}
     policy_reason_counts: Dict[str, int] = {}
     top_questions: Dict[str, Dict[str, Any]] = {}
-    fallback_sql_count = 0
-    fallback_chart_count = 0
-    denied_count = 0
-    review_count = 0
-    error_count = 0
+    fallback_sql_count: int = 0
+    fallback_chart_count: int = 0
+    denied_count: int = 0
+    review_count: int = 0
+    error_count: int = 0
 
     for item in latest_items:
-        item_status = str(item.get("status") or "unknown").strip().lower() or "unknown"
-        item_policy = str(item.get("policy_decision") or "unknown").strip().lower() or "unknown"
-        item_adapter = str(item.get("adapter_name") or "unknown").strip().lower() or "unknown"
+        item_status: str = (
+            str(item.get("status") or "unknown").strip().lower() or "unknown"
+        )
+        item_policy: str = (
+            str(item.get("policy_decision") or "unknown").strip().lower() or "unknown"
+        )
+        item_adapter: str = (
+            str(item.get("adapter_name") or "unknown").strip().lower() or "unknown"
+        )
         status_counts[item_status] = status_counts.get(item_status, 0) + 1
         policy_counts[item_policy] = policy_counts.get(item_policy, 0) + 1
         adapter_counts[item_adapter] = adapter_counts.get(item_adapter, 0) + 1
@@ -260,15 +414,17 @@ def build_query_audit_summary(
         review_count += 1 if item_policy == "review" else 0
         error_count += 1 if str(item.get("error") or "").strip() else 0
         for reason in item.get("policy_reasons") or []:
-            normalized_reason = str(reason or "").strip().lower()
+            normalized_reason: str = str(reason or "").strip().lower()
             if normalized_reason:
-                policy_reason_counts[normalized_reason] = policy_reason_counts.get(normalized_reason, 0) + 1
+                policy_reason_counts[normalized_reason] = (
+                    policy_reason_counts.get(normalized_reason, 0) + 1
+                )
 
-        question = str(item.get("question") or "").strip()
-        normalized_q = normalize_question(question)
+        question: str = str(item.get("question") or "").strip()
+        normalized_q: str = normalize_question(question)
         if not normalized_q:
             continue
-        bucket = top_questions.setdefault(
+        bucket: Dict[str, Any] = top_questions.setdefault(
             normalized_q,
             {
                 "question": question,
@@ -279,13 +435,15 @@ def build_query_audit_summary(
         )
         bucket["count"] += 1
         if len(bucket["sample_request_ids"]) < 3:
-            bucket["sample_request_ids"].append(str(item.get("request_id") or "").strip())
+            bucket["sample_request_ids"].append(
+                str(item.get("request_id") or "").strip()
+            )
 
-    sorted_top_questions = sorted(
+    sorted_top_questions: List[Dict[str, Any]] = sorted(
         top_questions.values(),
         key=lambda item: (-int(item["count"]), str(item["question"]).lower()),
     )[:5]
-    top_policy_reasons = [
+    top_policy_reasons: List[Dict[str, Any]] = [
         {"reason": reason, "count": count}
         for reason, count in sorted(
             policy_reason_counts.items(),
@@ -311,7 +469,9 @@ def build_query_audit_summary(
             "denied_count": denied_count,
             "review_required_count": review_count,
             "error_count": error_count,
-            "latest_updated_at": recent_items[0]["updated_at"] if recent_items else None,
+            "latest_updated_at": recent_items[0]["updated_at"]
+            if recent_items
+            else None,
         },
         "top_policy_reasons": top_policy_reasons,
         "top_questions": sorted_top_questions,
@@ -331,21 +491,33 @@ def build_query_review_board(
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> Dict[str, Any]:
-    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
-    status_filter = normalize_audit_status_filter(status)
-    policy_filter = normalize_policy_decision_filter(policy_decision)
-    board_limit = clamp_audit_limit(limit)
-    latest_items = list_latest_query_audits(
+    """Build the query review board prioritizing attention-requiring items.
+
+    Args:
+        fallback_mode: Filter by fallback mode.
+        limit: Maximum items per section.
+        status: Filter by audit status.
+        policy_decision: Filter by policy decision.
+
+    Returns:
+        Dictionary with attention items, healthy items, and review actions.
+    """
+    fallback_filter: Optional[str] = normalize_fallback_mode_filter(fallback_mode)
+    status_filter: Optional[str] = normalize_audit_status_filter(status)
+    policy_filter: Optional[str] = normalize_policy_decision_filter(policy_decision)
+    board_limit: int = clamp_audit_limit(limit)
+    latest_items: List[Dict[str, Any]] = list_latest_query_audits(
         fallback_mode=fallback_filter,
         status=status_filter,
         policy_decision=policy_filter,
     )
 
-    def item_priority(item: Dict[str, Any]) -> tuple[int, str]:
-        item_status = str(item.get("status") or "").strip().lower()
-        item_policy = str(item.get("policy_decision") or "").strip().lower()
+    def item_priority(item: Dict[str, Any]) -> Tuple[int, str]:
+        """Compute sort priority for review board items."""
+        item_status: str = str(item.get("status") or "").strip().lower()
+        item_policy: str = str(item.get("policy_decision") or "").strip().lower()
         if item_status == "failed":
-            rank = 0
+            rank: int = 0
         elif item_policy == "deny":
             rank = 1
         elif item_policy == "review":
@@ -356,8 +528,10 @@ def build_query_review_board(
             rank = 4
         return (rank, str(item.get("updated_at") or ""))
 
-    attention_items = sorted(latest_items, key=item_priority)[:board_limit]
-    healthy_items = [
+    attention_items: List[Dict[str, Any]] = sorted(
+        latest_items, key=item_priority
+    )[:board_limit]
+    healthy_items: List[Dict[str, Any]] = [
         item
         for item in latest_items
         if str(item.get("status") or "").strip().lower() == "completed"
@@ -365,11 +539,18 @@ def build_query_review_board(
     ][:board_limit]
 
     def to_board_item(item: Dict[str, Any]) -> Dict[str, Any]:
-        item_status = str(item.get("status") or "").strip().lower() or "unknown"
-        item_policy = str(item.get("policy_decision") or "").strip().lower() or "unknown"
-        uses_fallback = bool(item.get("fallback_sql_used")) or bool(item.get("fallback_chart_used"))
+        """Convert an audit item to a review board item."""
+        item_status: str = (
+            str(item.get("status") or "").strip().lower() or "unknown"
+        )
+        item_policy: str = (
+            str(item.get("policy_decision") or "").strip().lower() or "unknown"
+        )
+        uses_fallback: bool = bool(item.get("fallback_sql_used")) or bool(
+            item.get("fallback_chart_used")
+        )
         if item_status == "failed":
-            next_action = "Inspect the audit detail and retry only after fixing the governed SQL path."
+            next_action: str = "Inspect the audit detail and retry only after fixing the governed SQL path."
         elif item_policy == "deny":
             next_action = "Review deny reasons, remove blocked SQL patterns, and rerun the request."
         elif item_policy == "review":
@@ -395,7 +576,7 @@ def build_query_review_board(
             "next_action": next_action,
         }
 
-    audit_summary = build_query_audit_summary(
+    audit_summary: Dict[str, Any] = build_query_audit_summary(
         fallback_mode=fallback_filter,
         limit=board_limit,
         status=status_filter,
@@ -444,23 +625,41 @@ def build_query_session_board(
     status: Optional[str] = None,
     policy_decision: Optional[str] = None,
 ) -> Dict[str, Any]:
-    fallback_filter = normalize_fallback_mode_filter(fallback_mode)
-    status_filter = normalize_audit_status_filter(status)
-    policy_filter = normalize_policy_decision_filter(policy_decision)
-    session_limit = clamp_audit_limit(limit)
-    latest_items = list_latest_query_audits(
+    """Build the query session board for reusable governed query sessions.
+
+    Args:
+        fallback_mode: Filter by fallback mode.
+        limit: Maximum number of sessions.
+        status: Filter by audit status.
+        policy_decision: Filter by policy decision.
+
+    Returns:
+        Dictionary with session items, summary, and review actions.
+    """
+    fallback_filter: Optional[str] = normalize_fallback_mode_filter(fallback_mode)
+    status_filter: Optional[str] = normalize_audit_status_filter(status)
+    policy_filter: Optional[str] = normalize_policy_decision_filter(policy_decision)
+    session_limit: int = clamp_audit_limit(limit)
+    latest_items: List[Dict[str, Any]] = list_latest_query_audits(
         fallback_mode=fallback_filter,
         status=status_filter,
         policy_decision=policy_filter,
     )[:session_limit]
 
     def to_session_item(item: Dict[str, Any]) -> Dict[str, Any]:
-        item_status = str(item.get("status") or "").strip().lower() or "unknown"
-        item_policy = str(item.get("policy_decision") or "").strip().lower() or "unknown"
-        uses_fallback = bool(item.get("fallback_sql_used")) or bool(item.get("fallback_chart_used"))
+        """Convert an audit item to a session board item."""
+        item_status: str = (
+            str(item.get("status") or "").strip().lower() or "unknown"
+        )
+        item_policy: str = (
+            str(item.get("policy_decision") or "").strip().lower() or "unknown"
+        )
+        uses_fallback: bool = bool(item.get("fallback_sql_used")) or bool(
+            item.get("fallback_chart_used")
+        )
         if item_status == "failed" or item_policy == "deny":
-            session_state = "attention"
-            next_action = "Reopen audit detail, fix the SQL path, and rerun before sharing."
+            session_state: str = "attention"
+            next_action: str = "Reopen audit detail, fix the SQL path, and rerun before sharing."
         elif item_policy == "review":
             session_state = "review"
             next_action = "Check escalation reasons and sensitive columns before approval."
@@ -471,7 +670,7 @@ def build_query_session_board(
             session_state = "ready"
             next_action = "Spot-check SQL and row counts, then reuse this session as a reference."
 
-        request_id = str(item.get("request_id") or "").strip()
+        request_id: str = str(item.get("request_id") or "").strip()
         return {
             "request_id": request_id,
             "headline": str(item.get("question") or "Saved query session"),
@@ -490,7 +689,9 @@ def build_query_session_board(
             "next_action": next_action,
         }
 
-    session_items = [to_session_item(item) for item in latest_items]
+    session_items: List[Dict[str, Any]] = [
+        to_session_item(item) for item in latest_items
+    ]
     return {
         "schema": QUERY_SESSION_BOARD_SCHEMA,
         "filters": {
@@ -501,11 +702,21 @@ def build_query_session_board(
         },
         "summary": {
             "total_sessions": len(session_items),
-            "ready_count": sum(1 for item in session_items if item["session_state"] == "ready"),
-            "attention_count": sum(1 for item in session_items if item["session_state"] == "attention"),
-            "review_count": sum(1 for item in session_items if item["session_state"] == "review"),
-            "compare_count": sum(1 for item in session_items if item["session_state"] == "compare"),
-            "latest_updated_at": session_items[0]["updated_at"] if session_items else None,
+            "ready_count": sum(
+                1 for item in session_items if item["session_state"] == "ready"
+            ),
+            "attention_count": sum(
+                1 for item in session_items if item["session_state"] == "attention"
+            ),
+            "review_count": sum(
+                1 for item in session_items if item["session_state"] == "review"
+            ),
+            "compare_count": sum(
+                1 for item in session_items if item["session_state"] == "compare"
+            ),
+            "latest_updated_at": session_items[0]["updated_at"]
+            if session_items
+            else None,
         },
         "items": session_items,
         "review_actions": [
@@ -524,11 +735,22 @@ def build_query_session_board(
 
 
 def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
-    board_limit = clamp_audit_limit(limit)
-    pending_items = list_recent_query_audits(limit=board_limit, policy_decision="review")
+    """Build the query approval board for review-required requests.
+
+    Args:
+        limit: Maximum number of pending approval items.
+
+    Returns:
+        Dictionary with pending approval items, summary, and review actions.
+    """
+    board_limit: int = clamp_audit_limit(limit)
+    pending_items: List[Dict[str, Any]] = list_recent_query_audits(
+        limit=board_limit, policy_decision="review"
+    )
 
     def to_approval_item(item: Dict[str, Any]) -> Dict[str, Any]:
-        request_id = str(item.get("request_id") or "").strip()
+        """Convert an audit item to an approval board item."""
+        request_id: str = str(item.get("request_id") or "").strip()
         return {
             "request_id": request_id,
             "question": str(item.get("question") or ""),
@@ -545,7 +767,9 @@ def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
             "review_url": f"/api/query-audit/{request_id}",
         }
 
-    items = [to_approval_item(item) for item in pending_items]
+    items: List[Dict[str, Any]] = [
+        to_approval_item(item) for item in pending_items
+    ]
     return {
         "schema": QUERY_APPROVAL_BOARD_SCHEMA,
         "filters": {
@@ -555,7 +779,9 @@ def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
         "summary": {
             "pending_count": len(items),
             "fallback_count": sum(
-                1 for item in items if item["fallback_mode"]["sql"] or item["fallback_mode"]["chart"]
+                1
+                for item in items
+                if item["fallback_mode"]["sql"] or item["fallback_mode"]["chart"]
             ),
             "latest_updated_at": items[0]["updated_at"] if items else None,
         },
