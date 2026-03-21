@@ -8,10 +8,9 @@ prompt injection detection, and the routing logic between nodes.
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
