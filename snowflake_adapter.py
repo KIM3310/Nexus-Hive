@@ -13,7 +13,6 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 _logger = logging.getLogger("nexus_hive.snowflake_adapter")
@@ -22,8 +21,6 @@ _logger = logging.getLogger("nexus_hive.snowflake_adapter")
 try:
     import snowflake.connector
     from snowflake.connector import DictCursor
-    from snowflake.connector.connection import SnowflakeConnection
-
     SNOWFLAKE_AVAILABLE = True
 except ImportError:
     SNOWFLAKE_AVAILABLE = False

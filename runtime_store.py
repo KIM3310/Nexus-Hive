@@ -13,7 +13,7 @@ import logging
 import os
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 _logger = logging.getLogger("nexus_hive.runtime_store")
 

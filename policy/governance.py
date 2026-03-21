@@ -10,7 +10,6 @@ from fastapi import HTTPException
 from config import (
     ALLOW_HEURISTIC_FALLBACK,
     DB_PATH,
-    DEFAULT_ROLE,
     GOLD_EVAL_CASES,
     GOVERNANCE_SCORECARD_FOCUS_VALUES,
     GOVERNANCE_SCORECARD_SCHEMA,
@@ -19,7 +18,6 @@ from config import (
     METRIC_LAYER_DEFINITIONS,
     SEMANTIC_GOVERNANCE_PACK_SCHEMA,
     WAREHOUSE_TARGET_SCORECARD_SCHEMA,
-    read_bool_env,
     utc_now_iso,
 )
 from warehouse_adapter import get_active_warehouse_adapter, get_warehouse_adapter_contracts
@@ -33,13 +31,12 @@ from policy.engine import (
     infer_sql_from_question,
 )
 from policy.audit import (
-    build_query_audit_schema,
     build_query_audit_summary,
     build_query_approval_board,
     list_latest_query_audits,
     list_recent_query_audits,
 )
-from security import operator_auth_status, operator_token_enabled
+from security import operator_auth_status
 
 
 def run_scalar_query(sql: str) -> int:

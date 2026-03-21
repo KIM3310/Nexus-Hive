@@ -14,7 +14,6 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 _logger = logging.getLogger("nexus_hive.databricks_adapter")
@@ -22,8 +21,6 @@ _logger = logging.getLogger("nexus_hive.databricks_adapter")
 # Guard import so the package is only required when the adapter is activated
 try:
     from databricks import sql as databricks_sql
-    from databricks.sql.client import Connection as DatabricksConnection
-
     DATABRICKS_AVAILABLE = True
 except ImportError:
     DATABRICKS_AVAILABLE = False

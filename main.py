@@ -15,7 +15,7 @@ import logging
 import os
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import quote_plus
 from uuid import uuid4
 
@@ -41,12 +41,11 @@ _logger: logging.Logger = configure_logging()
 # -- Configuration --
 from config import (
     ALLOW_HEURISTIC_FALLBACK,
-    AUDIT_LOG_PATH,
+    AUDIT_LOG_PATH,  # noqa: F401 (monkeypatched in tests)
     DB_PATH,
     DEFAULT_ROLE,
     GOVERNANCE_SCORECARD_SCHEMA,
     LAKEHOUSE_READINESS_PACK_SCHEMA,
-    LAST_OPENAI_LIVE_RUN_AT,
     MODEL_NAME,
     OLLAMA_URL,
     OPENAI_BASE_URL,
@@ -56,14 +55,11 @@ from config import (
     REVIEWER_QUERY_DEMO_SCHEMA,
     REVIEWER_QUERY_SCENARIOS,
     SEMANTIC_GOVERNANCE_PACK_SCHEMA,
-    WAREHOUSE_TARGET_SCORECARD_SCHEMA,
     log_runtime_event,
     normalize_operator_roles,
     utc_now_iso,
     build_openai_runtime_contract,
     enforce_openai_public_rate_limit,
-    read_bool_env,
-    read_usd_env,
     get_db_schema,
 )
 import config as _config_module  # for mutable global access
@@ -86,7 +82,7 @@ from security import (
 from runtime_store import append_runtime_event, build_runtime_store_summary
 
 # -- Warehouse --
-from warehouse_adapter import get_active_warehouse_adapter, get_warehouse_adapter_contracts
+from warehouse_adapter import get_active_warehouse_adapter
 
 # -- Policy engine --
 from policy.engine import (
@@ -94,9 +90,7 @@ from policy.engine import (
     build_policy_schema,
     build_query_tag,
     build_query_tag_contract,
-    evaluate_sql_policy,
-    infer_sql_from_question,
-    infer_chart_config_from_question,
+    evaluate_sql_policy,  # noqa: F401 (used via APP_MODULE in tests)
 )
 from policy.audit import (
     build_query_approval_board,
@@ -132,7 +126,6 @@ from policy.governance import (
     build_lakehouse_readiness_pack,
     build_lineage_schema,
     build_metric_layer_schema,
-    build_quality_gate,
     build_semantic_governance_pack,
     build_warehouse_brief,
     build_warehouse_target_scorecard,
@@ -141,7 +134,13 @@ from policy.governance import (
 )
 
 # -- LangGraph agent --
-from graph import ask_ollama, build_graph, translator_node, executor_node, visualizer_node
+from graph import (  # noqa: F401 (re-exported for test monkeypatching)
+    ask_ollama,
+    build_graph,
+    translator_node,
+    executor_node,
+    visualizer_node,
+)
 
 # -- OpenAI helpers (kept inline since they are small and route-specific) --
 import httpx
@@ -196,7 +195,8 @@ async def call_openai_reviewer_demo_summary(api_key: str, model: str, payload: D
     if not content:
         raise HTTPException(status_code=502, detail="OpenAI reviewer demo returned empty content")
     try:
-        return json.loads(content)
+        result: Dict[str, Any] = json.loads(content)
+        return result
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=502, detail="OpenAI reviewer demo returned invalid JSON") from exc
 
@@ -488,18 +488,24 @@ async def run_agent_and_stream(question: str, request_id: str):
             yield f"data: {json.dumps({'type': 'chart_data', 'config': node_state['chart_config'], 'data': node_state['db_result']})}\n\n"
         state = node_state
 
+    # Extract typed fields from the final agent state for audit logging.
+    _db_result: Any = state.get("db_result") or []
+    _chart_cfg: Any = state.get("chart_config") or {}
+    _policy_v: Any = state.get("policy_verdict") or {}
+    _retry_raw: Any = state.get("retry_count") or 0
+    _retry: int = int(_retry_raw)
     audit_kwargs = dict(
         request_id=request_id, question=question, adapter_name="sqlite-demo", query_tag=query_tag,
-        sql_query=state.get("sql_query", ""), row_count=len(state.get("db_result", [])),
-        retry_count=state.get("retry_count", 0), chart_type=state.get("chart_config", {}).get("type", ""),
-        error=state.get("error", ""),
-        policy_decision=state.get("policy_verdict", {}).get("decision", ""),
-        policy_reasons=state.get("policy_verdict", {}).get("deny_reasons", []) + state.get("policy_verdict", {}).get("review_reasons", []),
-        fallback_sql_used=state.get("fallback_sql_used", False),
-        fallback_chart_used=state.get("fallback_chart_used", False),
+        sql_query=str(state.get("sql_query", "")), row_count=len(_db_result),
+        retry_count=_retry, chart_type=str(_chart_cfg.get("type", "")),
+        error=str(state.get("error", "")),
+        policy_decision=str(_policy_v.get("decision", "")),
+        policy_reasons=list(_policy_v.get("deny_reasons") or []) + list(_policy_v.get("review_reasons") or []),
+        fallback_sql_used=bool(state.get("fallback_sql_used", False)),
+        fallback_chart_used=bool(state.get("fallback_chart_used", False)),
     )
 
-    if state["error"] and state["retry_count"] >= 3:
+    if state["error"] and _retry >= 3:
         error_msg = state.get("error", "unknown")
         yield f"data: {json.dumps({'type': 'log', 'content': '[System] Agent failed after 3 retries. Error: ' + str(error_msg)})}\n\n"
         write_query_audit_snapshot(status="failed", stage="failed", **audit_kwargs)
@@ -702,7 +708,7 @@ async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest):
 @app.get("/api/auth/session")
 async def auth_session_endpoint(request: Request):
     session = read_operator_session(request)
-    validation = None
+    validation: Optional[Dict[str, Any]] = None
     if session:
         try:
             require_operator_token(request)
