@@ -7,7 +7,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent / "nexus_enterprise.db"
 
 def generate_data():
-    print("🚀 Initializing Nexus-Hive Enterprise Data Synthesis...")
+    print("Initializing Nexus-Hive Enterprise Data Synthesis...")
     
     # 1. Products Table
     categories = ['Electronics', 'Software', 'Consulting', 'Hardware', 'Cloud Services']
@@ -34,7 +34,7 @@ def generate_data():
     df_regions = pd.DataFrame(regions)
 
     # 3. Sales Table (10,000 rows over the last 2 years)
-    print("⏳ Generating 10,000 historical sales transactions...")
+    print("Generating 10,000 historical sales transactions...")
     sales = []
     start_date = datetime.now() - timedelta(days=730)
     
@@ -73,13 +73,13 @@ def generate_data():
     if DB_PATH.exists():
         DB_PATH.unlink()
         
-    print(f"💾 Saving to SQLite database: {DB_PATH}")
+    print(f"Saving to SQLite database: {DB_PATH}")
     with sqlite3.connect(DB_PATH) as conn:
         df_products.to_sql('products', conn, index=False)
         df_regions.to_sql('regions', conn, index=False)
         df_sales.to_sql('sales', conn, index=False)
         
-    print("✅ Database synthesis complete!")
+    print("Database synthesis complete.")
     print(f"Total Sales Records: {len(df_sales)}")
     print(f"Total Revenue Simulated: ${df_sales['net_revenue'].sum():,.2f}")
 

@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from fastapi import HTTPException, Request
 
@@ -297,13 +297,15 @@ def apply_operator_session(request: Request) -> dict[str, object] | None:
         existing_headers.append(
             (b"x-operator-token", str(record["credential"]).encode("utf-8"))
         )
+    _roles_raw: Any = record.get("roles") or []
+    roles_list: list[str] = list(_roles_raw)
     if (
         "x-operator-role" not in header_names
         and "x-operator-roles" not in header_names
-        and record["roles"]
+        and roles_list
     ):
         existing_headers.append(
-            (b"x-operator-roles", ",".join(record["roles"]).encode("utf-8"))
+            (b"x-operator-roles", ",".join(roles_list).encode("utf-8"))
         )
     request.scope["headers"] = existing_headers
     _logger.debug("Applied operator session for subject=%s", record.get("subject"))

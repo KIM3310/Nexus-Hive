@@ -10,16 +10,12 @@ import logging
 from typing import Any, Dict, List, Set
 
 from config import (
-    DB_PATH,
     DEFAULT_ROLE,
-    LINEAGE_RELATIONSHIPS,
-    METRIC_LAYER_DEFINITIONS,
     QUERY_TAG_SCHEMA,
     READ_ONLY_BLOCKLIST,
     SENSITIVE_COLUMNS_BY_ROLE,
     normalize_question,
 )
-from warehouse_adapter import get_active_warehouse_adapter
 
 _logger = logging.getLogger("nexus_hive.policy.engine")
 

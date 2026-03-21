@@ -34,7 +34,11 @@ databricks = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "seed_db", "security", "runtime_store"]
+py-modules = [
+  "main", "config", "seed_db", "security", "runtime_store",
+  "warehouse_adapter", "snowflake_adapter", "databricks_adapter",
+  "circuit_breaker", "exceptions", "logging_config",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -45,4 +49,10 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-ignore = ["E402", "E501", "I001", "F401"]
+ignore = ["E402", "E501", "I001"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
