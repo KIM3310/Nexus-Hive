@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict
+
+ROOT = Path(__file__).resolve().parent
+EXTERNAL_DIR = ROOT / "data" / "external" / "global_online_orders"
 
 
 def build_review_resource_pack() -> Dict[str, Any]:
@@ -110,6 +114,17 @@ def build_review_resource_pack() -> Dict[str, Any]:
             "validation_case_count": len(validation_cases),
             "playbook_count": len(playbooks),
         },
+        "external_data": {
+            "orders_workbook": {
+                "present": (EXTERNAL_DIR / "orders_frostonline.xlsx").exists(),
+                "path": "data/external/global_online_orders/orders_frostonline.xlsx",
+            },
+            "schema_sql": {
+                "present": (EXTERNAL_DIR / "Amazon.sql").exists(),
+                "path": "data/external/global_online_orders/Amazon.sql",
+                "statement_count": _count_sql_statements(EXTERNAL_DIR / "Amazon.sql"),
+            },
+        },
         "scenarios": scenarios,
         "operator_checks": operator_checks,
         "validation_cases": validation_cases,
@@ -135,3 +150,10 @@ def build_review_resource_pack() -> Dict[str, Any]:
             "review_pack": "/api/review-pack",
         },
     }
+
+
+def _count_sql_statements(path: Path) -> int:
+    if not path.exists():
+        return 0
+    text = path.read_text(encoding="utf-8")
+    return sum(1 for item in text.split(";") if item.strip())
