@@ -21,6 +21,7 @@ _logger = logging.getLogger("nexus_hive.databricks_adapter")
 # Guard import so the package is only required when the adapter is activated
 try:
     from databricks import sql as databricks_sql
+
     DATABRICKS_AVAILABLE = True
 except ImportError:
     DATABRICKS_AVAILABLE = False
@@ -141,9 +142,7 @@ _pool = DatabricksConnectionPool()
 # Query execution
 # ---------------------------------------------------------------------------
 
-DATABRICKS_QUERY_TIMEOUT_SEC: int = int(
-    os.getenv("DATABRICKS_QUERY_TIMEOUT_SEC", "120")
-)
+DATABRICKS_QUERY_TIMEOUT_SEC: int = int(os.getenv("DATABRICKS_QUERY_TIMEOUT_SEC", "120"))
 
 
 def execute_databricks_query(
@@ -182,9 +181,7 @@ def execute_databricks_query(
     finally:
         cursor.close()
 
-    elapsed_ms = int(
-        (datetime.now(timezone.utc) - started).total_seconds() * 1000
-    )
+    elapsed_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
 
     # Convert rows to list of dicts
     preview: List[Dict[str, Any]] = []
@@ -233,9 +230,7 @@ def get_databricks_schema() -> str:
         try:
             desc_cursor.execute(f"DESCRIBE TABLE {table_name}")
             columns = desc_cursor.fetchall()
-            col_defs = ", ".join(
-                f"{col[0]} {col[1]}" for col in columns if len(col) >= 2
-            )
+            col_defs = ", ".join(f"{col[0]} {col[1]}" for col in columns if len(col) >= 2)
             schema_parts.append(f"Table: {table_name}\nColumns: {col_defs}\n")
         except Exception as exc:
             _logger.warning("Could not describe table %s: %s", table_name, exc)

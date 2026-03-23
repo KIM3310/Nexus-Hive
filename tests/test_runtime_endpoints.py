@@ -75,8 +75,14 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "/api/runtime/warehouse-target-scorecard"
     )
     assert health_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
-    assert health_payload["links"]["semantic_governance_pack"] == "/api/runtime/semantic-governance-pack"
-    assert health_payload["links"]["lakehouse_readiness_pack"] == "/api/runtime/lakehouse-readiness-pack"
+    assert (
+        health_payload["links"]["semantic_governance_pack"]
+        == "/api/runtime/semantic-governance-pack"
+    )
+    assert (
+        health_payload["links"]["lakehouse_readiness_pack"]
+        == "/api/runtime/lakehouse-readiness-pack"
+    )
     assert health_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["review_pack"] == "/api/review-pack"
@@ -110,8 +116,14 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "nexus-hive-warehouse-target-scorecard-v1"
     )
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
-    assert meta_payload["semantic_governance_pack_contract"] == "nexus-hive-semantic-governance-pack-v1"
-    assert meta_payload["lakehouse_readiness_pack_contract"] == "nexus-hive-lakehouse-readiness-pack-v1"
+    assert (
+        meta_payload["semantic_governance_pack_contract"]
+        == "nexus-hive-semantic-governance-pack-v1"
+    )
+    assert (
+        meta_payload["lakehouse_readiness_pack_contract"]
+        == "nexus-hive-lakehouse-readiness-pack-v1"
+    )
     assert meta_payload["openai"]["deploymentMode"] == "review-only-live"
     assert meta_payload["review_pack_contract"] == "nexus-hive-review-pack-v1"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
@@ -157,7 +169,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"
     assert brief_payload["warehouse_contract"]["fallback_mode"] in {"heuristic", "disabled"}
     assert brief_payload["warehouse_contract"]["lineage_schema"] == "nexus-hive-lineage-v1"
-    assert brief_payload["warehouse_contract"]["metric_layer_schema"] == "nexus-hive-metric-layer-v1"
+    assert (
+        brief_payload["warehouse_contract"]["metric_layer_schema"] == "nexus-hive-metric-layer-v1"
+    )
     assert brief_payload["warehouse_contract"]["policy_schema"] == "nexus-hive-policy-v1"
     assert (
         brief_payload["warehouse_contract"]["semantic_governance_pack_schema"]
@@ -169,11 +183,26 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert brief_payload["warehouse_contract"]["query_tag_schema"] == "nexus-hive-query-tag-v1"
     assert brief_payload["warehouse_contract"]["query_audit_schema"] == "nexus-hive-query-audit-v1"
-    assert brief_payload["warehouse_contract"]["query_session_board_schema"] == "nexus-hive-query-session-board-v1"
-    assert brief_payload["warehouse_contract"]["query_approval_board_schema"] == "nexus-hive-query-approval-board-v1"
-    assert brief_payload["warehouse_contract"]["query_review_board_schema"] == "nexus-hive-query-review-board-v1"
-    assert brief_payload["warehouse_contract"]["query_audit_summary_schema"] == "nexus-hive-query-audit-summary-v1"
-    assert brief_payload["warehouse_contract"]["governance_scorecard_schema"] == "nexus-hive-governance-scorecard-v1"
+    assert (
+        brief_payload["warehouse_contract"]["query_session_board_schema"]
+        == "nexus-hive-query-session-board-v1"
+    )
+    assert (
+        brief_payload["warehouse_contract"]["query_approval_board_schema"]
+        == "nexus-hive-query-approval-board-v1"
+    )
+    assert (
+        brief_payload["warehouse_contract"]["query_review_board_schema"]
+        == "nexus-hive-query-review-board-v1"
+    )
+    assert (
+        brief_payload["warehouse_contract"]["query_audit_summary_schema"]
+        == "nexus-hive-query-audit-summary-v1"
+    )
+    assert (
+        brief_payload["warehouse_contract"]["governance_scorecard_schema"]
+        == "nexus-hive-governance-scorecard-v1"
+    )
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
     assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
     assert brief_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
@@ -222,7 +251,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert governance_payload["operator_auth"]["session_cookie"] == "nexus_hive_operator_session"
     assert governance_payload["links"]["query_review_board"] == "/api/query-review-board"
     assert governance_payload["links"]["query_session_board"] == "/api/query-session-board"
-    assert governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    assert (
+        governance_payload["links"]["governance_scorecard"] == "/api/runtime/governance-scorecard"
+    )
     assert governance_payload["links"]["auth_session"] == "/api/auth/session"
     assert isinstance(governance_payload["score_bands"], list)
 
@@ -232,8 +263,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert semantic_pack_payload["summary"]["certified_metric_count"] >= 1
     assert semantic_pack_payload["summary"]["target_count"] >= 3
     assert any(
-        item["status"] == "certified"
-        for item in semantic_pack_payload["certification_board"]
+        item["status"] == "certified" for item in semantic_pack_payload["certification_board"]
     )
     assert any(
         item["target"] == "snowflake-sql-contract"
@@ -244,10 +274,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "/api/runtime/semantic-governance-pack"
     )
     assert semantic_pack_payload["links"]["metric_layer_schema"] == "/api/schema/metrics"
-    assert (
-        semantic_pack_payload["links"]["query_approval_board"]
-        == "/api/query-approval-board"
-    )
+    assert semantic_pack_payload["links"]["query_approval_board"] == "/api/query-approval-board"
 
     assert lakehouse_readiness_pack.status_code == 200
     lakehouse_payload = lakehouse_readiness_pack.json()
@@ -275,7 +302,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
-    assert "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
+    assert (
+        "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
+    )
     assert "/api/runtime/governance-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/semantic-governance-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert "/api/runtime/lakehouse-readiness-pack" in pack_payload["proof_bundle"]["review_routes"]
@@ -300,8 +329,13 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         for asset in pack_payload["proof_assets"]
     )
     assert any(asset["href"] == "/api/schema/metrics" for asset in pack_payload["proof_assets"])
-    assert any(asset["href"] == "/api/runtime/governance-scorecard" for asset in pack_payload["proof_assets"])
-    assert any(asset["href"] == "/api/query-session-board" for asset in pack_payload["proof_assets"])
+    assert any(
+        asset["href"] == "/api/runtime/governance-scorecard"
+        for asset in pack_payload["proof_assets"]
+    )
+    assert any(
+        asset["href"] == "/api/query-session-board" for asset in pack_payload["proof_assets"]
+    )
     assert any(asset["href"] == "/api/query-review-board" for asset in pack_payload["proof_assets"])
 
     assert answer_schema.status_code == 200
@@ -398,7 +432,9 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert payload["links"]["query_approval_board"].endswith("/api/query-approval-board")
     assert payload["links"]["query_audit_summary"].endswith("/api/query-audit/summary")
     assert payload["links"]["query_audit_recent"].endswith("/api/query-audit/recent")
-    assert payload["links"]["query_audit_detail"].endswith(f"/api/query-audit/{payload['request_id']}")
+    assert payload["links"]["query_audit_detail"].endswith(
+        f"/api/query-audit/{payload['request_id']}"
+    )
     assert payload["query_tag_preview"].startswith("service=nexus-hive;adapter=sqlite-demo;")
 
     audit_response = client.get("/api/query-audit/recent")
@@ -415,7 +451,9 @@ def test_ask_endpoint_returns_stream_pointer() -> None:
     assert session_board_response.status_code == 200
     session_board_payload = session_board_response.json()
     assert session_board_payload["summary"]["total_sessions"] >= 1
-    assert any(item["request_id"] == payload["request_id"] for item in session_board_payload["items"])
+    assert any(
+        item["request_id"] == payload["request_id"] for item in session_board_payload["items"]
+    )
 
 
 def test_policy_check_exposes_approval_bundle_for_review_queries() -> None:
@@ -430,7 +468,10 @@ def test_policy_check_exposes_approval_bundle_for_review_queries() -> None:
     payload = response.json()
     assert payload["verdict"]["decision"] == "review"
     assert payload["approval_required"] is True
-    assert "non_aggregated_queries_without_limit_require_operator_review" in payload["verdict"]["review_reasons"]
+    assert (
+        "non_aggregated_queries_without_limit_require_operator_review"
+        in payload["verdict"]["review_reasons"]
+    )
     assert payload["links"]["query_approval_board"] == "/api/query-approval-board"
     assert len(payload["approval_actions"]) >= 3
 
@@ -520,7 +561,9 @@ def test_stream_completion_writes_query_audit_detail(monkeypatch) -> None:
     accepted_payload = accepted.json()
     request_id = accepted_payload["request_id"]
 
-    stream_response = client.get(f"/api/stream?q=Show%20total%20revenue%20by%20region&rid={request_id}")
+    stream_response = client.get(
+        f"/api/stream?q=Show%20total%20revenue%20by%20region&rid={request_id}"
+    )
     assert stream_response.status_code == 200
     assert '"type": "done"' in stream_response.text
 
@@ -539,7 +582,9 @@ def test_stream_completion_writes_query_audit_detail(monkeypatch) -> None:
 def test_policy_preview_and_gold_eval_run_surfaces() -> None:
     client = TestClient(APP_MODULE.app)
 
-    denied = client.post("/api/policy/check", json={"sql": "SELECT * FROM sales", "role": "analyst"})
+    denied = client.post(
+        "/api/policy/check", json={"sql": "SELECT * FROM sales", "role": "analyst"}
+    )
     assert denied.status_code == 200
     denied_payload = denied.json()
     assert denied_payload["schema"] == "nexus-hive-policy-v1"
@@ -636,7 +681,10 @@ def test_policy_and_fallback_path(monkeypatch) -> None:
     assert sensitive_policy["decision"] == "deny"
     assert "sensitive_columns_require_privileged_role" in sensitive_policy["deny_reasons"]
     assert review_policy["decision"] == "review"
-    assert "non_aggregated_queries_without_limit_require_operator_review" in review_policy["review_reasons"]
+    assert (
+        "non_aggregated_queries_without_limit_require_operator_review"
+        in review_policy["review_reasons"]
+    )
 
 
 def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) -> None:
@@ -693,9 +741,10 @@ def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) ->
         summary_payload["top_policy_reasons"][0]["reason"]
         == "non_aggregated_queries_without_limit_require_operator_review"
     )
-    assert {
-        item["normalized_question"] for item in summary_payload["top_questions"]
-    } == {"show total revenue by region", "show margin by manager"}
+    assert {item["normalized_question"] for item in summary_payload["top_questions"]} == {
+        "show total revenue by region",
+        "show margin by manager",
+    }
     assert len(summary_payload["recent_items"]) == 2
 
     filtered_recent = client.get(
@@ -734,9 +783,7 @@ def test_reviewer_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
         }
 
     monkeypatch.setattr(APP_MODULE, "call_openai_moderation", _fake_moderation)
-    monkeypatch.setattr(
-        APP_MODULE, "call_openai_reviewer_demo_summary", _fake_summary
-    )
+    monkeypatch.setattr(APP_MODULE, "call_openai_reviewer_demo_summary", _fake_summary)
 
     client = TestClient(APP_MODULE.app)
     response = client.post(

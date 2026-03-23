@@ -94,10 +94,7 @@ def configure_logging(level: Optional[str] = None) -> logging.Logger:
     Returns:
         The configured ``nexus_hive`` logger instance.
     """
-    resolved_level = (
-        level
-        or os.getenv("NEXUS_HIVE_LOG_LEVEL", "INFO").strip().upper()
-    )
+    resolved_level = level or os.getenv("NEXUS_HIVE_LOG_LEVEL", "INFO").strip().upper()
     numeric_level = getattr(logging, resolved_level, logging.INFO)
 
     logger = logging.getLogger("nexus_hive")

@@ -21,6 +21,7 @@ _logger = logging.getLogger("nexus_hive.snowflake_adapter")
 try:
     import snowflake.connector
     from snowflake.connector import DictCursor
+
     SNOWFLAKE_AVAILABLE = True
 except ImportError:
     SNOWFLAKE_AVAILABLE = False
@@ -146,9 +147,7 @@ _pool = SnowflakeConnectionPool()
 # ---------------------------------------------------------------------------
 
 # Default query timeout in seconds
-SNOWFLAKE_QUERY_TIMEOUT_SEC: int = int(
-    os.getenv("SNOWFLAKE_QUERY_TIMEOUT_SEC", "120")
-)
+SNOWFLAKE_QUERY_TIMEOUT_SEC: int = int(os.getenv("SNOWFLAKE_QUERY_TIMEOUT_SEC", "120"))
 
 
 def execute_snowflake_query(
@@ -183,9 +182,7 @@ def execute_snowflake_query(
     cursor = conn.cursor(DictCursor)
     try:
         # Set statement-level timeout
-        cursor.execute(
-            f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}"
-        )
+        cursor.execute(f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}")
         cursor.execute(sql)
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
         rows = cursor.fetchmany(max_rows)
@@ -194,9 +191,7 @@ def execute_snowflake_query(
     finally:
         cursor.close()
 
-    elapsed_ms = int(
-        (datetime.now(timezone.utc) - started).total_seconds() * 1000
-    )
+    elapsed_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
 
     # Normalize row dicts (Snowflake returns uppercase column names by default)
     preview: List[Dict[str, Any]] = []

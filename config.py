@@ -32,9 +32,7 @@ OLLAMA_URL: str = str(
     os.getenv("NEXUS_HIVE_OLLAMA_URL", "http://localhost:11434/api/generate")
 ).strip()
 MODEL_NAME: str = str(os.getenv("NEXUS_HIVE_MODEL", "phi3")).strip() or "phi3"
-DEFAULT_ROLE: str = (
-    str(os.getenv("NEXUS_HIVE_ROLE", "analyst")).strip().lower() or "analyst"
-)
+DEFAULT_ROLE: str = str(os.getenv("NEXUS_HIVE_ROLE", "analyst")).strip().lower() or "analyst"
 ALLOW_HEURISTIC_FALLBACK: bool = str(
     os.getenv("NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK", "1")
 ).strip() not in {"0", "false", "False"}
@@ -49,7 +47,14 @@ AUDIT_LOG_PATH: Path = Path(
 # SQL policy constants
 # ---------------------------------------------------------------------------
 READ_ONLY_BLOCKLIST: Set[str] = {
-    "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "REPLACE", "CREATE",
+    "DROP",
+    "DELETE",
+    "UPDATE",
+    "INSERT",
+    "ALTER",
+    "TRUNCATE",
+    "REPLACE",
+    "CREATE",
 }
 SENSITIVE_COLUMNS_BY_ROLE: Dict[str, Set[str]] = {
     "analyst": {"margin_percentage"},
@@ -153,7 +158,12 @@ GOLD_EVAL_CASES: List[Dict[str, Any]] = [
     {
         "case_id": "profit_by_region",
         "question": "Show top 5 regions by total profit",
-        "expected_features": ["SUM(profit)", "JOIN regions", "ORDER BY total_profit DESC", "LIMIT 5"],
+        "expected_features": [
+            "SUM(profit)",
+            "JOIN regions",
+            "ORDER BY total_profit DESC",
+            "LIMIT 5",
+        ],
     },
     {
         "case_id": "discount_by_category",
@@ -173,7 +183,10 @@ GOLD_EVAL_CASES: List[Dict[str, Any]] = [
 AUDIT_STATUS_VALUES: Set[str] = {"accepted", "completed", "failed"}
 AUDIT_POLICY_DECISION_VALUES: Set[str] = {"pending", "allow", "review", "deny"}
 GOVERNANCE_SCORECARD_FOCUS_VALUES: Set[str] = {
-    "throughput", "policy", "quality", "resilience",
+    "throughput",
+    "policy",
+    "quality",
+    "resilience",
 }
 
 # ---------------------------------------------------------------------------
@@ -387,9 +400,7 @@ def build_openai_runtime_contract() -> Dict[str, Any]:
             min(
                 120,
                 int(
-                    str(
-                        os.getenv("OPENAI_PUBLIC_RPM", OPENAI_PUBLIC_DEFAULT_RPM)
-                    ).strip()
+                    str(os.getenv("OPENAI_PUBLIC_RPM", OPENAI_PUBLIC_DEFAULT_RPM)).strip()
                     or OPENAI_PUBLIC_DEFAULT_RPM
                 ),
             ),
@@ -421,7 +432,5 @@ def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
             key,
             limit,
         )
-        raise HTTPException(
-            status_code=429, detail="reviewer query demo rate limit exceeded"
-        )
+        raise HTTPException(status_code=429, detail="reviewer query demo rate limit exceeded")
     bucket["count"] += 1.0

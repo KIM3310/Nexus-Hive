@@ -46,9 +46,7 @@ def resolve_runtime_store_backend(target: Path) -> str:
     Returns:
         Either 'jsonl' or 'sqlite'.
     """
-    configured: str = str(
-        os.getenv("NEXUS_HIVE_RUNTIME_STORE_BACKEND", "")
-    ).strip().lower()
+    configured: str = str(os.getenv("NEXUS_HIVE_RUNTIME_STORE_BACKEND", "")).strip().lower()
     if configured in {"jsonl", "sqlite"}:
         return configured
     return "jsonl" if target.suffix == ".jsonl" else "sqlite"
@@ -164,12 +162,10 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
             }
 
         lines: List[str] = [
-            line.strip()
-            for line in target.read_text(encoding="utf-8").splitlines()
-            if line.strip()
+            line.strip() for line in target.read_text(encoding="utf-8").splitlines() if line.strip()
         ]
         recent_events: List[Dict[str, Any]] = []
-        for line in lines[-max(1, limit):]:
+        for line in lines[-max(1, limit) :]:
             try:
                 recent_events.append(json.loads(line))
             except json.JSONDecodeError:
@@ -179,9 +175,7 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
         status_counts: dict[str, int] = {}
         last_event_at: str | None = None
         for event in recent_events:
-            event_type: str = (
-                str(event.get("event_type", "unknown")).strip() or "unknown"
-            )
+            event_type: str = str(event.get("event_type", "unknown")).strip() or "unknown"
             event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1
             status: str = str(event.get("status", "unknown")).strip() or "unknown"
             status_counts[status] = status_counts.get(status, 0) + 1
@@ -219,8 +213,7 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
         status_counts_db: Dict[str, int] = {
             str(row[0]): int(row[1] or 0)
             for row in connection.execute(
-                "SELECT status, COUNT(*) FROM runtime_events "
-                "GROUP BY status ORDER BY status"
+                "SELECT status, COUNT(*) FROM runtime_events GROUP BY status ORDER BY status"
             ).fetchall()
         }
         rows = connection.execute(

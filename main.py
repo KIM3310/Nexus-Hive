@@ -120,6 +120,8 @@ def _sync_audit_log_path() -> None:
 def write_query_audit_snapshot(**kwargs):
     _sync_audit_log_path()
     return _write_query_audit_snapshot(**kwargs)
+
+
 from policy.governance import (
     build_gold_eval_pack,
     build_governance_scorecard,
@@ -162,7 +164,9 @@ async def call_openai_moderation(api_key: str, payload: str) -> None:
         raise HTTPException(status_code=400, detail="reviewer scenario blocked by moderation")
 
 
-async def call_openai_reviewer_demo_summary(api_key: str, model: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+async def call_openai_reviewer_demo_summary(
+    api_key: str, model: str, payload: Dict[str, Any]
+) -> Dict[str, Any]:
     async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S) as client:
         response = await client.post(
             f"{OPENAI_BASE_URL}/chat/completions",
@@ -198,12 +202,15 @@ async def call_openai_reviewer_demo_summary(api_key: str, model: str, payload: D
         result: Dict[str, Any] = json.loads(content)
         return result
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=502, detail="OpenAI reviewer demo returned invalid JSON") from exc
+        raise HTTPException(
+            status_code=502, detail="OpenAI reviewer demo returned invalid JSON"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
 # Build-time helpers (runtime brief, review pack, meta, answer schema)
 # ---------------------------------------------------------------------------
+
 
 def build_answer_schema() -> Dict[str, Any]:
     return {
@@ -248,7 +255,9 @@ def build_runtime_meta() -> Dict[str, Any]:
             "POST /api/runtime/reviewer-query-demo with a fixed question_id for the bounded public warehouse demo."
             if openai_runtime["publicLiveApi"]
             else "POST /api/ask with an executive question, then follow the returned /api/stream URL."
-            if db_exists and schema_loaded and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
+            if db_exists
+            and schema_loaded
+            and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
             else "Run `python3 seed_db.py` and verify either Ollama or heuristic fallback is enabled before live demos."
         ),
     }
@@ -272,27 +281,60 @@ def build_runtime_meta() -> Dict[str, Any]:
         },
         "openai": openai_runtime,
         "routes": [
-            "/health", "/api/meta", "/api/runtime/brief", "/api/runtime/warehouse-brief",
-            "/api/runtime/warehouse-target-scorecard", "/api/runtime/governance-scorecard",
-            "/api/runtime/semantic-governance-pack", "/api/runtime/lakehouse-readiness-pack",
-            "/api/runtime/reviewer-query-demo", "/api/auth/session", "/api/review-pack",
-            "/api/schema/answer", "/api/schema/lineage", "/api/schema/metrics",
-            "/api/schema/policy", "/api/schema/query-tag", "/api/schema/query-audit",
-            "/api/evals/nl2sql-gold", "/api/evals/nl2sql-gold/run", "/api/policy/check",
-            "/api/query-session-board", "/api/query-approval-board", "/api/query-review-board",
-            "/api/query-audit/summary", "/api/query-audit/recent", "/api/query-audit/{request_id}",
-            "/api/ask", "/api/stream",
+            "/health",
+            "/api/meta",
+            "/api/runtime/brief",
+            "/api/runtime/warehouse-brief",
+            "/api/runtime/warehouse-target-scorecard",
+            "/api/runtime/governance-scorecard",
+            "/api/runtime/semantic-governance-pack",
+            "/api/runtime/lakehouse-readiness-pack",
+            "/api/runtime/reviewer-query-demo",
+            "/api/auth/session",
+            "/api/review-pack",
+            "/api/schema/answer",
+            "/api/schema/lineage",
+            "/api/schema/metrics",
+            "/api/schema/policy",
+            "/api/schema/query-tag",
+            "/api/schema/query-audit",
+            "/api/evals/nl2sql-gold",
+            "/api/evals/nl2sql-gold/run",
+            "/api/policy/check",
+            "/api/query-session-board",
+            "/api/query-approval-board",
+            "/api/query-review-board",
+            "/api/query-audit/summary",
+            "/api/query-audit/recent",
+            "/api/query-audit/{request_id}",
+            "/api/ask",
+            "/api/stream",
         ],
         "capabilities": [
-            "natural-language-to-sql", "audit-safe-readonly-execution", "chart-config-generation",
-            "sse-agent-trace-streaming", "runtime-brief-surface", "warehouse-brief-surface",
-            "warehouse-target-scorecard-surface", "semantic-governance-pack-surface",
-            "lakehouse-readiness-pack-surface", "reviewer-query-demo-surface",
-            "lineage-schema-surface", "metric-layer-schema-surface", "policy-schema-surface",
-            "query-tag-schema-surface", "query-audit-surface", "gold-eval-surface",
-            "policy-preview-surface", "query-session-board-surface", "query-review-board-surface",
-            "query-audit-summary-surface", "query-audit-detail-surface",
-            "governance-scorecard-surface", "review-pack-surface", "answer-schema-surface",
+            "natural-language-to-sql",
+            "audit-safe-readonly-execution",
+            "chart-config-generation",
+            "sse-agent-trace-streaming",
+            "runtime-brief-surface",
+            "warehouse-brief-surface",
+            "warehouse-target-scorecard-surface",
+            "semantic-governance-pack-surface",
+            "lakehouse-readiness-pack-surface",
+            "reviewer-query-demo-surface",
+            "lineage-schema-surface",
+            "metric-layer-schema-surface",
+            "policy-schema-surface",
+            "query-tag-schema-surface",
+            "query-audit-surface",
+            "gold-eval-surface",
+            "policy-preview-surface",
+            "query-session-board-surface",
+            "query-review-board-surface",
+            "query-audit-summary-surface",
+            "query-audit-detail-surface",
+            "governance-scorecard-surface",
+            "review-pack-surface",
+            "answer-schema-surface",
         ],
     }
 
@@ -364,9 +406,18 @@ def build_runtime_brief() -> Dict[str, Any]:
             "Query tags are governance proof fields and not a substitute for warehouse-native access controls.",
         ],
         "agent_contract": [
-            {"agent": "translator", "responsibility": "Generate SQL from natural language and schema context."},
-            {"agent": "executor", "responsibility": "Block unsafe SQL and execute read-only analytics queries."},
-            {"agent": "visualizer", "responsibility": "Infer a Chart.js payload from the result shape."},
+            {
+                "agent": "translator",
+                "responsibility": "Generate SQL from natural language and schema context.",
+            },
+            {
+                "agent": "executor",
+                "responsibility": "Block unsafe SQL and execute read-only analytics queries.",
+            },
+            {
+                "agent": "visualizer",
+                "responsibility": "Infer a Chart.js payload from the result shape.",
+            },
         ],
         "routes": runtime_meta["routes"],
         "links": {"reviewer_query_demo": "/api/runtime/reviewer-query-demo"},
@@ -442,10 +493,26 @@ def build_review_pack() -> Dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
-            {"label": "Governance Scorecard", "href": "/api/runtime/governance-scorecard", "kind": "route"},
-            {"label": "Warehouse Target Scorecard", "href": "/api/runtime/warehouse-target-scorecard", "kind": "route"},
-            {"label": "Semantic Governance Pack", "href": "/api/runtime/semantic-governance-pack", "kind": "route"},
-            {"label": "Lakehouse Readiness Pack", "href": "/api/runtime/lakehouse-readiness-pack", "kind": "route"},
+            {
+                "label": "Governance Scorecard",
+                "href": "/api/runtime/governance-scorecard",
+                "kind": "route",
+            },
+            {
+                "label": "Warehouse Target Scorecard",
+                "href": "/api/runtime/warehouse-target-scorecard",
+                "kind": "route",
+            },
+            {
+                "label": "Semantic Governance Pack",
+                "href": "/api/runtime/semantic-governance-pack",
+                "kind": "route",
+            },
+            {
+                "label": "Lakehouse Readiness Pack",
+                "href": "/api/runtime/lakehouse-readiness-pack",
+                "kind": "route",
+            },
             {"label": "Metric Layer Schema", "href": "/api/schema/metrics", "kind": "route"},
             {"label": "Query Session Board", "href": "/api/query-session-board", "kind": "route"},
             {"label": "Query Review Board", "href": "/api/query-review-board", "kind": "route"},
@@ -469,12 +536,22 @@ def build_review_pack() -> Dict[str, Any]:
 # SSE streaming helper
 # ---------------------------------------------------------------------------
 
+
 async def run_agent_and_stream(question: str, request_id: str):
-    query_tag = build_query_tag(request_id=request_id, role=DEFAULT_ROLE, purpose="ask", adapter_name="sqlite-demo")
+    query_tag = build_query_tag(
+        request_id=request_id, role=DEFAULT_ROLE, purpose="ask", adapter_name="sqlite-demo"
+    )
     state = {
-        "user_query": question, "sql_query": "", "db_result": [], "chart_config": {},
-        "error": "", "retry_count": 0, "fallback_sql_used": False, "fallback_chart_used": False,
-        "policy_verdict": {}, "log_stream": []
+        "user_query": question,
+        "sql_query": "",
+        "db_result": [],
+        "chart_config": {},
+        "error": "",
+        "retry_count": 0,
+        "fallback_sql_used": False,
+        "fallback_chart_used": False,
+        "policy_verdict": {},
+        "log_stream": [],
     }
 
     async for output in graph.astream(state):
@@ -495,12 +572,18 @@ async def run_agent_and_stream(question: str, request_id: str):
     _retry_raw: Any = state.get("retry_count") or 0
     _retry: int = int(_retry_raw)
     audit_kwargs = dict(
-        request_id=request_id, question=question, adapter_name="sqlite-demo", query_tag=query_tag,
-        sql_query=str(state.get("sql_query", "")), row_count=len(_db_result),
-        retry_count=_retry, chart_type=str(_chart_cfg.get("type", "")),
+        request_id=request_id,
+        question=question,
+        adapter_name="sqlite-demo",
+        query_tag=query_tag,
+        sql_query=str(state.get("sql_query", "")),
+        row_count=len(_db_result),
+        retry_count=_retry,
+        chart_type=str(_chart_cfg.get("type", "")),
         error=str(state.get("error", "")),
         policy_decision=str(_policy_v.get("decision", "")),
-        policy_reasons=list(_policy_v.get("deny_reasons") or []) + list(_policy_v.get("review_reasons") or []),
+        policy_reasons=list(_policy_v.get("deny_reasons") or [])
+        + list(_policy_v.get("review_reasons") or []),
         fallback_sql_used=bool(state.get("fallback_sql_used", False)),
         fallback_chart_used=bool(state.get("fallback_chart_used", False)),
     )
@@ -509,23 +592,46 @@ async def run_agent_and_stream(question: str, request_id: str):
         error_msg = state.get("error", "unknown")
         yield f"data: {json.dumps({'type': 'log', 'content': '[System] Agent failed after 3 retries. Error: ' + str(error_msg)})}\n\n"
         write_query_audit_snapshot(status="failed", stage="failed", **audit_kwargs)
-        append_runtime_event({"service": "nexus-hive", "event_type": "stream_failed", "method": "GET", "path": "/api/stream", "request_id": request_id, "status": "failed", "at": utc_now_iso()})
+        append_runtime_event(
+            {
+                "service": "nexus-hive",
+                "event_type": "stream_failed",
+                "method": "GET",
+                "path": "/api/stream",
+                "request_id": request_id,
+                "status": "failed",
+                "at": utc_now_iso(),
+            }
+        )
     else:
         write_query_audit_snapshot(status="completed", stage="completed", **audit_kwargs)
-        append_runtime_event({"service": "nexus-hive", "event_type": "stream_completed", "method": "GET", "path": "/api/stream", "request_id": request_id, "status": "completed", "at": utc_now_iso()})
+        append_runtime_event(
+            {
+                "service": "nexus-hive",
+                "event_type": "stream_completed",
+                "method": "GET",
+                "path": "/api/stream",
+                "request_id": request_id,
+                "status": "completed",
+                "at": utc_now_iso(),
+            }
+        )
 
-    yield "data: {\"type\": \"done\"}\n\n"
+    yield 'data: {"type": "done"}\n\n'
 
 
 # ---------------------------------------------------------------------------
 # Pydantic request models
 # ---------------------------------------------------------------------------
 
+
 class AskRequest(BaseModel):
     question: str
 
+
 class ReviewerQueryDemoRequest(BaseModel):
     question_id: str
+
 
 class PolicyCheckRequest(BaseModel):
     sql: str
@@ -549,7 +655,13 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.middleware("http")
@@ -564,7 +676,13 @@ async def session_and_logging_middleware(request: Request, call_next):
         "Request started: %s %s",
         request.method,
         request.url.path,
-        extra={"extra_fields": {"request_id": request_id, "method": request.method, "path": request.url.path}},
+        extra={
+            "extra_fields": {
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+            }
+        },
     )
     started: datetime = datetime.now(timezone.utc)
     try:
@@ -573,10 +691,27 @@ async def session_and_logging_middleware(request: Request, call_next):
         elapsed_ms: int = round((datetime.now(timezone.utc) - started).total_seconds() * 1000)
         _logger.error(
             "Request failed: %s %s (%dms) - %s",
-            request.method, request.url.path, elapsed_ms, error,
-            extra={"extra_fields": {"request_id": request_id, "elapsed_ms": elapsed_ms, "error": str(error)}},
+            request.method,
+            request.url.path,
+            elapsed_ms,
+            error,
+            extra={
+                "extra_fields": {
+                    "request_id": request_id,
+                    "elapsed_ms": elapsed_ms,
+                    "error": str(error),
+                }
+            },
         )
-        log_runtime_event("error", "request-failed", elapsed_ms=elapsed_ms, error=str(error), method=request.method, path=request.url.path, request_id=request_id)
+        log_runtime_event(
+            "error",
+            "request-failed",
+            elapsed_ms=elapsed_ms,
+            error=str(error),
+            method=request.method,
+            path=request.url.path,
+            request_id=request_id,
+        )
         clear_request_id()
         raise
     response.headers["x-request-id"] = request_id
@@ -586,10 +721,27 @@ async def session_and_logging_middleware(request: Request, call_next):
     _logger.log(
         logging.WARNING if log_level == "warn" else logging.INFO,
         "Request finished: %s %s -> %d (%dms)",
-        request.method, request.url.path, response.status_code, elapsed_ms,
-        extra={"extra_fields": {"request_id": request_id, "status_code": response.status_code, "elapsed_ms": elapsed_ms}},
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+        extra={
+            "extra_fields": {
+                "request_id": request_id,
+                "status_code": response.status_code,
+                "elapsed_ms": elapsed_ms,
+            }
+        },
     )
-    log_runtime_event(log_level, "request-finished", elapsed_ms=elapsed_ms, method=request.method, path=request.url.path, request_id=request_id, status_code=response.status_code)
+    log_runtime_event(
+        log_level,
+        "request-finished",
+        elapsed_ms=elapsed_ms,
+        method=request.method,
+        path=request.url.path,
+        request_id=request_id,
+        status_code=response.status_code,
+    )
     clear_request_id()
     return response
 
@@ -597,6 +749,7 @@ async def session_and_logging_middleware(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Route handlers
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health")
 async def health_endpoint():
@@ -628,6 +781,7 @@ async def health_endpoint():
         },
     }
 
+
 @app.get("/api/meta")
 async def meta_endpoint():
     runtime_meta = build_runtime_meta()
@@ -655,13 +809,16 @@ async def meta_endpoint():
         "gold_eval_contract": "nexus-hive-gold-eval-v1",
     }
 
+
 @app.get("/api/runtime/brief")
 async def runtime_brief_endpoint():
     return build_runtime_brief()
 
+
 @app.get("/api/runtime/warehouse-brief")
 async def warehouse_brief_endpoint():
     return build_warehouse_brief()
+
 
 @app.get("/api/runtime/warehouse-target-scorecard")
 async def warehouse_target_scorecard_endpoint(target: Optional[str] = None):
@@ -670,15 +827,28 @@ async def warehouse_target_scorecard_endpoint(target: Optional[str] = None):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+
 @app.get("/api/runtime/governance-scorecard")
 async def governance_scorecard_endpoint(focus: Optional[str] = None):
     normalized_focus = normalize_governance_focus(focus)
-    append_runtime_event({"service": "nexus-hive", "event_type": "scorecard_view", "method": "GET", "path": "/api/runtime/governance-scorecard", "status": "ok", "focus": normalized_focus, "at": utc_now_iso()})
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "scorecard_view",
+            "method": "GET",
+            "path": "/api/runtime/governance-scorecard",
+            "status": "ok",
+            "focus": normalized_focus,
+            "at": utc_now_iso(),
+        }
+    )
     return build_governance_scorecard(normalized_focus)
+
 
 @app.get("/api/runtime/semantic-governance-pack")
 async def semantic_governance_pack_endpoint():
     return build_semantic_governance_pack()
+
 
 @app.get("/api/runtime/lakehouse-readiness-pack")
 async def lakehouse_readiness_pack_endpoint(target: Optional[str] = None):
@@ -687,23 +857,76 @@ async def lakehouse_readiness_pack_endpoint(target: Optional[str] = None):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+
 @app.post("/api/runtime/reviewer-query-demo")
 async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest):
     runtime = build_openai_runtime_contract()
     if not runtime["publicLiveApi"]:
-        raise HTTPException(status_code=503, detail="public OpenAI reviewer demo is unavailable; configure OPENAI_API_KEY and keep budgets above zero")
+        raise HTTPException(
+            status_code=503,
+            detail="public OpenAI reviewer demo is unavailable; configure OPENAI_API_KEY and keep budgets above zero",
+        )
     scenario_id = str(req.question_id or "").strip().lower()
     scenario = REVIEWER_QUERY_SCENARIOS.get(scenario_id)
     if scenario is None:
-        raise HTTPException(status_code=400, detail="question_id must be one of revenue-by-region or profit-top-regions")
+        raise HTTPException(
+            status_code=400,
+            detail="question_id must be one of revenue-by-region or profit-top-regions",
+        )
     enforce_openai_public_rate_limit(f"reviewer-demo:{scenario_id}", int(runtime["publicRpm"]))
-    payload = {"question_id": scenario_id, "question": scenario["question"], "sql": scenario["sql"], "metric_ids": scenario["metric_ids"], "warehouse_target": scenario["warehouse_target"], "approval_posture": scenario["approval_posture"], "lineage_schema": build_lineage_schema()["schema"], "metric_layer_schema": build_metric_layer_schema()["schema"]}
+    payload = {
+        "question_id": scenario_id,
+        "question": scenario["question"],
+        "sql": scenario["sql"],
+        "metric_ids": scenario["metric_ids"],
+        "warehouse_target": scenario["warehouse_target"],
+        "approval_posture": scenario["approval_posture"],
+        "lineage_schema": build_lineage_schema()["schema"],
+        "metric_layer_schema": build_metric_layer_schema()["schema"],
+    }
     if runtime["moderationEnabled"]:
-        await call_openai_moderation(str(runtime["api_key"]), json.dumps(payload, ensure_ascii=True))
-    live_summary = await call_openai_reviewer_demo_summary(str(runtime["api_key"]), str(runtime["liveModel"]), payload)
+        await call_openai_moderation(
+            str(runtime["api_key"]), json.dumps(payload, ensure_ascii=True)
+        )
+    live_summary = await call_openai_reviewer_demo_summary(
+        str(runtime["api_key"]), str(runtime["liveModel"]), payload
+    )
     _config_module.LAST_OPENAI_LIVE_RUN_AT = utc_now_iso()
-    append_runtime_event({"service": "nexus-hive", "event_type": "reviewer_query_demo", "method": "POST", "path": "/api/runtime/reviewer-query-demo", "status": "ok", "question_id": scenario_id, "at": utc_now_iso()})
-    return {"status": "ok", "service": "nexus-hive", "schema": REVIEWER_QUERY_DEMO_SCHEMA, "mode": runtime["deploymentMode"], "model": runtime["liveModel"], "scenarioId": scenario_id, "moderated": True, "capped": True, "traceId": uuid4().hex[:12], "estimatedCostUsd": scenario["estimated_cost_usd"], "nextReviewPath": scenario["next_review_path"], "result": {"question": scenario["question"], "sql": scenario["sql"], "metricIds": scenario["metric_ids"], "approvalPosture": scenario["approval_posture"], "warehouseFit": scenario["warehouse_target"], "lineage": build_lineage_schema()["schema"], "metricLayer": build_metric_layer_schema()["schema"], **live_summary}}
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "reviewer_query_demo",
+            "method": "POST",
+            "path": "/api/runtime/reviewer-query-demo",
+            "status": "ok",
+            "question_id": scenario_id,
+            "at": utc_now_iso(),
+        }
+    )
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "schema": REVIEWER_QUERY_DEMO_SCHEMA,
+        "mode": runtime["deploymentMode"],
+        "model": runtime["liveModel"],
+        "scenarioId": scenario_id,
+        "moderated": True,
+        "capped": True,
+        "traceId": uuid4().hex[:12],
+        "estimatedCostUsd": scenario["estimated_cost_usd"],
+        "nextReviewPath": scenario["next_review_path"],
+        "result": {
+            "question": scenario["question"],
+            "sql": scenario["sql"],
+            "metricIds": scenario["metric_ids"],
+            "approvalPosture": scenario["approval_posture"],
+            "warehouseFit": scenario["warehouse_target"],
+            "lineage": build_lineage_schema()["schema"],
+            "metricLayer": build_metric_layer_schema()["schema"],
+            **live_summary,
+        },
+    }
+
 
 @app.get("/api/auth/session")
 async def auth_session_endpoint(request: Request):
@@ -715,12 +938,21 @@ async def auth_session_endpoint(request: Request):
             validation = {"ok": True, "reason": None}
         except HTTPException as error:
             validation = {"ok": False, "reason": error.detail}
-    return {"ok": True, "active": bool(session and validation and validation["ok"]), "cookie_name": operator_session_cookie_name(), "session": session, "validation": validation}
+    return {
+        "ok": True,
+        "active": bool(session and validation and validation["ok"]),
+        "cookie_name": operator_session_cookie_name(),
+        "session": session,
+        "validation": validation,
+    }
+
 
 @app.post("/api/auth/session")
 async def create_auth_session(request: Request, response: Response):
     if not operator_token_enabled():
-        raise HTTPException(status_code=409, detail="operator auth is not configured for session login")
+        raise HTTPException(
+            status_code=409, detail="operator auth is not configured for session login"
+        )
     payload = await request.json()
     credential = str(payload.get("credential") or "").strip() if isinstance(payload, dict) else ""
     roles = normalize_operator_roles(payload.get("roles")) if isinstance(payload, dict) else []
@@ -732,52 +964,118 @@ async def create_auth_session(request: Request, response: Response):
     allowed_roles = operator_allowed_roles()
     if allowed_roles and not any(role in allowed_roles for role in roles):
         raise HTTPException(status_code=403, detail="missing required operator role")
-    cookie, session = create_operator_session_cookie(credential=credential, roles=roles or allowed_roles, subject="token-operator")
+    cookie, session = create_operator_session_cookie(
+        credential=credential, roles=roles or allowed_roles, subject="token-operator"
+    )
     response.headers["set-cookie"] = cookie
-    log_runtime_event("info", "operator-session-created", request_id=getattr(request.state, "request_id", None), roles=session["roles"], subject=session["subject"])
-    return {"ok": True, "active": True, "cookie_name": operator_session_cookie_name(), "session": session}
+    log_runtime_event(
+        "info",
+        "operator-session-created",
+        request_id=getattr(request.state, "request_id", None),
+        roles=session["roles"],
+        subject=session["subject"],
+    )
+    return {
+        "ok": True,
+        "active": True,
+        "cookie_name": operator_session_cookie_name(),
+        "session": session,
+    }
+
 
 @app.delete("/api/auth/session")
 async def clear_auth_session(request: Request, response: Response):
     response.headers["set-cookie"] = clear_operator_session_cookie()
-    log_runtime_event("info", "operator-session-cleared", request_id=getattr(request.state, "request_id", None))
+    log_runtime_event(
+        "info", "operator-session-cleared", request_id=getattr(request.state, "request_id", None)
+    )
     return {"ok": True, "active": False, "cookie_name": operator_session_cookie_name()}
+
 
 @app.get("/api/review-pack")
 async def review_pack_endpoint():
     return build_review_pack()
 
+
 @app.get("/api/schema/answer")
 async def answer_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_answer_schema()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_answer_schema(),
+    }
+
 
 @app.get("/api/schema/lineage")
 async def lineage_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_lineage_schema()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_lineage_schema(),
+    }
+
 
 @app.get("/api/schema/metrics")
 async def metric_layer_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_metric_layer_schema()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_metric_layer_schema(),
+    }
+
 
 @app.get("/api/schema/policy")
 async def policy_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_policy_schema()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_policy_schema(),
+    }
+
 
 @app.get("/api/schema/query-tag")
 async def query_tag_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_tag_contract()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_tag_contract(),
+    }
+
 
 @app.get("/api/schema/query-audit")
 async def query_audit_schema_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_audit_schema()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_audit_schema(),
+    }
+
 
 @app.get("/api/evals/nl2sql-gold")
 async def gold_eval_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_gold_eval_pack()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_gold_eval_pack(),
+    }
+
 
 @app.get("/api/evals/nl2sql-gold/run")
 async def gold_eval_run_endpoint():
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **run_gold_eval_suite()}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **run_gold_eval_suite(),
+    }
+
 
 @app.post("/api/policy/check")
 async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
@@ -788,7 +1086,18 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
         raise HTTPException(status_code=400, detail="sql is required")
     verdict = evaluate_sql_policy(sql, role=role)
     approval_bundle = build_policy_approval_bundle(verdict)
-    append_runtime_event({"service": "nexus-hive", "event_type": "policy_check", "method": "POST", "path": "/api/policy/check", "status": "ok", "role": role, "policy_decision": verdict["decision"], "at": utc_now_iso()})
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "policy_check",
+            "method": "POST",
+            "path": "/api/policy/check",
+            "status": "ok",
+            "role": role,
+            "policy_decision": verdict["decision"],
+            "at": utc_now_iso(),
+        }
+    )
     return {
         "status": "ok",
         "service": "nexus-hive",
@@ -810,36 +1119,114 @@ async def policy_check_endpoint(req: PolicyCheckRequest, request: Request):
         },
     }
 
+
 @app.get("/api/query-audit/summary")
-async def query_audit_summary_endpoint(limit: int = 5, fallback_mode: Optional[str] = None, status: Optional[str] = None, policy_decision: Optional[str] = None):
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_audit_summary(fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision)}
+async def query_audit_summary_endpoint(
+    limit: int = 5,
+    fallback_mode: Optional[str] = None,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_audit_summary(
+            fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision
+        ),
+    }
+
 
 @app.get("/api/query-review-board")
-async def query_review_board_endpoint(limit: int = 5, fallback_mode: Optional[str] = None, status: Optional[str] = None, policy_decision: Optional[str] = None):
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_review_board(fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision)}
+async def query_review_board_endpoint(
+    limit: int = 5,
+    fallback_mode: Optional[str] = None,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_review_board(
+            fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision
+        ),
+    }
+
 
 @app.get("/api/query-session-board")
-async def query_session_board_endpoint(limit: int = 6, fallback_mode: Optional[str] = None, status: Optional[str] = None, policy_decision: Optional[str] = None):
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_session_board(fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision)}
+async def query_session_board_endpoint(
+    limit: int = 6,
+    fallback_mode: Optional[str] = None,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_session_board(
+            fallback_mode=fallback_mode, limit=limit, status=status, policy_decision=policy_decision
+        ),
+    }
+
 
 @app.get("/api/query-approval-board")
 async def query_approval_board_endpoint(limit: int = 5):
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), **build_query_approval_board(limit=limit)}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        **build_query_approval_board(limit=limit),
+    }
+
 
 @app.get("/api/query-audit/recent")
-async def query_audit_recent_endpoint(limit: int = 5, fallback_mode: Optional[str] = None, status: Optional[str] = None, policy_decision: Optional[str] = None):
+async def query_audit_recent_endpoint(
+    limit: int = 5,
+    fallback_mode: Optional[str] = None,
+    status: Optional[str] = None,
+    policy_decision: Optional[str] = None,
+):
     fallback_filter = normalize_fallback_mode_filter(fallback_mode)
     status_filter = normalize_audit_status_filter(status)
     policy_filter = normalize_policy_decision_filter(policy_decision)
-    items = list_recent_query_audits(limit=limit, fallback_mode=fallback_filter, status=status_filter, policy_decision=policy_filter)
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), "schema": build_query_audit_schema()["schema"], "filters": {"fallback_mode": fallback_filter, "status": status_filter, "policy_decision": policy_filter, "limit": clamp_audit_limit(limit)}, "items": items}
+    items = list_recent_query_audits(
+        limit=limit,
+        fallback_mode=fallback_filter,
+        status=status_filter,
+        policy_decision=policy_filter,
+    )
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": build_query_audit_schema()["schema"],
+        "filters": {
+            "fallback_mode": fallback_filter,
+            "status": status_filter,
+            "policy_decision": policy_filter,
+            "limit": clamp_audit_limit(limit),
+        },
+        "items": items,
+    }
+
 
 @app.get("/api/query-audit/{request_id}")
 async def query_audit_detail_endpoint(request_id: str):
     history = get_query_audit_history(request_id)
     if not history:
         raise HTTPException(status_code=404, detail="request_id not found")
-    return {"status": "ok", "service": "nexus-hive", "generated_at": utc_now_iso(), "schema": build_query_audit_schema()["schema"], "request_id": request_id, "latest": history[-1], "history": history}
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "schema": build_query_audit_schema()["schema"],
+        "request_id": request_id,
+        "latest": history[-1],
+        "history": history,
+    }
+
 
 @app.post("/api/ask")
 async def ask_endpoint(req: AskRequest, request: Request):
@@ -850,9 +1237,33 @@ async def ask_endpoint(req: AskRequest, request: Request):
     if len(question) > 1000:
         raise HTTPException(status_code=413, detail="question is too long")
     request_id = uuid4().hex[:12]
-    query_tag = build_query_tag(request_id=request_id, role=DEFAULT_ROLE, purpose="ask", adapter_name="sqlite-demo")
-    write_query_audit_snapshot(request_id=request_id, question=question, status="accepted", stage="accepted", adapter_name="sqlite-demo", query_tag=query_tag, policy_decision="pending", policy_reasons=[], fallback_sql_used=False, fallback_chart_used=False)
-    append_runtime_event({"service": "nexus-hive", "event_type": "ask_accepted", "method": "POST", "path": "/api/ask", "request_id": request_id, "status": "accepted", "question": question, "at": utc_now_iso()})
+    query_tag = build_query_tag(
+        request_id=request_id, role=DEFAULT_ROLE, purpose="ask", adapter_name="sqlite-demo"
+    )
+    write_query_audit_snapshot(
+        request_id=request_id,
+        question=question,
+        status="accepted",
+        stage="accepted",
+        adapter_name="sqlite-demo",
+        query_tag=query_tag,
+        policy_decision="pending",
+        policy_reasons=[],
+        fallback_sql_used=False,
+        fallback_chart_used=False,
+    )
+    append_runtime_event(
+        {
+            "service": "nexus-hive",
+            "event_type": "ask_accepted",
+            "method": "POST",
+            "path": "/api/ask",
+            "request_id": request_id,
+            "status": "accepted",
+            "question": question,
+            "at": utc_now_iso(),
+        }
+    )
     stream_url = str(request.url_for("stream_endpoint"))
     return {
         "status": "accepted",
@@ -875,10 +1286,14 @@ async def ask_endpoint(req: AskRequest, request: Request):
         },
     }
 
+
 @app.get("/api/stream")
 async def stream_endpoint(q: str, rid: Optional[str] = None):
     request_id = str(rid or uuid4().hex[:12]).strip()
-    return StreamingResponse(run_agent_and_stream(q, request_id=request_id), media_type="text/event-stream")
+    return StreamingResponse(
+        run_agent_and_stream(q, request_id=request_id), media_type="text/event-stream"
+    )
+
 
 # Mount frontend
 frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
