@@ -80,8 +80,7 @@ def operator_session_cookie_name() -> str:
         The session cookie name string.
     """
     return (
-        str(os.getenv("NEXUS_HIVE_OPERATOR_SESSION_COOKIE", "")).strip()
-        or DEFAULT_SESSION_COOKIE
+        str(os.getenv("NEXUS_HIVE_OPERATOR_SESSION_COOKIE", "")).strip() or DEFAULT_SESSION_COOKIE
     )
 
 
@@ -124,9 +123,7 @@ def operator_session_secure() -> bool:
     Returns:
         True if the Secure flag should be set.
     """
-    configured: str = str(
-        os.getenv("NEXUS_HIVE_OPERATOR_SESSION_SECURE", "")
-    ).strip().lower()
+    configured: str = str(os.getenv("NEXUS_HIVE_OPERATOR_SESSION_SECURE", "")).strip().lower()
     if configured in {"1", "true", "yes"}:
         return True
     if configured in {"0", "false", "no"}:
@@ -214,9 +211,9 @@ def _read_operator_session_record(request: Request) -> dict[str, object] | None:
     Returns:
         Session record dictionary, or None if invalid or absent.
     """
-    encoded: Optional[str] = _parse_cookie_header(
-        request.headers.get("cookie")
-    ).get(operator_session_cookie_name())
+    encoded: Optional[str] = _parse_cookie_header(request.headers.get("cookie")).get(
+        operator_session_cookie_name()
+    )
     if not encoded or "." not in encoded:
         return None
     payload, signature = encoded.split(".", 1)
@@ -243,11 +240,7 @@ def _read_operator_session_record(request: Request) -> dict[str, object] | None:
         "credential": credential,
         "expires_at": expires_at,
         "issued_at": str(parsed.get("issued_at") or "").strip(),
-        "roles": [
-            role.strip().lower()
-            for role in parsed.get("roles") or []
-            if str(role).strip()
-        ],
+        "roles": [role.strip().lower() for role in parsed.get("roles") or [] if str(role).strip()],
         "subject": str(parsed.get("subject") or "").strip() or None,
     }
 
@@ -290,13 +283,9 @@ def apply_operator_session(request: Request) -> dict[str, object] | None:
         return None
 
     existing_headers: list = list(request.scope.get("headers", []))
-    header_names: set[str] = {
-        name.decode("latin-1").lower() for name, _ in existing_headers
-    }
+    header_names: set[str] = {name.decode("latin-1").lower() for name, _ in existing_headers}
     if "authorization" not in header_names and "x-operator-token" not in header_names:
-        existing_headers.append(
-            (b"x-operator-token", str(record["credential"]).encode("utf-8"))
-        )
+        existing_headers.append((b"x-operator-token", str(record["credential"]).encode("utf-8")))
     _roles_raw: Any = record.get("roles") or []
     roles_list: list[str] = list(_roles_raw)
     if (
@@ -304,9 +293,7 @@ def apply_operator_session(request: Request) -> dict[str, object] | None:
         and "x-operator-roles" not in header_names
         and roles_list
     ):
-        existing_headers.append(
-            (b"x-operator-roles", ",".join(roles_list).encode("utf-8"))
-        )
+        existing_headers.append((b"x-operator-roles", ",".join(roles_list).encode("utf-8")))
     request.scope["headers"] = existing_headers
     _logger.debug("Applied operator session for subject=%s", record.get("subject"))
     return {
@@ -432,15 +419,11 @@ def require_operator_token(request: Request) -> None:
         header_token: str = str(request.headers.get("x-operator-token", "")).strip()
         authorization: str = str(request.headers.get("authorization", "")).strip()
         bearer_token: str = (
-            authorization[7:].strip()
-            if authorization.lower().startswith("bearer ")
-            else ""
+            authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
         )
         if header_token != expected and bearer_token != expected:
             _logger.warning("Operator token authentication failed")
-            raise HTTPException(
-                status_code=403, detail="missing or invalid operator token"
-            )
+            raise HTTPException(status_code=403, detail="missing or invalid operator token")
 
     allowed_roles: list[str] = operator_allowed_roles()
     if allowed_roles:
@@ -451,6 +434,4 @@ def require_operator_token(request: Request) -> None:
                 presented_roles,
                 allowed_roles,
             )
-            raise HTTPException(
-                status_code=403, detail="missing required operator role"
-            )
+            raise HTTPException(status_code=403, detail="missing required operator role")

@@ -109,9 +109,7 @@ class CircuitBreaker:
             reset_at_str: Optional[str] = None
             if self._last_failure_time is not None:
                 reset_epoch = self._last_failure_time + self.recovery_timeout_sec
-                reset_at_str = datetime.fromtimestamp(
-                    reset_epoch, tz=timezone.utc
-                ).isoformat()
+                reset_at_str = datetime.fromtimestamp(reset_epoch, tz=timezone.utc).isoformat()
 
             raise CircuitBreakerOpenError(
                 f"Circuit breaker is OPEN for {self.service_name}; "

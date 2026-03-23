@@ -31,13 +31,16 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
     # Patch config before any request triggers _sync_audit_log_path
     import config as _cfg
+
     monkeypatch.setattr(_cfg, "AUDIT_LOG_PATH", audit_path)
 
     # Also patch main module's local reference
     import main as _main
+
     monkeypatch.setattr(_main, "AUDIT_LOG_PATH", audit_path)
 
     from fastapi.testclient import TestClient
+
     return TestClient(_main.app)
 
 
@@ -96,9 +99,7 @@ class TestAskEndpoint:
 
     def test_valid_question_accepted(self, client) -> None:
         """Valid question should return 200 with stream URL."""
-        response = client.post(
-            "/api/ask", json={"question": "Show revenue by region"}
-        )
+        response = client.post("/api/ask", json={"question": "Show revenue by region"})
         assert response.status_code == 200
         payload: Dict[str, Any] = response.json()
         assert payload["status"] == "accepted"
@@ -116,9 +117,7 @@ class TestPolicyCheckEndpoint:
 
     def test_empty_sql_rejected(self, client) -> None:
         """Empty SQL should return 400."""
-        response = client.post(
-            "/api/policy/check", json={"sql": "", "role": "analyst"}
-        )
+        response = client.post("/api/policy/check", json={"sql": "", "role": "analyst"})
         assert response.status_code == 400
 
     def test_safe_sql_allowed(self, client) -> None:

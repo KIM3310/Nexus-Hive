@@ -35,9 +35,18 @@ def build_query_audit_schema() -> Dict[str, Any]:
         "schema": "nexus-hive-query-audit-v1",
         "storage_mode": "append-only jsonl snapshots with latest-state views per request_id",
         "required_fields": [
-            "request_id", "question", "status", "stage", "adapter_name",
-            "query_tag", "sql_query", "row_count", "retry_count",
-            "policy_decision", "fallback_sql_used", "fallback_chart_used",
+            "request_id",
+            "question",
+            "status",
+            "stage",
+            "adapter_name",
+            "query_tag",
+            "sql_query",
+            "row_count",
+            "retry_count",
+            "policy_decision",
+            "fallback_sql_used",
+            "fallback_chart_used",
             "updated_at",
         ],
         "stages": ["accepted", "completed", "failed"],
@@ -287,22 +296,15 @@ def list_latest_query_audits(
 
     items: List[Dict[str, Any]] = list(latest_by_request.values())
     if status:
-        items = [
-            item
-            for item in items
-            if str(item.get("status") or "").strip().lower() == status
-        ]
+        items = [item for item in items if str(item.get("status") or "").strip().lower() == status]
     if policy_decision:
         items = [
             item
             for item in items
-            if str(item.get("policy_decision") or "").strip().lower()
-            == policy_decision
+            if str(item.get("policy_decision") or "").strip().lower() == policy_decision
         ]
     if fallback_mode:
-        items = [
-            item for item in items if matches_fallback_mode(item, fallback_mode)
-        ]
+        items = [item for item in items if matches_fallback_mode(item, fallback_mode)]
 
     return sorted(
         items,
@@ -396,15 +398,11 @@ def build_query_audit_summary(
     error_count: int = 0
 
     for item in latest_items:
-        item_status: str = (
-            str(item.get("status") or "unknown").strip().lower() or "unknown"
-        )
+        item_status: str = str(item.get("status") or "unknown").strip().lower() or "unknown"
         item_policy: str = (
             str(item.get("policy_decision") or "unknown").strip().lower() or "unknown"
         )
-        item_adapter: str = (
-            str(item.get("adapter_name") or "unknown").strip().lower() or "unknown"
-        )
+        item_adapter: str = str(item.get("adapter_name") or "unknown").strip().lower() or "unknown"
         status_counts[item_status] = status_counts.get(item_status, 0) + 1
         policy_counts[item_policy] = policy_counts.get(item_policy, 0) + 1
         adapter_counts[item_adapter] = adapter_counts.get(item_adapter, 0) + 1
@@ -435,9 +433,7 @@ def build_query_audit_summary(
         )
         bucket["count"] += 1
         if len(bucket["sample_request_ids"]) < 3:
-            bucket["sample_request_ids"].append(
-                str(item.get("request_id") or "").strip()
-            )
+            bucket["sample_request_ids"].append(str(item.get("request_id") or "").strip())
 
     sorted_top_questions: List[Dict[str, Any]] = sorted(
         top_questions.values(),
@@ -469,9 +465,7 @@ def build_query_audit_summary(
             "denied_count": denied_count,
             "review_required_count": review_count,
             "error_count": error_count,
-            "latest_updated_at": recent_items[0]["updated_at"]
-            if recent_items
-            else None,
+            "latest_updated_at": recent_items[0]["updated_at"] if recent_items else None,
         },
         "top_policy_reasons": top_policy_reasons,
         "top_questions": sorted_top_questions,
@@ -528,9 +522,7 @@ def build_query_review_board(
             rank = 4
         return (rank, str(item.get("updated_at") or ""))
 
-    attention_items: List[Dict[str, Any]] = sorted(
-        latest_items, key=item_priority
-    )[:board_limit]
+    attention_items: List[Dict[str, Any]] = sorted(latest_items, key=item_priority)[:board_limit]
     healthy_items: List[Dict[str, Any]] = [
         item
         for item in latest_items
@@ -540,23 +532,23 @@ def build_query_review_board(
 
     def to_board_item(item: Dict[str, Any]) -> Dict[str, Any]:
         """Convert an audit item to a review board item."""
-        item_status: str = (
-            str(item.get("status") or "").strip().lower() or "unknown"
-        )
-        item_policy: str = (
-            str(item.get("policy_decision") or "").strip().lower() or "unknown"
-        )
+        item_status: str = str(item.get("status") or "").strip().lower() or "unknown"
+        item_policy: str = str(item.get("policy_decision") or "").strip().lower() or "unknown"
         uses_fallback: bool = bool(item.get("fallback_sql_used")) or bool(
             item.get("fallback_chart_used")
         )
         if item_status == "failed":
-            next_action: str = "Inspect the audit detail and retry only after fixing the governed SQL path."
+            next_action: str = (
+                "Inspect the audit detail and retry only after fixing the governed SQL path."
+            )
         elif item_policy == "deny":
             next_action = "Review deny reasons, remove blocked SQL patterns, and rerun the request."
         elif item_policy == "review":
             next_action = "Validate sensitive columns and escalation reasons before approval."
         elif uses_fallback:
-            next_action = "Compare fallback output against the gold eval run before sharing the answer."
+            next_action = (
+                "Compare fallback output against the gold eval run before sharing the answer."
+            )
         else:
             next_action = "Spot-check SQL, chart payload, and row counts before sharing the answer."
         return {
@@ -648,12 +640,8 @@ def build_query_session_board(
 
     def to_session_item(item: Dict[str, Any]) -> Dict[str, Any]:
         """Convert an audit item to a session board item."""
-        item_status: str = (
-            str(item.get("status") or "").strip().lower() or "unknown"
-        )
-        item_policy: str = (
-            str(item.get("policy_decision") or "").strip().lower() or "unknown"
-        )
+        item_status: str = str(item.get("status") or "").strip().lower() or "unknown"
+        item_policy: str = str(item.get("policy_decision") or "").strip().lower() or "unknown"
         uses_fallback: bool = bool(item.get("fallback_sql_used")) or bool(
             item.get("fallback_chart_used")
         )
@@ -689,9 +677,7 @@ def build_query_session_board(
             "next_action": next_action,
         }
 
-    session_items: List[Dict[str, Any]] = [
-        to_session_item(item) for item in latest_items
-    ]
+    session_items: List[Dict[str, Any]] = [to_session_item(item) for item in latest_items]
     return {
         "schema": QUERY_SESSION_BOARD_SCHEMA,
         "filters": {
@@ -702,21 +688,13 @@ def build_query_session_board(
         },
         "summary": {
             "total_sessions": len(session_items),
-            "ready_count": sum(
-                1 for item in session_items if item["session_state"] == "ready"
-            ),
+            "ready_count": sum(1 for item in session_items if item["session_state"] == "ready"),
             "attention_count": sum(
                 1 for item in session_items if item["session_state"] == "attention"
             ),
-            "review_count": sum(
-                1 for item in session_items if item["session_state"] == "review"
-            ),
-            "compare_count": sum(
-                1 for item in session_items if item["session_state"] == "compare"
-            ),
-            "latest_updated_at": session_items[0]["updated_at"]
-            if session_items
-            else None,
+            "review_count": sum(1 for item in session_items if item["session_state"] == "review"),
+            "compare_count": sum(1 for item in session_items if item["session_state"] == "compare"),
+            "latest_updated_at": session_items[0]["updated_at"] if session_items else None,
         },
         "items": session_items,
         "review_actions": [
@@ -767,9 +745,7 @@ def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
             "review_url": f"/api/query-audit/{request_id}",
         }
 
-    items: List[Dict[str, Any]] = [
-        to_approval_item(item) for item in pending_items
-    ]
+    items: List[Dict[str, Any]] = [to_approval_item(item) for item in pending_items]
     return {
         "schema": QUERY_APPROVAL_BOARD_SCHEMA,
         "filters": {

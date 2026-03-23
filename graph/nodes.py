@@ -37,7 +37,9 @@ _logger = logging.getLogger("nexus_hive.graph")
 
 _MAX_QUESTION_LENGTH: int = 500
 _PROMPT_INJECTION_PATTERNS: List[re.Pattern[str]] = [
-    re.compile(r"ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)", re.IGNORECASE),
+    re.compile(
+        r"ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|prompts?|rules?)", re.IGNORECASE
+    ),
     re.compile(r"(system|assistant)\s*:\s*", re.IGNORECASE),
     re.compile(r"you\s+are\s+now\s+", re.IGNORECASE),
     re.compile(r"forget\s+(all\s+)?(previous|prior|your)\s+", re.IGNORECASE),
@@ -68,7 +70,7 @@ def _sanitize_user_input(question: str) -> str:
         sanitized = sanitized[:_MAX_QUESTION_LENGTH]
         _logger.warning("Question truncated to %d chars", _MAX_QUESTION_LENGTH)
     # Remove null bytes and other control characters (keep newlines and tabs)
-    sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', sanitized)
+    sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", sanitized)
     for pattern in _PROMPT_INJECTION_PATTERNS:
         if pattern.search(sanitized):
             _logger.warning("Prompt injection pattern detected in question")
@@ -131,11 +133,14 @@ async def ask_ollama(prompt: str) -> str:
     )
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
-            response = await client.post(OLLAMA_URL, json={
-                "model": MODEL_NAME,
-                "prompt": prompt,
-                "stream": False,
-            })
+            response = await client.post(
+                OLLAMA_URL,
+                json={
+                    "model": MODEL_NAME,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
             result: str = response.json().get("response", "")
             ollama_circuit_breaker.record_success()
             _logger.info("Ollama response received, length=%d", len(result))
@@ -151,8 +156,7 @@ async def ask_ollama(prompt: str) -> str:
     except httpx.ConnectError:
         ollama_circuit_breaker.record_failure()
         raise OllamaConnectionError(
-            f"Could not connect to Ollama at {OLLAMA_URL}. "
-            "Ensure the Ollama service is running.",
+            f"Could not connect to Ollama at {OLLAMA_URL}. Ensure the Ollama service is running.",
             url=OLLAMA_URL,
             model=MODEL_NAME,
         )
@@ -348,9 +352,7 @@ Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
     config_response: str = ""
     try:
         config_response = await ask_ollama(prompt)
-        clean_json: str = (
-            config_response.strip().replace("```json", "").replace("```", "").strip()
-        )
+        clean_json: str = config_response.strip().replace("```json", "").replace("```", "").strip()
         config: Dict[str, Any] = json.loads(clean_json)
         state["chart_config"] = config
         state["log_stream"].append(
@@ -359,17 +361,13 @@ Return EXACTLY this JSON format (choose type: 'bar', 'line', 'pie', 'doughnut'):
         _logger.info("Visualizer generated chart config: type=%s", config.get("type"))
     except Exception as exc:
         if exc:
-            state["log_stream"].append(
-                f"[Agent 3: Visualizer] LLM chart config unavailable: {exc}"
-            )
+            state["log_stream"].append(f"[Agent 3: Visualizer] LLM chart config unavailable: {exc}")
             _logger.warning("Visualizer LLM unavailable: %s", exc)
         state["chart_config"] = infer_chart_config_from_question(
             state["user_query"], state["db_result"]
         )
         state["fallback_chart_used"] = True
-        state["log_stream"].append(
-            "[Agent 3: Visualizer] Heuristic chart config used."
-        )
+        state["log_stream"].append("[Agent 3: Visualizer] Heuristic chart config used.")
         _logger.info("Visualizer used heuristic chart fallback")
 
     return state
@@ -422,11 +420,15 @@ def build_graph() -> Any:
 
     workflow.set_entry_point("translator")
     workflow.add_edge("translator", "executor")
-    workflow.add_conditional_edges("executor", route_after_execution, {
-        "translator": "translator",
-        "visualizer": "visualizer",
-        END: END,
-    })
+    workflow.add_conditional_edges(
+        "executor",
+        route_after_execution,
+        {
+            "translator": "translator",
+            "visualizer": "visualizer",
+            END: END,
+        },
+    )
     workflow.add_edge("visualizer", END)
 
     return workflow.compile()

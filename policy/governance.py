@@ -171,16 +171,34 @@ def build_lineage_schema() -> Dict[str, Any]:
 
 
 def build_metric_layer_schema() -> Dict[str, Any]:
-    certified_metrics = [metric["metric_id"] for metric in METRIC_LAYER_DEFINITIONS if metric["certified"]]
+    certified_metrics = [
+        metric["metric_id"] for metric in METRIC_LAYER_DEFINITIONS if metric["certified"]
+    ]
     return {
         "schema": "nexus-hive-metric-layer-v1",
         "headline": "Semantic metric contract for governed warehouse questions before SQL or dashboards are trusted.",
         "metrics": METRIC_LAYER_DEFINITIONS,
         "dimensions": [
-            {"dimension_id": "region_name", "source": "regions.region_name", "join_path": "sales.region_id -> regions.region_id"},
-            {"dimension_id": "category", "source": "products.category", "join_path": "sales.product_id -> products.product_id"},
-            {"dimension_id": "month", "source": "SUBSTR(sales.date, 1, 7)", "join_path": "derived from sales.date"},
-            {"dimension_id": "product_name", "source": "products.product_name", "join_path": "sales.product_id -> products.product_id"},
+            {
+                "dimension_id": "region_name",
+                "source": "regions.region_name",
+                "join_path": "sales.region_id -> regions.region_id",
+            },
+            {
+                "dimension_id": "category",
+                "source": "products.category",
+                "join_path": "sales.product_id -> products.product_id",
+            },
+            {
+                "dimension_id": "month",
+                "source": "SUBSTR(sales.date, 1, 7)",
+                "join_path": "derived from sales.date",
+            },
+            {
+                "dimension_id": "product_name",
+                "source": "products.product_name",
+                "join_path": "sales.product_id -> products.product_id",
+            },
         ],
         "approval_policy": {
             "certified_metrics": certified_metrics,
@@ -189,7 +207,11 @@ def build_metric_layer_schema() -> Dict[str, Any]:
                 "query mixes certified and non-certified metrics without an explicit purpose",
                 "dimension grain is ambiguous relative to transaction_id",
             ],
-            "warehouse_targets": ["sqlite-demo", "snowflake-sql-contract", "databricks-sql-contract"],
+            "warehouse_targets": [
+                "sqlite-demo",
+                "snowflake-sql-contract",
+                "databricks-sql-contract",
+            ],
         },
         "operator_rules": [
             "Certified metrics are the front door for executive analytics claims.",
@@ -313,13 +335,17 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
     review_required_count = int(audit_summary["summary"]["review_required_count"])
     denied_count = int(audit_summary["summary"]["denied_count"])
     error_count = int(audit_summary["summary"]["error_count"])
-    fallback_rate_pct = round((fallback_any_count / total_requests) * 100, 1) if total_requests else 0.0
+    fallback_rate_pct = (
+        round((fallback_any_count / total_requests) * 100, 1) if total_requests else 0.0
+    )
     guarded_rate_pct = (
         round(((review_required_count + denied_count) / total_requests) * 100, 1)
         if total_requests
         else 0.0
     )
-    gold_eval_pass_rate_pct = round((gold_pass_count / gold_case_count) * 100, 1) if gold_case_count else 0.0
+    gold_eval_pass_rate_pct = (
+        round((gold_pass_count / gold_case_count) * 100, 1) if gold_case_count else 0.0
+    )
     error_rate_pct = round((error_count / total_requests) * 100, 1) if total_requests else 0.0
 
     score_bands = [
@@ -341,7 +367,9 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "id": "quality",
             "label": "Quality",
             "score_pct": gold_eval_pass_rate_pct,
-            "signal": "strong" if quality_gate["status"] == "ok" and gold_eval_pass_rate_pct >= 75 else "watch",
+            "signal": "strong"
+            if quality_gate["status"] == "ok" and gold_eval_pass_rate_pct >= 75
+            else "watch",
             "evidence": "gold eval run + modeled table quality gate",
         },
         {
@@ -382,11 +410,21 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
         }
 
     recommendations = [
-        None if db_ready else "Seed the warehouse and verify schema load before judging governed analytics quality.",
-        None if quality_gate["status"] == "ok" else "Resolve modeled-table quality gate failures before claiming governed SQL readiness.",
-        None if gold_eval_pass_rate_pct >= 75 else "Improve NL2SQL heuristics or prompt quality until the gold eval pass rate clears 75%.",
-        None if denied_count + review_required_count > 0 else "Exercise /api/policy/check with risky SQL so the policy boundary remains visible.",
-        None if error_count == 0 else "Inspect failed audit items before relying on live SSE walkthroughs during demos.",
+        None
+        if db_ready
+        else "Seed the warehouse and verify schema load before judging governed analytics quality.",
+        None
+        if quality_gate["status"] == "ok"
+        else "Resolve modeled-table quality gate failures before claiming governed SQL readiness.",
+        None
+        if gold_eval_pass_rate_pct >= 75
+        else "Improve NL2SQL heuristics or prompt quality until the gold eval pass rate clears 75%.",
+        None
+        if denied_count + review_required_count > 0
+        else "Exercise /api/policy/check with risky SQL so the policy boundary remains visible.",
+        None
+        if error_count == 0
+        else "Inspect failed audit items before relying on live SSE walkthroughs during demos.",
     ]
 
     return {
@@ -509,8 +547,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
     governance_scorecard = build_governance_scorecard("policy")
     gold_eval_run = run_gold_eval_suite()
     certified_metrics = [
-        str(item)
-        for item in metric_layer.get("approval_policy", {}).get("certified_metrics", [])
+        str(item) for item in metric_layer.get("approval_policy", {}).get("certified_metrics", [])
     ]
     review_required_when = [
         str(item)
@@ -520,8 +557,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
     visible_contracts = [
         item
         for item in contracts
-        if not normalized_target
-        or str(item.get("name", "")).strip().lower() == normalized_target
+        if not normalized_target or str(item.get("name", "")).strip().lower() == normalized_target
     ]
     target_notes = {
         "sqlite-demo": {
@@ -628,7 +664,9 @@ def build_semantic_governance_pack() -> Dict[str, Any]:
             "certified_metric_count": len(certified_metrics),
             "review_required_metric_count": len(attention_metrics),
             "approval_queue_count": query_approval_board["summary"]["pending_count"],
-            "review_required_rule_count": len(metric_layer["approval_policy"]["review_required_when"]),
+            "review_required_rule_count": len(
+                metric_layer["approval_policy"]["review_required_when"]
+            ),
             "target_count": warehouse_target_scorecard["summary"]["visible_targets"],
             "guarded_rate_pct": governance_scorecard["summary"]["guarded_rate_pct"],
         },
@@ -727,7 +765,9 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
         "summary": {
             "visible_targets": len(target_rows),
             "contract_preview_count": sum(
-                1 for item in target_rows if str(item.get("execution_mode", "")) == "contract-preview"
+                1
+                for item in target_rows
+                if str(item.get("execution_mode", "")) == "contract-preview"
             ),
             "approval_queue_count": query_approval_board["summary"]["pending_count"],
             "guarded_rate_pct": governance_scorecard["summary"]["guarded_rate_pct"],

@@ -196,7 +196,13 @@ class WarehouseAdapter:
 # ---------------------------------------------------------------------------
 
 _BLOCKED_SQL_KEYWORDS: Set[str] = {
-    "DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE", "TRUNCATE",
+    "DROP",
+    "DELETE",
+    "INSERT",
+    "UPDATE",
+    "ALTER",
+    "CREATE",
+    "TRUNCATE",
 }
 _ALLOWED_FIRST_KEYWORDS: Set[str] = {"SELECT", "WITH", "EXPLAIN"}
 
@@ -214,9 +220,9 @@ def _strip_sql_comments_and_strings(sql: str) -> str:
         Cleaned SQL with comments and literals replaced.
     """
     # Remove block comments (/* ... */)
-    cleaned: str = re.sub(r'/\*.*?\*/', ' ', sql, flags=re.DOTALL)
+    cleaned: str = re.sub(r"/\*.*?\*/", " ", sql, flags=re.DOTALL)
     # Remove single-line comments (-- ...)
-    cleaned = re.sub(r'--[^\n]*', ' ', cleaned)
+    cleaned = re.sub(r"--[^\n]*", " ", cleaned)
     # Remove single-quoted string literals ('...')
     cleaned = re.sub(r"'(?:[^'\\]|\\.)*'", "''", cleaned)
     # Remove double-quoted identifiers ("...")
@@ -262,7 +268,7 @@ def _validate_sql_readonly(sql: str) -> None:
 
         upper_statement: str = statement.upper()
         for keyword in _BLOCKED_SQL_KEYWORDS:
-            if re.search(r'\b' + keyword + r'\b', upper_statement):
+            if re.search(r"\b" + keyword + r"\b", upper_statement):
                 raise SQLValidationError(
                     f"Blocked SQL keyword '{keyword}' found in statement. "
                     "Only read-only SELECT queries are permitted.",
@@ -410,15 +416,14 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
         """
         _validate_sql_readonly(sql)
         _logger.info(
-            "Executing SQL preview via %s", self.contract.name,
+            "Executing SQL preview via %s",
+            self.contract.name,
             extra={"extra_fields": {"sql_preview": sql[:200]}},
         )
         started_at: datetime = datetime.now(timezone.utc)
         with sqlite3.connect(db_path) as conn:
             df: pd.DataFrame = pd.read_sql_query(sql, conn)
-        elapsed_ms: int = int(
-            (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
-        )
+        elapsed_ms: int = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
         rows: List[Dict[str, Any]] = df.head(5).to_dict(orient="records")
         _logger.info(
             "SQL preview complete: %d rows in %dms",
@@ -537,11 +542,8 @@ def get_active_warehouse_adapter() -> WarehouseAdapter:
         The active warehouse adapter instance.
     """
     requested: str = (
-        str(os.getenv("NEXUS_HIVE_WAREHOUSE_ADAPTER", "sqlite-demo")).strip()
-        or "sqlite-demo"
+        str(os.getenv("NEXUS_HIVE_WAREHOUSE_ADAPTER", "sqlite-demo")).strip() or "sqlite-demo"
     )
-    adapter = WAREHOUSE_ADAPTER_REGISTRY.get(
-        requested, WAREHOUSE_ADAPTER_REGISTRY["sqlite-demo"]
-    )
+    adapter = WAREHOUSE_ADAPTER_REGISTRY.get(requested, WAREHOUSE_ADAPTER_REGISTRY["sqlite-demo"])
     _logger.debug("Active warehouse adapter: %s", adapter.contract.name)
     return adapter

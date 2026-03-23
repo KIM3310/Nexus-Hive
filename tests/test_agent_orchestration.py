@@ -109,12 +109,14 @@ class TestTranslatorNode:
 
     def test_fallback_sql_when_ollama_offline(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Translator should use heuristic fallback when Ollama is unavailable."""
+
         async def fail_ollama(prompt: str) -> str:
             raise RuntimeError("offline")
 
         monkeypatch.setattr("graph.nodes.ask_ollama", fail_ollama)
         # Reset circuit breaker to avoid interference
         from circuit_breaker import ollama_circuit_breaker
+
         ollama_circuit_breaker.reset()
 
         state: AgentState = _make_state()
@@ -126,6 +128,7 @@ class TestTranslatorNode:
 
     def test_prompt_injection_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Translator should reject prompt injection attempts."""
+
         async def fail_ollama(prompt: str) -> str:
             raise RuntimeError("should not be called")
 
@@ -188,11 +191,13 @@ class TestVisualizerNode:
 
     def test_fallback_chart_when_ollama_offline(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Visualizer should use heuristic chart config when Ollama is unavailable."""
+
         async def fail_ollama(prompt: str) -> str:
             raise RuntimeError("offline")
 
         monkeypatch.setattr("graph.nodes.ask_ollama", fail_ollama)
         from circuit_breaker import ollama_circuit_breaker
+
         ollama_circuit_breaker.reset()
 
         state: AgentState = _make_state(
@@ -208,11 +213,13 @@ class TestVisualizerNode:
 
     def test_empty_results_still_generates_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Visualizer should generate default config even with empty results."""
+
         async def fail_ollama(prompt: str) -> str:
             raise RuntimeError("offline")
 
         monkeypatch.setattr("graph.nodes.ask_ollama", fail_ollama)
         from circuit_breaker import ollama_circuit_breaker
+
         ollama_circuit_breaker.reset()
 
         state: AgentState = _make_state(db_result=[])
@@ -241,6 +248,7 @@ class TestRouting:
         """Should route to END when retry budget is exhausted."""
         state: AgentState = _make_state(error="some error", retry_count=3)
         from langgraph.graph import END
+
         result: str = route_after_execution(state)
         assert result == END
 

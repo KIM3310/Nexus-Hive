@@ -139,9 +139,7 @@ def evaluate_sql_policy(
     if any(column in lower_sql for column in sensitive_columns):
         deny_reasons.append("sensitive_columns_require_privileged_role")
     if "GROUP BY" not in upper_sql and "LIMIT" not in upper_sql:
-        review_reasons.append(
-            "non_aggregated_queries_without_limit_require_operator_review"
-        )
+        review_reasons.append("non_aggregated_queries_without_limit_require_operator_review")
 
     decision: str = "deny" if deny_reasons else "review" if review_reasons else "allow"
 
@@ -170,9 +168,7 @@ def build_policy_approval_bundle(verdict: Dict[str, Any]) -> Dict[str, Any]:
         and review_rationale.
     """
     review_reasons: List[str] = list(verdict.get("review_reasons") or [])
-    approval_required: bool = (
-        str(verdict.get("decision") or "").strip().lower() == "review"
-    )
+    approval_required: bool = str(verdict.get("decision") or "").strip().lower() == "review"
     return {
         "approval_required": approval_required,
         "approval_actions": [
@@ -203,14 +199,10 @@ def evaluate_sql_case(
         and status ('pass' or 'partial').
     """
     upper_sql: str = str(sql or "").upper()
-    matched: List[str] = [
-        feature for feature in expected_features if feature.upper() in upper_sql
-    ]
+    matched: List[str] = [feature for feature in expected_features if feature.upper() in upper_sql]
     return {
         "matched_features": matched,
-        "missing_features": [
-            feature for feature in expected_features if feature not in matched
-        ],
+        "missing_features": [feature for feature in expected_features if feature not in matched],
         "score": len(matched),
         "max_score": len(expected_features),
         "status": "pass" if len(matched) == len(expected_features) else "partial",
@@ -266,9 +258,7 @@ def infer_sql_from_question(question: str) -> str:
         )
 
     if (
-        "monthly" in normalized
-        or "trend" in normalized
-        or "month" in normalized
+        "monthly" in normalized or "trend" in normalized or "month" in normalized
     ) and "revenue" in normalized:
         return (
             "SELECT SUBSTR(s.date, 1, 7) AS month, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue "

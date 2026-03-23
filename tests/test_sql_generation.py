@@ -128,7 +128,12 @@ class TestPolicyEvaluation:
 
     def test_deny_write_operations(self) -> None:
         """Write operations (DROP, DELETE, etc.) should be denied."""
-        for keyword in ["DROP TABLE sales", "DELETE FROM sales", "INSERT INTO sales VALUES (1)", "UPDATE sales SET x=1"]:
+        for keyword in [
+            "DROP TABLE sales",
+            "DELETE FROM sales",
+            "INSERT INTO sales VALUES (1)",
+            "UPDATE sales SET x=1",
+        ]:
             verdict: Dict[str, Any] = evaluate_sql_policy(keyword)
             assert verdict["decision"] == "deny", f"Expected deny for: {keyword}"
             assert "write_operations_blocked" in verdict["deny_reasons"]
@@ -143,11 +148,12 @@ class TestPolicyEvaluation:
 
     def test_review_non_aggregated_without_limit(self) -> None:
         """Non-aggregated queries without LIMIT should require review."""
-        verdict: Dict[str, Any] = evaluate_sql_policy(
-            "SELECT transaction_id FROM sales"
-        )
+        verdict: Dict[str, Any] = evaluate_sql_policy("SELECT transaction_id FROM sales")
         assert verdict["decision"] == "review"
-        assert "non_aggregated_queries_without_limit_require_operator_review" in verdict["review_reasons"]
+        assert (
+            "non_aggregated_queries_without_limit_require_operator_review"
+            in verdict["review_reasons"]
+        )
 
     def test_allow_query_with_group_by(self) -> None:
         """Queries with GROUP BY should pass the review check."""
@@ -190,9 +196,7 @@ class TestQueryTag:
 
     def test_basic_query_tag(self) -> None:
         """Query tag should include all required dimensions."""
-        tag: str = build_query_tag(
-            request_id="req-123", role="analyst", purpose="ask"
-        )
+        tag: str = build_query_tag(request_id="req-123", role="analyst", purpose="ask")
         assert "service=nexus-hive" in tag
         assert "adapter=sqlite-demo" in tag
         assert "role=analyst" in tag
@@ -299,9 +303,7 @@ class TestChartConfigInference:
     def test_large_dataset_returns_bar(self) -> None:
         """Large datasets should default to bar charts."""
         rows: List[Dict[str, Any]] = [{"x": i, "y": i * 10} for i in range(20)]
-        config: Dict[str, Any] = infer_chart_config_from_question(
-            "Show all data", rows
-        )
+        config: Dict[str, Any] = infer_chart_config_from_question("Show all data", rows)
         assert config["type"] == "bar"
 
 
@@ -344,9 +346,7 @@ class TestSQLValidation:
 
     def test_with_cte_allowed(self) -> None:
         """WITH (CTE) statements should be allowed."""
-        validate_sql_safety(
-            "WITH cte AS (SELECT 1) SELECT * FROM cte"
-        )
+        validate_sql_safety("WITH cte AS (SELECT 1) SELECT * FROM cte")
         # Note: "SELECT *" inside a CTE is technically valid SQL but
         # the policy engine would deny it separately; validation only
         # checks keywords, not policy rules.
@@ -425,41 +425,31 @@ class TestExceptions:
 
     def test_sql_validation_error_fields(self) -> None:
         """SQLValidationError should carry sql and violation_type."""
-        err = SQLValidationError(
-            "blocked", sql="DROP TABLE x", violation_type="blocked_keyword"
-        )
+        err = SQLValidationError("blocked", sql="DROP TABLE x", violation_type="blocked_keyword")
         assert err.sql == "DROP TABLE x"
         assert err.violation_type == "blocked_keyword"
         assert str(err) == "blocked"
 
     def test_policy_denied_error_fields(self) -> None:
         """PolicyDeniedError should carry deny_reasons."""
-        err = PolicyDeniedError(
-            "denied", deny_reasons=["wildcard", "write"]
-        )
+        err = PolicyDeniedError("denied", deny_reasons=["wildcard", "write"])
         assert err.deny_reasons == ["wildcard", "write"]
 
     def test_ollama_connection_error_fields(self) -> None:
         """OllamaConnectionError should carry url and model."""
-        err = OllamaConnectionError(
-            "timeout", url="http://localhost:11434", model="phi3"
-        )
+        err = OllamaConnectionError("timeout", url="http://localhost:11434", model="phi3")
         assert err.url == "http://localhost:11434"
         assert err.model == "phi3"
 
     def test_circuit_breaker_open_error_fields(self) -> None:
         """CircuitBreakerOpenError should carry service_name and failure_count."""
-        err = CircuitBreakerOpenError(
-            "open", service_name="ollama", failure_count=5
-        )
+        err = CircuitBreakerOpenError("open", service_name="ollama", failure_count=5)
         assert err.service_name == "ollama"
         assert err.failure_count == 5
 
     def test_agent_orchestration_error(self) -> None:
         """AgentOrchestrationError should carry agent_name and retry_count."""
-        err = AgentOrchestrationError(
-            "failed", agent_name="translator", retry_count=3
-        )
+        err = AgentOrchestrationError("failed", agent_name="translator", retry_count=3)
         assert err.agent_name == "translator"
         assert err.retry_count == 3
 

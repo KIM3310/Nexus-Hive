@@ -14,9 +14,7 @@ import pytest
 
 
 # The audit path used by test_runtime_endpoints.py
-_RUNTIME_TEST_AUDIT_PATH = (
-    Path(tempfile.gettempdir()) / "nexus_hive_query_audit_test.jsonl"
-)
+_RUNTIME_TEST_AUDIT_PATH = Path(tempfile.gettempdir()) / "nexus_hive_query_audit_test.jsonl"
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +26,7 @@ def _clean_shared_audit_state(request: pytest.FixtureRequest) -> None:
     """
     if "test_runtime_endpoints" in str(request.fspath):
         import config as _cfg
+
         audit_path = _cfg.AUDIT_LOG_PATH
         if audit_path.exists():
             audit_path.unlink()
