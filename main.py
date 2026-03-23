@@ -80,6 +80,7 @@ from security import (
 
 # -- Runtime store --
 from runtime_store import append_runtime_event, build_runtime_store_summary
+from review_resource_pack import build_review_resource_pack
 
 # -- Warehouse --
 from warehouse_adapter import get_active_warehouse_adapter
@@ -284,6 +285,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/health",
             "/api/meta",
             "/api/runtime/brief",
+            "/api/runtime/review-resource-pack",
             "/api/runtime/warehouse-brief",
             "/api/runtime/warehouse-target-scorecard",
             "/api/runtime/governance-scorecard",
@@ -316,6 +318,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "chart-config-generation",
             "sse-agent-trace-streaming",
             "runtime-brief-surface",
+            "review-resource-pack-surface",
             "warehouse-brief-surface",
             "warehouse-target-scorecard-surface",
             "semantic-governance-pack-surface",
@@ -343,6 +346,7 @@ def build_runtime_brief() -> Dict[str, Any]:
     runtime_meta = build_runtime_meta()
     warehouse_brief = build_warehouse_brief()
     governance_scorecard = build_governance_scorecard("quality")
+    review_resource_pack = build_review_resource_pack()
     diagnostics = runtime_meta["diagnostics"]
     db_ready = diagnostics["db_ready"]
 
@@ -363,6 +367,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "retry_budget": 3,
             "seeded_rows": 10000,
             "runtime_routes": len(runtime_meta["routes"]),
+            "review_pack_scenarios": review_resource_pack["summary"]["scenario_count"],
         },
         "warehouse_contract": {
             "mode": warehouse_brief["warehouse_mode"],
@@ -389,6 +394,7 @@ def build_runtime_brief() -> Dict[str, Any]:
         "review_flow": [
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
+            "Read /api/runtime/review-resource-pack for the built-in no-key walkthrough before any live demo claim.",
             "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
             "Read /api/runtime/semantic-governance-pack to see metric certification, approval posture, and warehouse survival in one surface.",
             "Read /api/runtime/lakehouse-readiness-pack to compress Snowflake and Databricks delivery posture into one platform-facing surface.",
@@ -428,6 +434,7 @@ def build_review_pack() -> Dict[str, Any]:
     runtime_brief = build_runtime_brief()
     warehouse_brief = build_warehouse_brief()
     governance_scorecard = build_governance_scorecard("quality")
+    review_resource_pack = build_review_resource_pack()
     diagnostics = runtime_brief["diagnostics"]
     report_contract = runtime_brief["report_contract"]
 
@@ -446,6 +453,7 @@ def build_review_pack() -> Dict[str, Any]:
             "recent_audit_count": warehouse_brief["recent_audit_count"],
             "gold_eval_pass_count": warehouse_brief["gold_eval_run"]["summary"]["pass_count"],
             "runtime_event_count": governance_scorecard["persistence"]["persisted_count"],
+            "review_resource_pack": review_resource_pack["summary"],
             "review_routes": runtime_brief["routes"],
         },
         "executive_promises": [
@@ -466,6 +474,7 @@ def build_review_pack() -> Dict[str, Any]:
         ],
         "review_sequence": [
             "Open /health to confirm warehouse and model posture.",
+            "Read /api/runtime/review-resource-pack to inspect the fixed walkthrough before any live or warehouse-fit claim.",
             "Read /api/runtime/warehouse-brief for data contracts, lineage, and quality gates.",
             "Read /api/schema/metrics before warehouse-specific demos so certified metrics stay explicit.",
             "Read /api/runtime/semantic-governance-pack to connect metric certification, warehouse fit, and approval posture in one pass.",
@@ -492,6 +501,11 @@ def build_review_pack() -> Dict[str, Any]:
         ],
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
+            {
+                "label": "Review Resource Pack",
+                "href": "/api/runtime/review-resource-pack",
+                "kind": "route",
+            },
             {"label": "Warehouse Brief", "href": "/api/runtime/warehouse-brief", "kind": "route"},
             {
                 "label": "Governance Scorecard",
@@ -526,6 +540,7 @@ def build_review_pack() -> Dict[str, Any]:
             "health": "/health",
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "review_resource_pack": "/api/runtime/review-resource-pack",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "review_pack": "/api/review-pack",
         },
@@ -760,6 +775,7 @@ async def health_endpoint():
         "links": {
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "review_resource_pack": "/api/runtime/review-resource-pack",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "governance_scorecard": "/api/runtime/governance-scorecard",
@@ -813,6 +829,11 @@ async def meta_endpoint():
 @app.get("/api/runtime/brief")
 async def runtime_brief_endpoint():
     return build_runtime_brief()
+
+
+@app.get("/api/runtime/review-resource-pack")
+async def review_resource_pack_endpoint():
+    return build_review_resource_pack()
 
 
 @app.get("/api/runtime/warehouse-brief")

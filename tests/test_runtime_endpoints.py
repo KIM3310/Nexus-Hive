@@ -36,6 +36,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     health = client.get("/health")
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
+    review_resource_pack = client.get("/api/runtime/review-resource-pack")
     warehouse_brief = client.get("/api/runtime/warehouse-brief")
     warehouse_target_scorecard = client.get(
         "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract"
@@ -69,6 +70,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert health_payload["service"] == "nexus-hive"
     assert health_payload["links"]["meta"] == "/api/meta"
     assert health_payload["links"]["runtime_brief"] == "/api/runtime/brief"
+    assert health_payload["links"]["review_resource_pack"] == "/api/runtime/review-resource-pack"
     assert health_payload["links"]["warehouse_brief"] == "/api/runtime/warehouse-brief"
     assert (
         health_payload["links"]["warehouse_target_scorecard"]
@@ -139,6 +141,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert meta_payload["gold_eval_contract"] == "nexus-hive-gold-eval-v1"
     assert "/api/ask" in meta_payload["routes"]
     assert "/api/runtime/brief" in meta_payload["routes"]
+    assert "/api/runtime/review-resource-pack" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-target-scorecard" in meta_payload["routes"]
     assert "/api/runtime/governance-scorecard" in meta_payload["routes"]
@@ -165,6 +168,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
     assert brief_payload["deploymentMode"] == "review-only-live"
     assert brief_payload["evidence_counts"]["agent_nodes"] == 3
+    assert brief_payload["evidence_counts"]["review_pack_scenarios"] >= 4
     assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"
     assert brief_payload["warehouse_contract"]["fallback_mode"] in {"heuristic", "disabled"}
@@ -206,6 +210,12 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
     assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
     assert brief_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
+
+    assert review_resource_pack.status_code == 200
+    review_resource_pack_payload = review_resource_pack.json()
+    assert review_resource_pack_payload["schema"] == "nexus-hive-review-resource-pack-v1"
+    assert review_resource_pack_payload["summary"]["scenario_count"] >= 4
+    assert review_resource_pack_payload["reviewer_fast_path"][2] == "/api/runtime/review-resource-pack"
 
     assert warehouse_brief.status_code == 200
     warehouse_payload = warehouse_brief.json()
@@ -302,6 +312,8 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert pack_payload["answer_contract"]["schema"] == "nexus-hive-answer-v1"
     assert "/api/review-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert pack_payload["proof_bundle"]["quality_gate_status"] in {"ok", "degraded"}
+    assert pack_payload["proof_bundle"]["review_resource_pack"]["scenario_count"] >= 4
+    assert "/api/runtime/review-resource-pack" in pack_payload["proof_bundle"]["review_routes"]
     assert (
         "/api/runtime/warehouse-target-scorecard" in pack_payload["proof_bundle"]["review_routes"]
     )
@@ -316,6 +328,10 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert isinstance(pack_payload["executive_promises"], list)
     assert len(pack_payload["two_minute_review"]) >= 9
     assert pack_payload["proof_assets"][0]["href"] == "/health"
+    assert any(
+        asset["href"] == "/api/runtime/review-resource-pack"
+        for asset in pack_payload["proof_assets"]
+    )
     assert any(
         asset["href"] == "/api/runtime/warehouse-target-scorecard"
         for asset in pack_payload["proof_assets"]
