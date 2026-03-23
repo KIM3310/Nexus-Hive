@@ -176,6 +176,9 @@ curl -N "http://localhost:8000/api/stream?q=Show+total+net+revenue+by+region&rid
 # Runtime brief (agent contract, retry policy)
 curl http://localhost:8000/api/runtime/brief
 
+# Review resource pack (built-in no-key walkthrough)
+curl http://localhost:8000/api/runtime/review-resource-pack
+
 # Warehouse brief (lineage, quality gate, adapters)
 curl http://localhost:8000/api/runtime/warehouse-brief
 
@@ -209,6 +212,16 @@ curl http://localhost:8000/api/query-review-board
 # Gold eval suite (NL2SQL correctness benchmark)
 curl http://localhost:8000/api/evals/nl2sql-gold/run
 ```
+
+## Reviewer Fast Path
+
+1. `GET /health`
+2. `GET /api/runtime/brief`
+3. `GET /api/runtime/review-resource-pack`
+4. `GET /api/runtime/semantic-governance-pack`
+5. `GET /api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract`
+6. `GET /api/query-review-board`
+7. `GET /api/review-pack`
 
 ---
 
