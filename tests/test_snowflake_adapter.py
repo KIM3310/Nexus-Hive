@@ -147,7 +147,9 @@ class TestSnowflakeQueryExecution:
 
         monkeypatch.setattr(snowflake_adapter._pool, "get_connection", lambda: mock_conn)
 
-        result = snowflake_adapter.execute_snowflake_query("SELECT region_name, COUNT(*) AS total FROM sales GROUP BY region_name")
+        result = snowflake_adapter.execute_snowflake_query(
+            "SELECT region_name, COUNT(*) AS total FROM sales GROUP BY region_name"
+        )
         preview = result["preview"]
 
         assert len(preview) > 0
@@ -158,9 +160,7 @@ class TestSnowflakeQueryExecution:
         self, mock_snowflake_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Result should include the Snowflake query ID for audit trail."""
-        mock_cursor = _make_mock_cursor(
-            [{"X": 1}], description=[("X",)], rowcount=1
-        )
+        mock_cursor = _make_mock_cursor([{"X": 1}], description=[("X",)], rowcount=1)
         mock_cursor.sfqid = "sf-query-abc123"
 
         mock_conn = MagicMock()
@@ -215,7 +215,9 @@ class TestSnowflakeScalarQuery:
 
         monkeypatch.setattr(snowflake_adapter._pool, "get_connection", lambda: mock_conn)
 
-        result: int = snowflake_adapter.run_snowflake_scalar_query("SELECT COUNT(*) AS row_count FROM sales")
+        result: int = snowflake_adapter.run_snowflake_scalar_query(
+            "SELECT COUNT(*) AS row_count FROM sales"
+        )
         assert result == 42
         assert isinstance(result, int)
 
@@ -231,7 +233,9 @@ class TestSnowflakeScalarQuery:
 
         monkeypatch.setattr(snowflake_adapter._pool, "get_connection", lambda: mock_conn)
 
-        result: int = snowflake_adapter.run_snowflake_scalar_query("SELECT COUNT(*) FROM empty_table")
+        result: int = snowflake_adapter.run_snowflake_scalar_query(
+            "SELECT COUNT(*) FROM empty_table"
+        )
         assert result == 0
 
 
@@ -328,9 +332,7 @@ class TestSnowflakeDateWindow:
 class TestSnowflakeConnectionPool:
     """Tests for the connection pool singleton behavior."""
 
-    def test_pool_raises_when_package_unavailable(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pool_raises_when_package_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Connection pool should raise RuntimeError when snowflake-connector-python is missing."""
         import snowflake_adapter
 

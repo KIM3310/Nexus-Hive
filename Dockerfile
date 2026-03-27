@@ -10,7 +10,6 @@ COPY review_resource_pack.py ./
 COPY graph ./graph
 COPY policy ./policy
 COPY routes ./routes
-COPY data ./data
 COPY frontend ./frontend
 COPY nexus_enterprise.db ./nexus_enterprise.db
 

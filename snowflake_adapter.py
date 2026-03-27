@@ -26,6 +26,7 @@ try:
 except ImportError:
     DictCursor = None
     SNOWFLAKE_AVAILABLE = False
+    DictCursor = None  # type: ignore[assignment,misc]
     _logger.debug("snowflake-connector-python not installed; Snowflake adapter unavailable")
 
 

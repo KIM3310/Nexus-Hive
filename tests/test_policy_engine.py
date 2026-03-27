@@ -64,9 +64,7 @@ class TestPolicyDenyDangerousSQL:
 
     def test_deny_update(self) -> None:
         """UPDATE must be denied."""
-        verdict: Dict[str, Any] = evaluate_sql_policy(
-            "UPDATE sales SET net_revenue = 0 WHERE 1=1"
-        )
+        verdict: Dict[str, Any] = evaluate_sql_policy("UPDATE sales SET net_revenue = 0 WHERE 1=1")
         assert verdict["decision"] == "deny"
         assert "write_operations_blocked" in verdict["deny_reasons"]
 
@@ -84,9 +82,7 @@ class TestPolicyDenyDangerousSQL:
 
     def test_deny_create_table(self) -> None:
         """CREATE TABLE must be denied."""
-        verdict: Dict[str, Any] = evaluate_sql_policy(
-            "CREATE TABLE evil (id INT)"
-        )
+        verdict: Dict[str, Any] = evaluate_sql_policy("CREATE TABLE evil (id INT)")
         assert verdict["decision"] == "deny"
         assert "write_operations_blocked" in verdict["deny_reasons"]
 
@@ -98,9 +94,7 @@ class TestPolicyDenyDangerousSQL:
 
     def test_deny_select_star_with_where(self) -> None:
         """SELECT * with WHERE clause should still be denied."""
-        verdict: Dict[str, Any] = evaluate_sql_policy(
-            "SELECT * FROM sales WHERE region_id = 1"
-        )
+        verdict: Dict[str, Any] = evaluate_sql_policy("SELECT * FROM sales WHERE region_id = 1")
         assert verdict["decision"] == "deny"
         assert "wildcard_projection_denied" in verdict["deny_reasons"]
 
@@ -127,8 +121,7 @@ class TestPolicyAllowSafeQueries:
     def test_allow_aggregated_with_limit(self) -> None:
         """Aggregated query with LIMIT should be allowed."""
         verdict: Dict[str, Any] = evaluate_sql_policy(
-            "SELECT region_name, SUM(net_revenue) AS total "
-            "FROM sales GROUP BY region_name LIMIT 10"
+            "SELECT region_name, SUM(net_revenue) AS total FROM sales GROUP BY region_name LIMIT 10"
         )
         assert verdict["decision"] == "allow"
 
@@ -187,9 +180,7 @@ class TestPolicyReviewBorderline:
 
     def test_review_simple_column_select(self) -> None:
         """Simple column SELECT without constraints should require review."""
-        verdict: Dict[str, Any] = evaluate_sql_policy(
-            "SELECT region_name FROM regions"
-        )
+        verdict: Dict[str, Any] = evaluate_sql_policy("SELECT region_name FROM regions")
         assert verdict["decision"] == "review"
         assert len(verdict["review_reasons"]) > 0
 
@@ -270,7 +261,9 @@ class TestSQLValidationDangerous:
 
     def test_validate_allows_select(self) -> None:
         """Valid SELECT should pass validation."""
-        validate_sql_safety("SELECT region_name, SUM(net_revenue) FROM sales GROUP BY region_name LIMIT 10")
+        validate_sql_safety(
+            "SELECT region_name, SUM(net_revenue) FROM sales GROUP BY region_name LIMIT 10"
+        )
 
     def test_validate_allows_with_cte(self) -> None:
         """WITH (CTE) should pass validation."""

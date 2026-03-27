@@ -400,9 +400,7 @@ class TestDatabricksHelpers:
         assert _quote("my_table") == "`my_table`"
         assert _quote("has`tick") == "`has``tick`"
 
-    def test_table_fqn_uses_catalog_schema(
-        self, mock_databricks_env: None
-    ) -> None:
+    def test_table_fqn_uses_catalog_schema(self, mock_databricks_env: None) -> None:
         """_table_fqn should produce catalog.schema.table format."""
         from databricks_adapter import _table_fqn
 
