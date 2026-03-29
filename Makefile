@@ -1,5 +1,5 @@
 .SHELLFLAGS := -eu -o pipefail -c
-BOOTSTRAP_PYTHON ?= python3.11
+BOOTSTRAP_PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
