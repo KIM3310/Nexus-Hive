@@ -8,8 +8,9 @@ version = "0.2.0"
 description = "Governed analytics copilot with audited NL2SQL, policy previews, and runtime review surfaces."
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Kim" }]
+authors = [{name = "Doeon Kim", email = "ehdjs1351@gmail.com"}]
 license = { text = "MIT" }
+keywords = ["nl2sql", "multi-agent", "governance", "snowflake", "databricks", "fastapi"]
 dependencies = [
   "fastapi>=0.115.0,<1.0.0",
   "uvicorn[standard]>=0.30.0,<1.0.0",
