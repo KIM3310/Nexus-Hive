@@ -9,6 +9,20 @@
 
 Nexus-Hive turns business questions into audited SQL, executes them safely against a warehouse, and returns chart-ready answers with a full agent trace. Every step — translation, policy check, execution, visualization — is independently inspectable.
 
+## Hiring Fit And Proof Boundary
+
+- **Best fit roles:** AI/data platform engineer, analytics engineer, solution architect, field engineer
+- **Strongest public proof:** governed SQL generation, policy engine, audit trails, query tags, and runtime review surfaces
+- **What is real here:** the governance workflow, adapter logic, query reviewability, and local SQLite runtime
+- **What is bounded here:** Snowflake and Databricks execution only activate when credentials are configured, and the seeded business dataset is synthetic
+
+## Latest Verified Snapshot
+
+- **Verified on:** 2026-03-28
+- **Command:** `make verify`
+- **Outcome:** passed locally; lint, pytest, and runtime smoke all completed from a clean Python 3.11 bootstrap
+- **Notes:** the Makefile now self-heals stale pre-3.11 virtual environments before installing dependencies
+
 ## Multi-Warehouse Support
 
 | Adapter | Status | Gated By |

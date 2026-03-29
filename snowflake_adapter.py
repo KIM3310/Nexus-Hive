@@ -24,6 +24,7 @@ try:
 
     SNOWFLAKE_AVAILABLE = True
 except ImportError:
+    DictCursor = None
     SNOWFLAKE_AVAILABLE = False
     _logger.debug("snowflake-connector-python not installed; Snowflake adapter unavailable")
 
@@ -150,6 +151,13 @@ _pool = SnowflakeConnectionPool()
 SNOWFLAKE_QUERY_TIMEOUT_SEC: int = int(os.getenv("SNOWFLAKE_QUERY_TIMEOUT_SEC", "120"))
 
 
+def _open_cursor(conn: Any) -> Any:
+    """Return a dict-style cursor when available, otherwise a plain cursor for mocked callers."""
+    if DictCursor is None:
+        return conn.cursor()
+    return conn.cursor(DictCursor)
+
+
 def execute_snowflake_query(
     sql: str,
     *,
@@ -179,7 +187,7 @@ def execute_snowflake_query(
     started = datetime.now(timezone.utc)
 
     _logger.info("Executing Snowflake query, timeout=%ds", timeout_sec)
-    cursor = conn.cursor(DictCursor)
+    cursor = _open_cursor(conn)
     try:
         # Set statement-level timeout
         cursor.execute(f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}")
@@ -227,7 +235,7 @@ def execute_snowflake_rows(
     """Execute SQL and return normalized rows and metadata."""
     conn = _pool.get_connection()
     started = datetime.now(timezone.utc)
-    cursor = conn.cursor(DictCursor)
+    cursor = _open_cursor(conn)
     try:
         cursor.execute(f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}")
         cursor.execute(sql)

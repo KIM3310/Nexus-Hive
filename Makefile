@@ -1,5 +1,5 @@
 .SHELLFLAGS := -eu -o pipefail -c
-PYTHON ?= python3
+BOOTSTRAP_PYTHON ?= python3.11
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
@@ -12,7 +12,7 @@ $(VENV_PYTHON):
 $(VENV_STAMP): pyproject.toml requirements.txt
 	@if [ ! -x "$(VENV_PYTHON)" ] || ! $(VENV_PYTHON) -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" >/dev/null 2>&1; then \
 		rm -rf $(VENV); \
-		$(PYTHON) -m venv $(VENV); \
+		$(BOOTSTRAP_PYTHON) -m venv $(VENV); \
 	fi
 	@if ! $(VENV_PYTHON) -m pip --version >/dev/null 2>&1; then \
 		$(VENV_PYTHON) -m ensurepip --upgrade; \
