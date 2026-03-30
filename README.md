@@ -9,20 +9,6 @@
 
 Nexus-Hive turns business questions into audited SQL, executes them safely against a warehouse, and returns chart-ready answers with a full agent trace. Every step — translation, policy check, execution, visualization — is independently inspectable.
 
-## Hiring Fit And Proof Boundary
-
-- **Best fit roles:** AI/data platform engineer, analytics engineer, solution architect, field engineer
-- **Strongest public proof:** governed SQL generation, policy engine, audit trails, query tags, and runtime review surfaces
-- **What is real here:** the governance workflow, adapter logic, query reviewability, and local SQLite runtime
-- **What is bounded here:** Snowflake and Databricks execution only activate when credentials are configured, and the seeded business dataset is synthetic
-
-## Latest Verified Snapshot
-
-- **Verified on:** 2026-03-28
-- **Command:** `make verify`
-- **Outcome:** passed locally; lint, pytest, and runtime smoke all completed from a clean Python 3.11 bootstrap
-- **Notes:** the Makefile now self-heals stale pre-3.11 virtual environments before installing dependencies
-
 ## Multi-Warehouse Support
 
 | Adapter | Status | Gated By |
@@ -49,33 +35,13 @@ Warehouse Adapters   (SQLite | Snowflake | Databricks)
 Audit Trail + Governance (query tags, session boards, approval workflows, gold evals)
 ```
 
-## Example Queries
-
-Nexus-Hive translates plain English into governed SQL. Here are example questions and the SQL they produce:
-
-| Natural Language Question | Generated SQL |
-|--------------------------|---------------|
-| "Show total revenue by region" | `SELECT r.region_name, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue FROM sales s JOIN regions r ON s.region_id = r.region_id GROUP BY r.region_name ORDER BY total_net_revenue DESC LIMIT 10` |
-| "Show top 5 regions by total profit" | `SELECT r.region_name, ROUND(SUM(s.profit), 2) AS total_profit FROM sales s JOIN regions r ON s.region_id = r.region_id GROUP BY r.region_name ORDER BY total_profit DESC LIMIT 5` |
-| "What is the average discount per category?" | `SELECT p.category, ROUND(AVG(s.discount_applied), 4) AS average_discount FROM sales s JOIN products p ON s.product_id = p.product_id GROUP BY p.category ORDER BY average_discount DESC LIMIT 10` |
-| "Show monthly net revenue trend" | `SELECT SUBSTR(s.date, 1, 7) AS month, ROUND(SUM(s.net_revenue), 2) AS total_net_revenue FROM sales s GROUP BY month ORDER BY month ASC LIMIT 12` |
-| "Show total quantity by category" | `SELECT p.category, SUM(s.quantity) AS total_quantity FROM sales s JOIN products p ON s.product_id = p.product_id GROUP BY p.category ORDER BY total_quantity DESC LIMIT 10` |
-
-Every generated query passes through the policy engine before execution. Queries that contain write operations, wildcard projections, or sensitive column access are automatically denied.
-
 ## Governance Features
 
-Nexus-Hive enforces enterprise-grade governance at every stage of the NL-to-SQL pipeline:
-
-- **Policy Engine (Deny / Review / Allow)** — Every SQL query is evaluated against configurable rules before execution. Write operations (`DROP`, `DELETE`, `INSERT`, `UPDATE`, `ALTER`, `TRUNCATE`) are denied outright. `SELECT *` is blocked to prevent data exfiltration. Sensitive columns (e.g., `margin_percentage`) are gated by role. Non-aggregated queries without `LIMIT` are flagged for operator review.
-
-- **Audit Trails** — Every query is logged with a full governance trace: request ID, operator role, policy verdict, adapter used, execution time, and fallback mode. Audit entries are written to a JSONL log and queryable via `/api/query-audit/recent`.
-
-- **Query Tags** — Each query carries a structured tag (`service=nexus-hive;adapter=...;role=...;request_id=...;purpose=...`) that maps directly onto Snowflake `QUERY_TAG` and Databricks warehouse tag conventions for cross-platform audit lineage.
-
-- **Session Boards** — The runtime exposes session governance surfaces (`/api/runtime/query-session-board`, `/api/runtime/query-approval-board`) that let operators inspect pending reviews, approval histories, and query throughput.
-
-- **Gold Evals** — A built-in evaluation suite (`/api/evals/nl2sql-gold/run`) scores generated SQL against expected feature patterns (e.g., correct JOINs, aggregation functions, GROUP BY clauses) to measure heuristic and LLM quality over time.
+- **Policy Engine (Deny / Review / Allow)** — Write operations are denied outright. `SELECT *` is blocked. Sensitive columns are gated by role. Non-aggregated queries without `LIMIT` are flagged for review.
+- **Audit Trails** — Every query is logged with request ID, operator role, policy verdict, adapter used, and execution time. Queryable via `/api/query-audit/recent`.
+- **Query Tags** — Structured tags map onto Snowflake `QUERY_TAG` and Databricks warehouse tag conventions for cross-platform audit lineage.
+- **Session Boards** — Operator surfaces for pending reviews, approval histories, and query throughput.
+- **Gold Evals** — Built-in evaluation suite scores generated SQL against expected feature patterns.
 
 ## Quick Start
 
