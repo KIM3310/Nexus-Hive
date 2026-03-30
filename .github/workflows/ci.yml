@@ -60,6 +60,13 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
   docker:
     runs-on: ubuntu-latest
     needs: test
