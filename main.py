@@ -458,16 +458,37 @@ async def run_agent_and_stream(question: str, request_id: str):
         "log_stream": [],
     }
 
-    async for output in graph.astream(state):
-        node_name = list(output.keys())[0]
-        node_state = output[node_name]
-        for log in node_state["log_stream"]:
-            yield f"data: {json.dumps({'type': 'log', 'content': log})}\n\n"
-            await asyncio.sleep(0.1)
-        node_state["log_stream"] = []
-        if node_name == "visualizer":
-            yield f"data: {json.dumps({'type': 'chart_data', 'config': node_state['chart_config'], 'data': node_state['db_result']})}\n\n"
-        state = node_state
+    _AGENT_TIMEOUT_SECONDS = 30
+
+    async def _consume_graph():
+        """Run the LangGraph agent and collect streamed outputs."""
+        nonlocal state
+        async for output in graph.astream(state):
+            node_name = list(output.keys())[0]
+            node_state = output[node_name]
+            for log in node_state["log_stream"]:
+                yield log
+            node_state["log_stream"] = []
+            if node_name == "visualizer":
+                yield ("__chart__", node_state["chart_config"], node_state["db_result"])
+            state = node_state
+
+    try:
+        timed_stream = _consume_graph()
+        deadline = asyncio.get_event_loop().time() + _AGENT_TIMEOUT_SECONDS
+        async for item in timed_stream:
+            if asyncio.get_event_loop().time() > deadline:
+                raise asyncio.TimeoutError()
+            if isinstance(item, tuple) and len(item) == 3 and item[0] == "__chart__":
+                yield f"data: {json.dumps({'type': 'chart_data', 'config': item[1], 'data': item[2]})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'log', 'content': item})}\n\n"
+                await asyncio.sleep(0.1)
+    except asyncio.TimeoutError:
+        _logger.warning("Agent stream timed out after %ds for request_id=%s", _AGENT_TIMEOUT_SECONDS, request_id)
+        yield f"data: {json.dumps({'type': 'error', 'content': f'[System] Agent timed out after {_AGENT_TIMEOUT_SECONDS}s.'})}\n\n"
+        yield 'data: {"type": "done"}\n\n'
+        return
 
     # Extract typed fields from the final agent state for audit logging.
     _db_result: Any = state.get("db_result") or []
@@ -1127,6 +1148,12 @@ async def query_approval_board_endpoint(limit: int = 5):
     }
 
 
+# ---------------------------------------------------------------------------
+# In-memory archive set for soft-deleted audit entries
+# ---------------------------------------------------------------------------
+_archived_request_ids: set[str] = set()
+
+
 @app.get("/api/query-audit/recent")
 async def query_audit_recent_endpoint(
     limit: int = 5,
@@ -1143,6 +1170,8 @@ async def query_audit_recent_endpoint(
         status=status_filter,
         policy_decision=policy_filter,
     )
+    # Filter out soft-deleted (archived) entries
+    items = [i for i in items if i.get("request_id") not in _archived_request_ids]
     return {
         "status": "ok",
         "service": "nexus-hive",
@@ -1171,6 +1200,23 @@ async def query_audit_detail_endpoint(request_id: str):
         "request_id": request_id,
         "latest": history[-1],
         "history": history,
+    }
+
+
+@app.patch("/api/query-audit/{request_id}/archive")
+async def query_audit_archive_endpoint(request_id: str):
+    """Soft-delete an audit entry by marking it as archived."""
+    history = get_query_audit_history(request_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="request_id not found")
+    _archived_request_ids.add(request_id)
+    return {
+        "status": "ok",
+        "service": "nexus-hive",
+        "generated_at": utc_now_iso(),
+        "request_id": request_id,
+        "archived": True,
+        "message": f"Audit entry {request_id} has been archived.",
     }
 
 
