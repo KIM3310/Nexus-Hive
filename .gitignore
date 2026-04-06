@@ -18,8 +18,10 @@ env/
 # Local artifacts
 media/
 *.log
+*.db
 *.db-shm
 *.db-wal
+.coverage
 .env
 .env.*
 nohup.out
