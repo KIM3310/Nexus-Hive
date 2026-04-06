@@ -100,7 +100,7 @@ const REVIEW_LENSES = {
 
 const RECORDED_REVIEW = {
     runtimeBrief: {
-        headline: 'Recorded runtime brief for a recruiter walkthrough.',
+        headline: 'Recorded runtime brief for a demo walkthrough.',
         status: 'recorded-review',
         report_contract: {
             schema: 'nexus-answer-v1',
@@ -1222,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (failing.length > 0) {
                 renderObjectList(goldEvalFailures, failing, (item) => `${item.question} | ${item.status.toUpperCase()} | missing ${item.missing_features.join(', ')}`);
             } else {
-                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local recruiter review run.']);
+                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local review run.']);
             }
             runGoldEvalBtn.disabled = false;
             runGoldEvalBtn.innerText = 'Run Gold Eval';
@@ -1267,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (failing.length > 0) {
                 renderObjectList(goldEvalFailures, failing, (item) => `${item.question} | ${item.status.toUpperCase()} | missing ${item.missing_features.join(', ')}`);
             } else {
-                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local recruiter review run.']);
+                renderReviewList(goldEvalFailures, ['All recorded governed eval cases passed in the local review run.']);
             }
             renderStoryboard();
         } finally {
