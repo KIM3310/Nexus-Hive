@@ -4,6 +4,7 @@ Provides the core abstraction for building agents with:
 - Lifecycle hooks (on_start, on_step, on_complete, on_error)
 - State machine (IDLE → RUNNING → WAITING → COMPLETED/FAILED)
 - Automatic retry with configurable backoff
+- Tool execution error isolation
 - Integration with ToolRegistry and MemoryManager
 """
 
@@ -17,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from framework.tools import ToolRegistry
+from framework.tools import ToolRegistry, ToolExecutionError
 from framework.memory import MemoryManager
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,34 @@ class BaseAgent(ABC):
         """Execute one step of the agent. Must be implemented by subclass."""
         ...
 
+    def _reset(self) -> None:
+        """Reset agent state for a fresh run."""
+        self.status = AgentStatus.IDLE
+        self._context = None
+
+    # --- Tool execution with error isolation ---
+
+    async def _execute_tools(self, tool_calls: list[dict[str, Any]]) -> None:
+        """Execute tool calls with individual error isolation."""
+        self.status = AgentStatus.WAITING
+        for call in tool_calls:
+            tool_name = call.get("tool")
+            if not tool_name:
+                call["result"] = None
+                call["error"] = "Missing tool name"
+                logger.warning("Tool call missing 'tool' key, skipping")
+                continue
+
+            tool_args = call.get("args", {})
+            try:
+                call["result"] = await self.tools.execute(tool_name, **tool_args)
+                call["error"] = None
+            except (ToolExecutionError, Exception) as e:
+                call["result"] = None
+                call["error"] = str(e)
+                logger.warning(f"Tool '{tool_name}' failed: {e}")
+        self.status = AgentStatus.RUNNING
+
     # --- Runner ---
 
     async def run(
@@ -103,6 +132,8 @@ class BaseAgent(ABC):
         max_steps: int = 10,
     ) -> Any:
         """Run the agent through its full lifecycle."""
+        self._reset()
+
         context = AgentContext(
             request_id=request_id or str(uuid.uuid4())[:8],
             max_steps=max_steps,
@@ -114,8 +145,7 @@ class BaseAgent(ABC):
         logger.info(f"[{self.name}] Starting (request={context.request_id})")
         self.on_start(context, input_data)
 
-        # Store input in short-term memory
-        self.memory.store_short_term(context.request_id, "input", input_data)
+        self.memory.store_short_term(context.request_id, f"{self.name}:input", input_data)
 
         current_input = input_data
         last_output: Any = None
@@ -127,17 +157,10 @@ class BaseAgent(ABC):
 
                 try:
                     result = await self.step(context, current_input)
-                    retries = 0  # reset on success
+                    retries = 0
 
-                    # Execute any tool calls
                     if result.tool_calls:
-                        self.status = AgentStatus.WAITING
-                        for call in result.tool_calls:
-                            tool_name = call.get("tool")
-                            tool_args = call.get("args", {})
-                            tool_result = await self.tools.execute(tool_name, **tool_args)
-                            call["result"] = tool_result
-                        self.status = AgentStatus.RUNNING
+                        await self._execute_tools(result.tool_calls)
 
                     self.on_step(context, result)
                     last_output = result.output
@@ -149,7 +172,8 @@ class BaseAgent(ABC):
                 except Exception as step_error:
                     retries += 1
                     logger.warning(
-                        f"[{self.name}] Step {context.step} failed (retry {retries}/{context.max_retries}): {step_error}"
+                        f"[{self.name}] Step {context.step} failed "
+                        f"(retry {retries}/{context.max_retries}): {step_error}"
                     )
                     if retries >= context.max_retries:
                         raise
@@ -157,8 +181,7 @@ class BaseAgent(ABC):
             self.status = AgentStatus.COMPLETED
             self.on_complete(context, last_output)
 
-            # Store output in memory
-            self.memory.store_short_term(context.request_id, "output", last_output)
+            self.memory.store_short_term(context.request_id, f"{self.name}:output", last_output)
             self.memory.store_long_term(
                 f"{self.name}:last_run",
                 {

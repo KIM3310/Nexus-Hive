@@ -3,7 +3,7 @@
 Provides a declarative tool registration system where agents can:
 - Register tools with name, description, and schema
 - Discover available tools at runtime
-- Execute tools with automatic validation and error handling
+- Execute tools with validation and error handling
 - Track tool execution metrics
 """
 
@@ -65,6 +65,11 @@ class ToolRegistry:
         parameters: dict[str, Any] | None = None,
     ) -> ToolDefinition:
         """Register a tool with the registry."""
+        if not name:
+            raise ValueError("Tool name cannot be empty")
+        if not callable(handler):
+            raise ValueError(f"Tool handler for '{name}' must be callable")
+
         is_async = inspect.iscoroutinefunction(handler)
 
         tool = ToolDefinition(
@@ -84,15 +89,7 @@ class ToolRegistry:
         description: str = "",
         parameters: dict[str, Any] | None = None,
     ) -> Callable:
-        """Decorator to register a function as a tool.
-
-        Usage:
-            registry = ToolRegistry()
-
-            @registry.tool(name="search", description="Search the database")
-            async def search_db(query: str) -> list:
-                ...
-        """
+        """Decorator to register a function as a tool."""
 
         def decorator(fn: Callable) -> Callable:
             tool_name = name or fn.__name__
@@ -103,8 +100,12 @@ class ToolRegistry:
 
     def get(self, name: str) -> ToolDefinition:
         """Get a tool definition by name."""
+        if not name:
+            raise ToolNotFoundError("Tool name is None or empty")
         if name not in self._tools:
-            raise ToolNotFoundError(f"Tool '{name}' not found. Available: {list(self._tools.keys())}")
+            raise ToolNotFoundError(
+                f"Tool '{name}' not found. Available: {list(self._tools.keys())}"
+            )
         return self._tools[name]
 
     async def execute(self, name: str, **kwargs: Any) -> Any:
@@ -125,6 +126,11 @@ class ToolRegistry:
             logger.debug(f"Tool '{name}' executed in {duration:.1f}ms")
             return result
 
+        except TypeError as e:
+            raise ToolExecutionError(
+                f"Tool '{name}' parameter error: {e}. "
+                f"Expected: {tool.parameters or 'see function signature'}"
+            ) from e
         except Exception as e:
             logger.error(f"Tool '{name}' failed: {e}")
             raise ToolExecutionError(f"Tool '{name}' execution failed: {e}") from e

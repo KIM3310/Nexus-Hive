@@ -1,14 +1,15 @@
 """Memory and Context Manager with short-term and long-term storage.
 
 Provides:
-- Short-term memory: per-request context that lives during a single agent run
+- Short-term memory: per-request context with TTL and automatic cleanup
 - Long-term memory: persistent knowledge that survives across runs
 - Conversation history tracking
-- Semantic retrieval (placeholder for vector DB integration)
+- Async-safe operations via asyncio.Lock
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -30,7 +31,7 @@ class MemoryEntry:
     value: Any
     created_at: float = field(default_factory=time.time)
     access_count: int = 0
-    ttl_seconds: float | None = None  # None = never expires
+    ttl_seconds: float | None = None
 
     @property
     def is_expired(self) -> bool:
@@ -44,13 +45,14 @@ class MemoryEntry:
 
 
 class MemoryManager:
-    """Dual-layer memory system for agent context management."""
+    """Async-safe dual-layer memory system for agent context management."""
 
     def __init__(self, persist_path: Path | None = None) -> None:
         self._short_term: dict[str, dict[str, MemoryEntry]] = defaultdict(dict)
         self._long_term: dict[str, MemoryEntry] = {}
         self._conversation_history: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self._persist_path = persist_path
+        self._lock = asyncio.Lock()
 
         if persist_path and persist_path.exists():
             self._load()
@@ -79,14 +81,32 @@ class MemoryManager:
     def get_request_context(self, request_id: str) -> dict[str, Any]:
         """Get all non-expired short-term memory for a request."""
         entries = self._short_term.get(request_id, {})
-        return {
-            k: e.value for k, e in entries.items() if not e.is_expired
-        }
+        return {k: e.value for k, e in entries.items() if not e.is_expired}
 
     def clear_request(self, request_id: str) -> None:
         """Clear all short-term memory for a request."""
         self._short_term.pop(request_id, None)
         self._conversation_history.pop(request_id, None)
+
+    def cleanup_expired(self) -> int:
+        """Remove all expired short-term entries. Returns count of removed entries."""
+        removed = 0
+        empty_requests: list[str] = []
+
+        for request_id, entries in self._short_term.items():
+            expired_keys = [k for k, e in entries.items() if e.is_expired]
+            for k in expired_keys:
+                del entries[k]
+                removed += 1
+            if not entries:
+                empty_requests.append(request_id)
+
+        for request_id in empty_requests:
+            del self._short_term[request_id]
+
+        if removed > 0:
+            logger.debug(f"Cleaned up {removed} expired memory entries")
+        return removed
 
     # --- Long-term memory (persistent) ---
 
@@ -105,10 +125,7 @@ class MemoryManager:
 
     def search_long_term(self, prefix: str) -> dict[str, Any]:
         """Search long-term memory by key prefix."""
-        return {
-            k: e.value for k, e in self._long_term.items()
-            if k.startswith(prefix)
-        }
+        return {k: e.value for k, e in self._long_term.items() if k.startswith(prefix)}
 
     # --- Conversation history ---
 
