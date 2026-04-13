@@ -76,7 +76,9 @@ async def run_agent_and_stream(question: str, request_id: str, graph, write_quer
                 yield f"data: {json.dumps({'type': 'log', 'content': item})}\n\n"
                 await asyncio.sleep(0.1)
     except asyncio.TimeoutError:
-        _logger.warning("Agent stream timed out after %ds for request_id=%s", _AGENT_TIMEOUT_SECONDS, request_id)
+        _logger.warning(
+            "Agent stream timed out after %ds for request_id=%s", _AGENT_TIMEOUT_SECONDS, request_id
+        )
         yield f"data: {json.dumps({'type': 'error', 'content': f'[System] Agent timed out after {_AGENT_TIMEOUT_SECONDS}s.'})}\n\n"
         yield 'data: {"type": "done"}\n\n'
         return

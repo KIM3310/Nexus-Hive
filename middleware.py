@@ -23,7 +23,9 @@ ALLOWED_ORIGINS = {
 ORIGIN_REGEX = r"^https://([a-z0-9-]+\.)?nexus-hive\.pages\.dev$"
 
 
-async def session_and_logging_middleware(request: Request, call_next, sync_audit_log_path, apply_operator_session_fn):
+async def session_and_logging_middleware(
+    request: Request, call_next, sync_audit_log_path, apply_operator_session_fn
+):
     """Middleware that propagates request IDs, applies operator sessions, and logs request lifecycle."""
     sync_audit_log_path()
     request_id: str = str(request.headers.get("x-request-id") or uuid4().hex[:12]).strip()

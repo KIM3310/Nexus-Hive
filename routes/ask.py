@@ -103,6 +103,8 @@ async def stream_endpoint(q: str, rid: Optional[str] = None):
 
     request_id = str(rid or uuid4().hex[:12]).strip()
     return StreamingResponse(
-        run_agent_and_stream(q, request_id=request_id, graph=_graph, write_query_audit_snapshot=_write_audit),
+        run_agent_and_stream(
+            q, request_id=request_id, graph=_graph, write_query_audit_snapshot=_write_audit
+        ),
         media_type="text/event-stream",
     )

@@ -64,9 +64,7 @@ async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest, request: R
 
     if runtime["moderationEnabled"]:
         await _mod_fn(api_key, json.dumps(payload, ensure_ascii=True))
-    live_summary = await _sum_fn(
-        api_key, str(runtime["liveModel"]), payload
-    )
+    live_summary = await _sum_fn(api_key, str(runtime["liveModel"]), payload)
     _config_module.LAST_OPENAI_LIVE_RUN_AT = utc_now_iso()
     append_runtime_event(
         {
