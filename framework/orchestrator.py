@@ -113,8 +113,7 @@ class Orchestrator:
 
         # Each agent gets a unique request_id to avoid memory conflicts
         tasks = [
-            agent.run(input_data, request_id=f"{base_req_id}:{agent.name}")
-            for agent in agents
+            agent.run(input_data, request_id=f"{base_req_id}:{agent.name}") for agent in agents
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

@@ -16,7 +16,6 @@ import sys
 import traceback
 
 from framework.memory import MemoryManager
-from framework.tools import ToolRegistry
 from framework.orchestrator import Orchestrator, OrchestrationError
 
 
@@ -108,7 +107,7 @@ async def cmd_ask(orchestrator: Orchestrator, args: argparse.Namespace) -> None:
 
     print(f"\nExecution: {' -> '.join(result.execution_order)}")
     print(f"Steps: {result.total_steps} | Elapsed: {result.elapsed_ms:.0f}ms")
-    print(f"\nOutputs:")
+    print("\nOutputs:")
     for agent_name, output in result.outputs.items():
         print(f"  [{agent_name}]: {json.dumps(output, default=str, ensure_ascii=False)[:200]}")
 

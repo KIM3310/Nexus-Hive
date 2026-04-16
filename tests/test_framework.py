@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 import time
-from pathlib import Path
 from typing import Any
 
 from framework.agent import BaseAgent, AgentContext, AgentStatus, StepResult
@@ -14,6 +13,7 @@ from framework.orchestrator import Orchestrator, OrchestrationError
 
 
 # --- Test Agent Implementations ---
+
 
 class EchoAgent(BaseAgent):
     async def step(self, context: AgentContext, input_data: Any) -> StepResult:
@@ -38,6 +38,7 @@ class ToolUsingAgent(BaseAgent):
 
 class BadToolAgent(BaseAgent):
     """Agent with malformed tool calls."""
+
     async def step(self, context: AgentContext, input_data: Any) -> StepResult:
         return StepResult(
             output=input_data,
@@ -52,6 +53,7 @@ class FailingAgent(BaseAgent):
 
 
 # === Tool Registry Tests ===
+
 
 class TestToolRegistry:
     def test_register_and_get(self):
@@ -132,13 +134,16 @@ class TestToolRegistry:
 
     def test_list_schemas(self):
         registry = ToolRegistry()
-        registry.register("search", lambda q: q, description="Search", parameters={"q": {"type": "string"}})
+        registry.register(
+            "search", lambda q: q, description="Search", parameters={"q": {"type": "string"}}
+        )
         schemas = registry.list_schemas()
         assert len(schemas) == 1
         assert schemas[0]["name"] == "search"
 
 
 # === Memory Manager Tests ===
+
 
 class TestMemoryManager:
     def test_short_term_store_and_get(self):
@@ -227,6 +232,7 @@ class TestMemoryManager:
 
 # === Agent Tests ===
 
+
 class TestBaseAgent:
     @pytest.mark.asyncio
     async def test_echo_agent(self):
@@ -294,10 +300,12 @@ class TestBaseAgent:
     @pytest.mark.asyncio
     async def test_failed_agent_can_run_again(self):
         """After failure, agent should be able to run fresh."""
+
         class MaybeFail(BaseAgent):
             def __init__(self, *args, should_fail=True, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.should_fail = should_fail
+
             async def step(self, ctx, data):
                 if self.should_fail:
                     raise RuntimeError("fail")
@@ -315,6 +323,7 @@ class TestBaseAgent:
 
 
 # === Orchestrator Tests ===
+
 
 class TestOrchestrator:
     @pytest.mark.asyncio
@@ -399,7 +408,7 @@ class TestOrchestrator:
         orch = Orchestrator(memory=mem)
         orch.register(EchoAgent(name="a1"))
         orch.register(EchoAgent(name="a2"))
-        result = await orch.run_parallel("data", request_id="req1")
+        await orch.run_parallel("data", request_id="req1")
         # Each agent should have its own namespaced memory
         assert mem.get_short_term("req1:a1", "a1:output") is not None
         assert mem.get_short_term("req1:a2", "a2:output") is not None

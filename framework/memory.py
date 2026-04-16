@@ -68,7 +68,9 @@ class MemoryManager:
     ) -> None:
         """Store a value in short-term memory for a specific request."""
         self._short_term[request_id][key] = MemoryEntry(
-            key=key, value=value, ttl_seconds=ttl_seconds,
+            key=key,
+            value=value,
+            ttl_seconds=ttl_seconds,
         )
 
     def get_short_term(self, request_id: str, key: str) -> Any | None:
@@ -137,12 +139,14 @@ class MemoryManager:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Add a message to conversation history."""
-        self._conversation_history[request_id].append({
-            "role": role,
-            "content": content,
-            "timestamp": time.time(),
-            **(metadata or {}),
-        })
+        self._conversation_history[request_id].append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": time.time(),
+                **(metadata or {}),
+            }
+        )
 
     def get_history(self, request_id: str, last_n: int | None = None) -> list[dict[str, Any]]:
         """Get conversation history for a request."""
