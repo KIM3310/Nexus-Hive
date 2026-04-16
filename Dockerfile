@@ -11,9 +11,14 @@ COPY graph ./graph
 COPY policy ./policy
 COPY routes ./routes
 COPY frontend ./frontend
-COPY nexus_enterprise.db ./nexus_enterprise.db
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Seed the local SQLite demo database as part of the image build so
+# the container is self-contained. nexus_enterprise.db is gitignored
+# (it's a generated runtime artifact), so we regenerate it at build
+# time from seed_db.py rather than shipping the 3MB binary through git.
+RUN python seed_db.py
 
 ENV PORT=8000
 
