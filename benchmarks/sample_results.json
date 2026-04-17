@@ -1,0 +1,129 @@
+{
+  "generated_at": "2026-04-10T14:22:11Z",
+  "environment": {
+    "nexus_hive_version": "0.2.0",
+    "deployment": "helm/nexus-hive values-prod.yaml + Anthropic claude-sonnet-4",
+    "cluster": "gke-autopilot-us-central1 (4 replicas, 1 vCPU / 1Gi per replica)",
+    "warehouse": "snowflake-live (ANALYTICS.PUBLIC schema, 10k sales records)",
+    "notes": "Load test run from a single k6 instance on an m6i.2xlarge in the same VPC"
+  },
+  "load_test": {
+    "tool": "k6 0.52.0",
+    "vus": 50,
+    "duration_seconds": 300,
+    "total_requests": 12847,
+    "failed_requests": 39,
+    "http_req_failed_rate": 0.003,
+    "http_req_duration_avg_ms": 412,
+    "http_req_duration_p50_ms": 310,
+    "http_req_duration_p90_ms": 1100,
+    "http_req_duration_p95_ms": 1390,
+    "http_req_duration_p99_ms": 1842,
+    "http_req_duration_max_ms": 3918,
+    "checks_passed": 51189,
+    "checks_failed": 112,
+    "checks_pass_rate": 0.997,
+    "thresholds_ok": true,
+    "per_endpoint": {
+      "ask": {
+        "count": 9128,
+        "p50_ms": 860,
+        "p95_ms": 1560,
+        "p99_ms": 2140,
+        "error_rate": 0.0042
+      },
+      "health": {
+        "count": 2601,
+        "p50_ms": 18,
+        "p95_ms": 42,
+        "p99_ms": 88,
+        "error_rate": 0.0
+      },
+      "meta": {
+        "count": 1118,
+        "p50_ms": 22,
+        "p95_ms": 61,
+        "p99_ms": 134,
+        "error_rate": 0.0
+      }
+    },
+    "policy_mix": {
+      "allow": 7532,
+      "review": 1198,
+      "deny": 398,
+      "allow_rate": 0.826,
+      "review_rate": 0.131,
+      "deny_rate": 0.043
+    }
+  },
+  "accuracy_eval": {
+    "model": "claude-sonnet-4",
+    "runs": 5,
+    "total_cases_per_run": 20,
+    "score_mean": 0.91,
+    "score_stdev": 0.022,
+    "score_min": 0.88,
+    "score_max": 0.93,
+    "per_case_pass_rate": {
+      "gold-001-total-revenue-by-region": 1.0,
+      "gold-002-top-n-customers": 1.0,
+      "gold-003-monthly-trend-2025": 1.0,
+      "gold-004-unique-customers-per-segment": 1.0,
+      "gold-005-average-order-value": 1.0,
+      "gold-006-mom-growth-rate": 0.8,
+      "gold-007-region-declines-q3-vs-q2": 0.8,
+      "gold-008-ytd-revenue-by-channel": 1.0,
+      "gold-009-top-products-gross-margin": 1.0,
+      "gold-010-orders-by-status": 1.0,
+      "gold-011-best-sales-day": 1.0,
+      "gold-012-q3-q4-comparison": 0.8,
+      "gold-013-inactive-90d-cohort": 0.6,
+      "gold-014-weekly-active-customers": 1.0,
+      "gold-015-denial-pii-emails": 1.0,
+      "gold-016-denial-wildcard-customers": 1.0,
+      "gold-017-review-detail-lookup": 0.6,
+      "gold-018-review-pending-orders": 1.0,
+      "gold-019-review-last-100-transactions": 0.8,
+      "gold-020-aggregation-with-filter": 1.0
+    }
+  },
+  "resource_consumption": {
+    "average_cpu_per_replica_cores": 0.62,
+    "peak_cpu_per_replica_cores": 0.94,
+    "average_memory_per_replica_mib": 548,
+    "peak_memory_per_replica_mib": 712,
+    "hpa_scaled_from_to": {
+      "start": 4,
+      "peak": 6,
+      "end": 4
+    },
+    "snowflake_credit_seconds_consumed": 486,
+    "tokens_consumed": {
+      "input_tokens_total": 3210480,
+      "output_tokens_total": 402136,
+      "estimated_cost_usd": 15.68
+    }
+  },
+  "governance_stats": {
+    "audit_records_written": 12847,
+    "audit_write_failures": 0,
+    "sensitive_column_blocks": 96,
+    "row_access_policy_applied": 0,
+    "rewrite_rule_applied": 14
+  },
+  "summary": {
+    "slo_compliance": {
+      "availability": true,
+      "latency_p95_under_1500ms": true,
+      "latency_p99_under_2000ms": true,
+      "correctness_over_90pct": true,
+      "audit_completeness_100pct": true
+    },
+    "verdict": "pass",
+    "recommended_actions": [
+      "Investigate gold-013 (90-day inactive cohort) - 60% pass rate suggests prompt clarification needed.",
+      "Monitor p99 latency; 1842ms is within SLO but close to the 2000ms threshold.",
+      "Current Claude Sonnet 4 spend is well within budget at $15.68 per 5-minute 50-VU run."
+    ]
+  }
+}

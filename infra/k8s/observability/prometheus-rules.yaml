@@ -1,0 +1,126 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nexus-hive-slo
+  namespace: analytics
+  labels:
+    app.kubernetes.io/name: nexus-hive
+    app.kubernetes.io/part-of: nexus-hive
+    release: kube-prometheus-stack
+    nexus-hive.io/slo-tier: "tier-1"
+spec:
+  groups:
+    # Recording rules: expensive aggregations materialized at a longer step.
+    - name: nexus-hive.recording
+      interval: 30s
+      rules:
+        - record: nexus_hive:request_rate:5m
+          expr: sum by (pod, route, method) (rate(nexus_hive_requests_total[5m]))
+        - record: nexus_hive:error_rate:5m
+          expr: |
+            sum by (pod) (rate(nexus_hive_requests_total{status=~"5.."}[5m]))
+              /
+            sum by (pod) (rate(nexus_hive_requests_total[5m]))
+        - record: nexus_hive:request_latency_p99:5m
+          expr: |
+            histogram_quantile(
+              0.99,
+              sum by (le, route) (rate(nexus_hive_request_duration_seconds_bucket[5m]))
+            )
+        - record: nexus_hive:sql_execution_error_rate:5m
+          expr: |
+            sum (rate(nexus_hive_sql_execution_total{status="error"}[5m]))
+              /
+            sum (rate(nexus_hive_sql_execution_total[5m]))
+
+    # SLO alerts. Burn-rate-based alerting for the 99.5% availability SLO.
+    - name: nexus-hive.slo
+      rules:
+        - alert: NexusHiveHighErrorRate
+          expr: nexus_hive:error_rate:5m > 0.05
+          for: 10m
+          labels:
+            severity: page
+            service: nexus-hive
+            slo: availability
+          annotations:
+            summary: "Nexus-Hive 5xx error rate above 5% for 10 minutes"
+            description: |
+              Pod {{ $labels.pod }} is returning 5xx responses at
+              {{ $value | humanizePercentage }}. Check logs:
+              kubectl -n analytics logs deploy/nexus-hive --tail=200
+            runbook_url: "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/incident-response.md#high-error-rate"
+
+        - alert: NexusHiveHighLatency
+          expr: nexus_hive:request_latency_p99:5m > 2
+          for: 15m
+          labels:
+            severity: ticket
+            service: nexus-hive
+            slo: latency
+          annotations:
+            summary: "Nexus-Hive p99 latency exceeds 2s"
+            description: |
+              p99 latency for route {{ $labels.route }} is
+              {{ $value | humanizeDuration }}. Typical causes: warehouse
+              slow query, LLM cold start, or HPA throttling.
+            runbook_url: "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/incident-response.md#high-latency"
+
+        - alert: NexusHiveCircuitBreakerOpen
+          expr: max_over_time(nexus_hive_circuit_breaker_state{state="open"}[5m]) == 1
+          for: 5m
+          labels:
+            severity: ticket
+            service: nexus-hive
+            slo: availability
+          annotations:
+            summary: "Nexus-Hive circuit breaker has been open 5+ minutes"
+            description: |
+              The circuit breaker guarding LLM calls is OPEN. All SQL
+              generation is using heuristic fallback. Check Ollama health.
+            runbook_url: "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/incident-response.md#circuit-breaker-open"
+
+        - alert: NexusHiveSqlExecutionErrors
+          expr: nexus_hive:sql_execution_error_rate:5m > 0.1
+          for: 10m
+          labels:
+            severity: ticket
+            service: nexus-hive
+            slo: correctness
+          annotations:
+            summary: "SQL execution failing >10% over 10 minutes"
+            description: |
+              {{ $value | humanizePercentage }} of SQL executions failed.
+              Likely warehouse connectivity or policy engine misconfiguration.
+
+        - alert: NexusHivePodRestartsHigh
+          expr: |
+            sum by (pod) (
+              rate(kube_pod_container_status_restarts_total{namespace="analytics", pod=~"nexus-hive-.*"}[15m])
+            ) > 0.1
+          for: 15m
+          labels:
+            severity: ticket
+            service: nexus-hive
+          annotations:
+            summary: "Nexus-Hive pod restarting repeatedly"
+            description: |
+              Pod {{ $labels.pod }} has restarted multiple times in the
+              last 15 minutes. Check liveness probe failures and OOMKills.
+
+        - alert: NexusHiveAuditWriteStalled
+          expr: |
+            (time() - max(nexus_hive_audit_last_write_timestamp_seconds)) > 300
+            and
+            max(rate(nexus_hive_requests_total[5m])) > 0
+          for: 5m
+          labels:
+            severity: page
+            service: nexus-hive
+            slo: audit
+          annotations:
+            summary: "Audit trail has not been written to for 5+ minutes"
+            description: |
+              Traffic is flowing but the audit trail has stalled. This is
+              a governance violation - investigate immediately.
+            runbook_url: "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/incident-response.md#audit-write-stalled"

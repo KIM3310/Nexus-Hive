@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nexus-hive.fullname" . }}
+  labels:
+    {{- include "nexus-hive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+  selector:
+    {{- include "nexus-hive.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+{{- if .Values.ollama.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nexus-hive.fullname" . }}-ollama
+  labels:
+    {{- include "nexus-hive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  type: ClusterIP
+  ports:
+    - name: ollama
+      port: {{ .Values.ollama.service.port }}
+      targetPort: ollama
+      protocol: TCP
+  selector:
+    {{- include "nexus-hive.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+{{- end }}

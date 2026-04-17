@@ -1,33 +1,30 @@
+# Root composition for Nexus-Hive on GCP Cloud Run.
+# Actual resources are split across files for enterprise maintainability:
+#   cloud-run.tf  - Cloud Run service + VPC connector + revision settings
+#   secrets.tf    - Secret Manager entries for warehouse credentials
+#   iam.tf        - Service account + IAM bindings + Workload Identity
+#   monitoring.tf - Uptime checks, log-based metrics, alerting policies
+
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
-resource "google_cloud_run_v2_service" "this" {
-  name     = var.service_name
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
-
-  template {
-    scaling {
-      min_instance_count = 0
-      max_instance_count = 3
-    }
-
-    containers {
-      image = var.image
-
-      ports {
-        container_port = 8000
-      }
-
-      dynamic "env" {
-        for_each = var.env
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-    }
-  }
+# Enabling required APIs is kept explicit so `terraform apply` works on a
+# fresh project. Cloud Run, Secret Manager, IAM, Monitoring, Logging, and
+# VPC Access APIs are all enabled up-front.
+resource "google_project_service" "required" {
+  for_each = toset([
+    "run.googleapis.com",
+    "iam.googleapis.com",
+    "secretmanager.googleapis.com",
+    "monitoring.googleapis.com",
+    "logging.googleapis.com",
+    "vpcaccess.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+  ])
+  project                    = var.project_id
+  service                    = each.value
+  disable_on_destroy         = false
+  disable_dependent_services = false
 }

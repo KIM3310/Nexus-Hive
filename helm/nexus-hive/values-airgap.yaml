@@ -1,0 +1,100 @@
+# values-airgap.yaml
+# Overrides for air-gapped deployments.
+# Usage:
+#   helm upgrade --install nexus-hive helm/nexus-hive \
+#     -f helm/nexus-hive/values.yaml \
+#     -f helm/nexus-hive/values-airgap.yaml
+
+image:
+  # Use the internal mirror. Override with --set image.repository=... in CI.
+  repository: registry.internal.corp/nexus-hive/app
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: corp-registry-pull
+
+replicaCount: 3
+
+# No internet egress: external LLM providers are disabled, only the in-cluster
+# Ollama sidecar is used.
+env:
+  NEXUS_HIVE_ENV: airgap
+  NEXUS_HIVE_LLM_PROVIDER: ollama
+  NEXUS_HIVE_ALLOW_EXTERNAL_LLM: "false"
+  OLLAMA_HOST: "http://127.0.0.1:11434"
+  OLLAMA_MODEL: phi3
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4317
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=analytics,service.version=0.2.0,deployment.environment=airgap
+
+# Enforce strict egress restrictions. Only in-cluster traffic is permitted.
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          networking.nexus-hive.io/ingress: "true"
+  egressTo:
+    # DNS only
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # OTEL collector
+    - ports:
+        - port: 4317
+          protocol: TCP
+    # Warehouse (on-prem Snowflake-equivalent / Databricks-equivalent) - override via -f overrides
+    - ports:
+        - port: 443
+          protocol: TCP
+      to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+
+# Air-gap always runs its own Ollama sidecar for reproducible inference.
+ollama:
+  enabled: true
+  model: phi3
+  persistence:
+    enabled: true
+    size: 40Gi
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 12Gi
+
+# External secrets are usually injected via a cluster-internal Vault in airgap.
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    name: corp-vault
+    kind: ClusterSecretStore
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 65
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 1500m
+    memory: 2Gi
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: corp-monitoring
+
+prometheusRule:
+  enabled: true
+  additionalLabels:
+    release: corp-monitoring

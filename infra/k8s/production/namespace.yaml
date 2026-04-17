@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+  labels:
+    name: analytics
+    app.kubernetes.io/name: nexus-hive
+    app.kubernetes.io/part-of: nexus-hive
+    # Pod Security Standards (Kubernetes 1.25+).
+    # See: https://kubernetes.io/docs/concepts/security/pod-security-standards/
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    # Marker for NetworkPolicy consumers that allow ingress into this namespace.
+    networking.nexus-hive.io/ingress: "true"
+  annotations:
+    field.cattle.io/description: "Nexus-Hive production namespace - governed analytics copilot"
+    nexus-hive.io/owner: "platform-analytics@example.com"
+    nexus-hive.io/slo-tier: "tier-1"

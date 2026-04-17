@@ -1,0 +1,121 @@
+# values-prod.yaml
+# Production overrides. Use with:
+#   helm upgrade --install nexus-hive helm/nexus-hive \
+#     -f helm/nexus-hive/values.yaml \
+#     -f helm/nexus-hive/values-prod.yaml
+
+replicaCount: 4
+
+image:
+  pullPolicy: IfNotPresent
+  # tag is pinned from CI; do not use :latest in prod.
+  tag: "0.2.0"
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 4
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Spread pods across zones for HA.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: nexus-hive
+
+# Strict security context: drop all caps, read-only rootfs.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "50"
+  hosts:
+    - host: nexus-hive.prod.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - nexus-hive.prod.example.com
+      secretName: nexus-hive-tls-prod
+
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+
+env:
+  NEXUS_HIVE_ENV: production
+  LOG_LEVEL: INFO
+  UVICORN_WORKERS: "4"
+  NEXUS_HIVE_POLICY_PROFILE: "strict"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4317
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=analytics,service.version=0.2.0,deployment.environment=production
+
+externalSecrets:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  scrapeTimeout: 10s
+
+prometheusRule:
+  enabled: true
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: nexus-hive-prod@acme-analytics.iam.gserviceaccount.com
+
+# Production does not run its own Ollama; uses Claude/remote provider via gateway.
+ollama:
+  enabled: false

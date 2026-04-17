@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexus-hive-allow-ingress
+  namespace: analytics
+  labels:
+    app.kubernetes.io/name: nexus-hive
+    app.kubernetes.io/part-of: nexus-hive
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexus-hive
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from nginx-ingress controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - port: 8000
+          protocol: TCP
+
+    # Allow internal tools (Argo CD, backstage) to hit the health endpoint.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argocd
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: backstage
+      ports:
+        - port: 8000
+          protocol: TCP
+
+    # Allow Prometheus scraping.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: 8000
+          protocol: TCP
+          # Metrics are served at /metrics on the main port.

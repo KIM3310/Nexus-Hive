@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nexus-hive
+  namespace: analytics
+  labels:
+    app.kubernetes.io/name: nexus-hive
+    app.kubernetes.io/part-of: nexus-hive
+    # kube-prometheus-stack uses the release label to select ServiceMonitors.
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexus-hive
+      app.kubernetes.io/component: api
+  namespaceSelector:
+    matchNames:
+      - analytics
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+      scheme: http
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          targetLabel: instance
+        - action: replace
+          targetLabel: service
+          replacement: nexus-hive
+      metricRelabelings:
+        # Drop noisy OTel / gRPC metrics at scrape time to control Prometheus cardinality.
+        - sourceLabels: [__name__]
+          regex: "otelcol_.*|grpc_server_.*"
+          action: drop

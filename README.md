@@ -231,6 +231,109 @@ docker compose up app
 
 ---
 
+## Enterprise Deployment
+
+Production-grade overlays for regulated and high-scale environments.
+
+### Helm chart
+
+A full Helm chart lives at `helm/nexus-hive/` with three value overlays:
+
+```bash
+# Default / dev-staging
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace
+
+# Production: HPA, PDB, NetworkPolicy, ServiceMonitor, external secrets, HA spread
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace \
+  -f helm/nexus-hive/values.yaml \
+  -f helm/nexus-hive/values-prod.yaml \
+  --set image.tag=0.2.0
+
+# Air-gapped: Ollama sidecar, no external LLM, internal registry only
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace \
+  -f helm/nexus-hive/values.yaml \
+  -f helm/nexus-hive/values-airgap.yaml
+```
+
+See `helm/nexus-hive/README.md` for the full values reference.
+
+### Kubernetes production baseline
+
+`infra/k8s/production/` ships a hardened namespace baseline: Pod Security
+Standards (`restricted`), ResourceQuota, LimitRange, default-deny
+NetworkPolicy, and scoped allow policies for ingress and warehouse egress.
+
+`infra/k8s/observability/` ships a `ServiceMonitor` and `PrometheusRule`
+set with SLO-grade alerts (error rate, p99 latency, circuit breaker,
+audit-write stall).
+
+### Terraform for GCP Cloud Run
+
+`infra/terraform/` provisions Cloud Run v2 with Secret Manager, Workload
+Identity, VPC connector, uptime checks, and log-based alerting. See
+`infra/terraform/README.md` for the variable and output tables.
+
+### Runbooks
+
+Five step-by-step runbooks live at `docs/runbooks/`:
+
+| Runbook | Use when |
+|---|---|
+| [`production-deploy.md`](docs/runbooks/production-deploy.md) | First production rollout (60 min) |
+| [`airgap-deploy.md`](docs/runbooks/airgap-deploy.md) | Deploying to a restricted / offline cluster (3 hr) |
+| [`incident-response.md`](docs/runbooks/incident-response.md) | On-call response to alerts, SEV levels, AegisOps handoff |
+| [`schema-evolution.md`](docs/runbooks/schema-evolution.md) | Evolving the governed schema without breaking queries |
+| [`model-swap.md`](docs/runbooks/model-swap.md) | Swapping phi3 to llama3 to Claude without downtime |
+
+---
+
+## Customer Stories
+
+Narrative case studies written as SE-style handouts. Composites drawn from
+common patterns; numbers illustrative.
+
+| Story | Vertical | Deployment shape | Headline outcome |
+|---|---|---|---|
+| [Acme Finance](docs/customer-stories/acme-finance-narrative.md) | Financial services | GKE + Snowflake, SSO, Prometheus | Dashboard lead time 3 days -> 6 hours (-94%), 85% of queries self-served |
+| [Northstar Health](docs/customer-stories/regulated-healthcare-narrative.md) | Regulated healthcare | Airgapped AKS + Databricks, HIPAA BAA | Bespoke analytics turnaround 9 days -> 1 day (-89%), zero PHI incidents across 180 days |
+
+Each story walks through the problem, the 90- or 180-day rollout, the
+policy-tuning decisions, and the specific lessons that fed back into the
+product. Designed for SE discovery + pre-sales handoff.
+
+---
+
+## Benchmarks
+
+`benchmarks/` contains reproducible performance and accuracy tests.
+
+- `benchmarks/load_test.js` - k6 script, 50 VUs x 5 min with governed
+  question mix, thresholds gated on p95/p99 latency and checks pass rate.
+- `benchmarks/agent_accuracy_eval.py` - runs the gold eval suite N times
+  and renders a per-case accuracy chart.
+- `benchmarks/sample_results.json` - realistic run output.
+
+### Sample run (from `sample_results.json`)
+
+| Metric | Value |
+|---|---|
+| VUs / duration | 50 / 5 min |
+| Total requests | 12,847 |
+| Failed request rate | 0.3% |
+| `http_req_duration` p95 | 1,390 ms |
+| `http_req_duration` p99 | 1,842 ms |
+| Policy allow / review / deny | 82.6% / 13.1% / 4.3% |
+| Gold eval score (mean of 5 runs, Claude Sonnet 4) | 0.91 |
+| Gold eval score stdev | 0.022 |
+| SLO compliance | pass |
+
+See `benchmarks/README.md` for the full usage and CI integration recipe.
+
+---
+
 ## Project Structure
 
 ```
@@ -277,6 +380,8 @@ Nexus-Hive/
 |---------|-------------|
 | [lakehouse-contract-lab](https://github.com/KIM3310/lakehouse-contract-lab) | Data pipeline that feeds Nexus-Hive's warehouse |
 | [enterprise-llm-adoption-kit](https://github.com/KIM3310/enterprise-llm-adoption-kit) | Enterprise LLM governance patterns |
+| [agent-orchestration-benchmark](https://github.com/KIM3310/agent-orchestration-benchmark) | Comparative benchmarks for multi-agent orchestration frameworks (LangGraph, CrewAI, custom) |
+| [llm-onprem-deployment-kit](https://github.com/KIM3310/llm-onprem-deployment-kit) | Reference deployment kit for airgapped / on-prem LLM serving, reused by Nexus-Hive's airgap overlay |
 
 ---
 

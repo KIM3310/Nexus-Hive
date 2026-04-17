@@ -1,0 +1,73 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nexus-hive-allow-warehouse-egress
+  namespace: analytics
+  labels:
+    app.kubernetes.io/name: nexus-hive
+    app.kubernetes.io/part-of: nexus-hive
+  annotations:
+    nexus-hive.io/policy-tier: "workload"
+    nexus-hive.io/description: |
+      Outbound traffic required for Nexus-Hive to reach Snowflake, Databricks,
+      and internal observability collectors. DNS is handled separately in
+      networkpolicy-default-deny.yaml.
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nexus-hive
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Egress
+  egress:
+    # Snowflake + Databricks + any cloud warehouse over TLS.
+    # CIDRs are a superset of Snowflake regions; restrict via a
+    # private endpoint / PrivateLink in locked-down environments.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - port: 443
+          protocol: TCP
+
+    # OTEL collector (observability namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-collector
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+
+    # Loki / Fluent Bit log sink.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: loki
+      ports:
+        - port: 3100
+          protocol: TCP
+
+    # Intra-namespace Ollama sidecar communication.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexus-hive
+              app.kubernetes.io/component: ollama
+      ports:
+        - port: 11434
+          protocol: TCP

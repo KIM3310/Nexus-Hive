@@ -1,0 +1,35 @@
+apiVersion: v2
+name: nexus-hive
+description: |
+  Multi-agent NL-to-SQL copilot with governed analytics, audit trails, and
+  multi-warehouse support. Deploys the FastAPI + LangGraph runtime with
+  policy engine, circuit-breakered LLM calls, and optional Ollama sidecar.
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+kubeVersion: ">=1.26.0-0"
+keywords:
+  - nl2sql
+  - langgraph
+  - analytics
+  - governance
+  - snowflake
+  - databricks
+  - ollama
+  - ai-agents
+home: https://github.com/KIM3310/Nexus-Hive
+sources:
+  - https://github.com/KIM3310/Nexus-Hive
+maintainers:
+  - name: Doeon Kim
+    url: https://github.com/KIM3310
+annotations:
+  artifacthub.io/changes: |
+    - Initial enterprise Helm chart for Nexus-Hive 0.2.0
+    - Adds HPA, PDB, NetworkPolicy, ServiceMonitor, ExternalSecret support
+    - Ships airgap + production values overlays
+  artifacthub.io/license: MIT
+  artifacthub.io/maintainers: |
+    - name: Doeon Kim
+      email: doeon@example.com
+icon: https://avatars.githubusercontent.com/u/0?s=200&v=4

@@ -1,0 +1,356 @@
+# Default values for nexus-hive.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Override the default release name (resource name prefix).
+nameOverride: ""
+# -- Fully override the full name (overrides both release and chart name).
+fullnameOverride: ""
+
+# -- Image settings for the Nexus-Hive FastAPI runtime container.
+image:
+  repository: ghcr.io/kim3310/nexus-hive
+  # -- Image tag; defaults to the chart appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# -- Secrets used to pull the image from a private registry.
+imagePullSecrets: []
+# - name: ghcr-pull-secret
+
+# -- Number of replicas when autoscaling is disabled.
+replicaCount: 2
+
+# -- Strategy for rolling updates.
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+# -- Pod-level security context.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+# -- Annotations applied to each pod (useful for pod-level metrics scraping hints).
+podAnnotations: {}
+
+# -- Labels applied to each pod in addition to chart selector labels.
+podLabels: {}
+
+# -- Node selector rules for pod scheduling.
+nodeSelector: {}
+
+# -- Pod tolerations.
+tolerations: []
+
+# -- Pod affinity rules. Defaults to soft anti-affinity across hostnames for HA.
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexus-hive
+          topologyKey: kubernetes.io/hostname
+
+# -- Topology spread constraints for multi-zone HA.
+topologySpreadConstraints: []
+# - maxSkew: 1
+#   topologyKey: topology.kubernetes.io/zone
+#   whenUnsatisfiable: ScheduleAnyway
+#   labelSelector:
+#     matchLabels:
+#       app.kubernetes.io/name: nexus-hive
+
+# -- Termination grace period in seconds. Long enough for in-flight SSE streams to flush.
+terminationGracePeriodSeconds: 60
+
+# -- Service account for the Nexus-Hive pods.
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# -- RBAC role + rolebinding for Nexus-Hive. Required when ingress controllers or
+#    sidecars need to look up endpoints or configmaps owned by the release.
+rbac:
+  create: true
+  # -- Extra rules appended to the default role. Empty by default.
+  extraRules: []
+
+# -- Kubernetes Service configuration.
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  annotations: {}
+  # -- Loadbalancer source ranges when service.type=LoadBalancer.
+  loadBalancerSourceRanges: []
+
+# -- Ingress configuration. Disabled by default; prefer Service + Gateway/IngressController.
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+  hosts:
+    - host: nexus-hive.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - hosts:
+  #     - nexus-hive.example.com
+  #   secretName: nexus-hive-tls
+
+# -- Horizontal Pod Autoscaler.
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  # -- Optional custom metrics (requires metrics adapter).
+  customMetrics: []
+
+# -- PodDisruptionBudget settings.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # -- Use maxUnavailable instead if set; leave null to use minAvailable.
+  maxUnavailable: null
+
+# -- NetworkPolicy settings. Disabled by default to avoid accidental lockouts.
+networkPolicy:
+  enabled: true
+  # -- Allow ingress traffic from these labels.
+  ingressFrom:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
+    - namespaceSelector:
+        matchLabels:
+          networking.nexus-hive.io/ingress: "true"
+  # -- Egress allow-list. Empty means egress is not restricted.
+  egressTo:
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Snowflake / Databricks HTTPS
+    - ports:
+        - port: 443
+          protocol: TCP
+      to:
+        - namespaceSelector: {}
+    # Ollama sidecar
+    - ports:
+        - port: 11434
+          protocol: TCP
+
+# -- Resources for the main container.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# -- Environment variables for the Nexus-Hive runtime.
+env:
+  # Core runtime
+  LOG_LEVEL: INFO
+  NEXUS_HIVE_ENV: production
+  UVICORN_WORKERS: "2"
+  UVICORN_HOST: "0.0.0.0"
+  UVICORN_PORT: "8000"
+
+  # LLM routing
+  OLLAMA_HOST: "http://nexus-hive-ollama:11434"
+  OLLAMA_MODEL: phi3
+  NEXUS_HIVE_LLM_PROVIDER: ollama
+
+  # Warehouse selection (set empty by default; populated via secrets or env overrides)
+  SNOWFLAKE_ACCOUNT: ""
+  SNOWFLAKE_USER: ""
+  SNOWFLAKE_DATABASE: "ANALYTICS"
+  SNOWFLAKE_WAREHOUSE: ""
+  SNOWFLAKE_ROLE: ""
+  DATABRICKS_HOST: ""
+  DATABRICKS_WAREHOUSE_ID: ""
+  DATABRICKS_AUTH_TYPE: "databricks-cli"
+
+  # OpenTelemetry
+  OTEL_SERVICE_NAME: nexus-hive
+  OTEL_TRACES_EXPORTER: otlp
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4317
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=analytics,service.version=0.2.0
+
+# -- Environment variables sourced from existing secrets.
+envFromSecrets: []
+# - name: SNOWFLAKE_PASSWORD
+#   secretName: nexus-hive-snowflake
+#   key: password
+# - name: DATABRICKS_TOKEN
+#   secretName: nexus-hive-databricks
+#   key: token
+
+# -- External secret integration (External Secrets Operator).
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: default
+    kind: ClusterSecretStore
+  # Secret keys to project into the pod. Each item becomes an ExternalSecret resource.
+  items:
+    - name: nexus-hive-snowflake
+      remoteKeys:
+        SNOWFLAKE_PASSWORD: kv/data/nexus-hive/snowflake#password
+        SNOWFLAKE_USER: kv/data/nexus-hive/snowflake#user
+    - name: nexus-hive-databricks
+      remoteKeys:
+        DATABRICKS_TOKEN: kv/data/nexus-hive/databricks#token
+
+# -- Additional ConfigMap data.
+config:
+  NEXUS_HIVE_POLICY_PROFILE: "strict"
+  NEXUS_HIVE_AUDIT_PATH: "/var/log/nexus-hive/audit.jsonl"
+  NEXUS_HIVE_RETRY_BUDGET: "3"
+
+# -- Persistent volume for audit trails. Off by default (stdout-only audit is fine for most).
+persistence:
+  enabled: false
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  mountPath: /var/log/nexus-hive
+
+# -- Liveness and readiness probes.
+probes:
+  liveness:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 2
+  startup:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 30
+
+# -- ServiceMonitor for kube-prometheus-stack / Prometheus Operator.
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /metrics
+  additionalLabels:
+    release: kube-prometheus-stack
+
+# -- PrometheusRule (alert and recording rules) for Prometheus Operator.
+prometheusRule:
+  enabled: false
+  additionalLabels:
+    release: kube-prometheus-stack
+  rules:
+    - alert: NexusHiveHighErrorRate
+      expr: |
+        sum by (pod) (rate(nexus_hive_requests_total{status=~"5.."}[5m]))
+          /
+        sum by (pod) (rate(nexus_hive_requests_total[5m])) > 0.05
+      for: 10m
+      labels:
+        severity: page
+      annotations:
+        summary: "Nexus-Hive 5xx rate >5% for 10 minutes"
+    - alert: NexusHiveHighLatency
+      expr: histogram_quantile(0.99, sum(rate(nexus_hive_request_duration_seconds_bucket[5m])) by (le)) > 2.0
+      for: 15m
+      labels:
+        severity: ticket
+      annotations:
+        summary: "Nexus-Hive p99 latency >2s for 15 minutes"
+    - alert: NexusHiveCircuitBreakerOpen
+      expr: max_over_time(nexus_hive_circuit_breaker_state{state="open"}[5m]) == 1
+      for: 5m
+      labels:
+        severity: ticket
+      annotations:
+        summary: "Nexus-Hive circuit breaker has been open for 5+ minutes"
+
+# -- Optional Ollama sidecar inside the same release for airgap / self-hosted inference.
+ollama:
+  enabled: false
+  image:
+    repository: ollama/ollama
+    tag: "0.3.12"
+    pullPolicy: IfNotPresent
+  model: phi3
+  # -- Persist model weights across restarts.
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+  service:
+    port: 11434
+
+# -- OpenTelemetry collector sidecar. Disabled by default; prefer a cluster-wide collector.
+otelSidecar:
+  enabled: false
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.109.0"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
