@@ -14,6 +14,7 @@ Usage:
 Dependencies:
     pip install matplotlib requests
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,8 +31,7 @@ try:
     import requests  # noqa: E402
 except ImportError as exc:  # pragma: no cover
     sys.stderr.write(
-        f"Missing dependency: {exc.name}. Install with "
-        f"`pip install matplotlib requests`.\n"
+        f"Missing dependency: {exc.name}. Install with `pip install matplotlib requests`.\n"
     )
     raise SystemExit(1) from exc
 
@@ -85,9 +85,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def call_eval(
-    base_url: str, endpoint: str, timeout: int, auth_token: str | None
-) -> dict[str, Any]:
+def call_eval(base_url: str, endpoint: str, timeout: int, auth_token: str | None) -> dict[str, Any]:
     """Call the eval endpoint and return parsed JSON."""
     url = f"{base_url.rstrip('/')}{endpoint}"
     headers: dict[str, str] = {}
@@ -120,16 +118,13 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 case_passes[case_id] += 1
 
     per_case_accuracy = {
-        case_id: (case_passes[case_id] / case_total[case_id])
-        for case_id in case_total
+        case_id: (case_passes[case_id] / case_total[case_id]) for case_id in case_total
     }
 
     return {
         "runs_executed": len(runs),
         "score_mean": statistics.mean(run_scores) if run_scores else None,
-        "score_stdev": (
-            statistics.stdev(run_scores) if len(run_scores) > 1 else 0.0
-        ),
+        "score_stdev": (statistics.stdev(run_scores) if len(run_scores) > 1 else 0.0),
         "score_min": min(run_scores) if run_scores else None,
         "score_max": max(run_scores) if run_scores else None,
         "per_case": per_case_accuracy,
@@ -152,10 +147,7 @@ def render_chart(aggregated: dict[str, Any], output_path: str) -> None:
     fig_height = max(4, 0.3 * len(ids))
     fig, ax = plt.subplots(figsize=(10, fig_height))
 
-    colors = [
-        "#d73027" if v < 0.6 else "#fdae61" if v < 0.85 else "#1a9850"
-        for v in values
-    ]
+    colors = ["#d73027" if v < 0.6 else "#fdae61" if v < 0.85 else "#1a9850" for v in values]
     ax.barh(range(len(values)), values, color=colors)
     ax.set_yticks(range(len(values)))
     ax.set_yticklabels(labels, fontsize=8)
