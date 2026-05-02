@@ -1,0 +1,55 @@
+name: Repository Health
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: Baseline repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Check required maintenance files
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            "README.md"
+            "CONTRIBUTING.md"
+            "SECURITY.md"
+            ".github/PULL_REQUEST_TEMPLATE.md"
+            ".github/dependabot.yml"
+          )
+          missing=()
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              missing+=("$file")
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            printf 'Missing required repository file: %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      - name: Check for unresolved merge conflict markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -E '^(<{7}|>{7})([[:space:]].*)?$|^={7}$' -- ':!package-lock.json' ':!pnpm-lock.yaml' ':!yarn.lock'; then
+            echo "Unresolved merge conflict markers were found."
+            exit 1
+          fi
+
+      - name: Validate GitHub YAML files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}", ".github/dependabot.y*ml", ".github/ISSUE_TEMPLATE/*.{yml,yaml}"].flatten.each { |path| YAML.load_file(path) }; puts "GitHub YAML files are valid"'
