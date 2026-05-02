@@ -1,0 +1,19 @@
+title = "Repository secret scanning baseline"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated artifacts and intentional non-secret placeholders"
+paths = [
+  '''(^|/)(node_modules|\.next|dist|build|coverage|\.venv|venv|\.pytest_cache|\.ruff_cache)/''',
+  '''(^|/)docs/evidence/''',
+]
+regexTarget = "match"
+regexes = [
+  '''(?i)(test|example|sample|placeholder|dummy|fake|mock)[-_ ]*(api|access|secret|token|key|password)''',
+  '''(?i)(api|access|secret|token|key|password)[-_ ]*(test|example|sample|placeholder|dummy|fake|mock)''',
+  '''change-me-before-use''',
+  '''<[^>]*(token|secret|key)[^>]*>''',
+  '''[a-d]{32,}''',
+]
