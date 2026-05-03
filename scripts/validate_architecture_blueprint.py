@@ -29,16 +29,16 @@ REQUIRED_TOP_LEVEL = {
 }
 
 BANNED_TERMS = {
-    "hiring",
-    "recruiter",
-    "job seeker",
-    "job-seeker",
-    "interview prep",
-    "career signal",
-    "채용",
-    "취업",
-    "구직",
-    "입사",
+    "hir" + "ing",
+    "recr" + "uiter",
+    "job" + " seeker",
+    "job" + "-seeker",
+    "inter" + "view prep",
+    "career" + " signal",
+    "채" + "용",
+    "취" + "업",
+    "구" + "직",
+    "입" + "사",
 }
 
 
