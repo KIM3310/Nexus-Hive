@@ -72,7 +72,7 @@
     "local_command": "python3 scripts/validate_architecture_blueprint.py",
     "ci_workflow": ".github/workflows/architecture-blueprint.yml",
     "required_files": [
-      "architecture/blueprint.json",
+      "docs/architecture/blueprint.json",
       "docs/cloud-ai-architecture.md",
       "scripts/validate_architecture_blueprint.py"
     ]

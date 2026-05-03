@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "architecture" / "blueprint.json"
+MANIFEST = ROOT / "docs" / "architecture" / "blueprint.json"
 DOC = ROOT / "docs" / "cloud-ai-architecture.md"
 
 REQUIRED_TOP_LEVEL = {

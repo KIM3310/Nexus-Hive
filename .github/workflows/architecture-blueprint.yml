@@ -3,13 +3,13 @@ name: Architecture Blueprint
 on:
   push:
     paths:
-      - "architecture/blueprint.json"
+      - "docs/architecture/blueprint.json"
       - "docs/cloud-ai-architecture.md"
       - "scripts/validate_architecture_blueprint.py"
       - ".github/workflows/architecture-blueprint.yml"
   pull_request:
     paths:
-      - "architecture/blueprint.json"
+      - "docs/architecture/blueprint.json"
       - "docs/cloud-ai-architecture.md"
       - "scripts/validate_architecture_blueprint.py"
       - ".github/workflows/architecture-blueprint.yml"
