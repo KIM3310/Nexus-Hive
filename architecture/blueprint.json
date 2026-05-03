@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "repository": "Nexus-Hive",
+  "status": "active",
+  "neutrality": {
+    "positioning": "technical operating model",
+    "scope_note": "Describes current proof surfaces and extension seams; does not claim external production traffic or certification unless separately evidenced.",
+    "tone_guard": "Keep the artifact technical, neutral, and non-promotional."
+  },
+  "focus": {
+    "domain": "governed analytics, data contracts, and decision intelligence",
+    "summary": "Repository-local proof surface for governed analytics, data contracts, and decision intelligence, backed by Python service or lab runtime, Terraform infrastructure modules, Container build surface.",
+    "primary_stack": [
+      "Python service or lab runtime",
+      "Terraform infrastructure modules",
+      "Container build surface",
+      "Local compose environment",
+      "GitHub Actions validation"
+    ],
+    "architecture_axes": [
+      "cloud architecture",
+      "AI engineering",
+      "reliability",
+      "security",
+      "operator experience"
+    ]
+  },
+  "cloud_architecture": {
+    "operating_model": "contracted data zones, warehouse adapters, lineage capture, policy gates, and reproducible deployment modules",
+    "patterns": [
+      "Infrastructure-as-code entrypoint with explicit variables, outputs, and provider boundaries",
+      "Containerized runtime path suitable for repeatable local, staging, or managed service deployment",
+      "Data-contract lane with schema validation, lineage notes, and policy-aware analytics boundaries"
+    ],
+    "landing_zone_controls": [
+      "identity boundary and least-privilege service access",
+      "environment separation for local, staging, and managed runtime paths",
+      "secret storage outside source and deterministic fallback for missing credentials",
+      "observability hooks for logs, metrics, traces, and audit events",
+      "rollback path for deployment, schema, and model changes"
+    ],
+    "resilience_controls": [
+      "bounded retries with explicit failure states",
+      "health/readiness checks before operator-facing flows are trusted",
+      "idempotent data or artifact writes where repeat execution is possible",
+      "cost and quota guardrails for hosted services and model adapters"
+    ]
+  },
+  "ai_engineering": {
+    "operating_model": "semantic query planning, schema-aware retrieval, forecast explanation, validation packs, and guarded natural-language interfaces",
+    "patterns": [
+      "Bind natural-language interfaces to schema contracts, metric definitions, and query policy checks",
+      "Expose lineage, freshness, and access posture before generated analytics are trusted",
+      "Separate deterministic checks from model-generated output so the system remains testable without external credentials",
+      "Capture prompts, inputs, outputs, and decision metadata as inspectable artifacts instead of hidden side effects",
+      "Gate model-assisted actions with policy, confidence, and fallback states before they reach an operator path"
+    ],
+    "evaluation_controls": [
+      "deterministic fixtures for CI-safe verification",
+      "golden output or schema checks for generated artifacts",
+      "trace capture for prompts, tool calls, inputs, and outputs",
+      "quality gates that fail closed when evidence is missing"
+    ],
+    "model_risk_controls": [
+      "schema drift",
+      "ungrounded analytics",
+      "lineage gaps",
+      "policy bypass"
+    ]
+  },
+  "validation": {
+    "local_command": "python3 scripts/validate_architecture_blueprint.py",
+    "ci_workflow": ".github/workflows/architecture-blueprint.yml",
+    "required_files": [
+      "architecture/blueprint.json",
+      "docs/cloud-ai-architecture.md",
+      "scripts/validate_architecture_blueprint.py"
+    ]
+  },
+  "research_grounding": [
+    {
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "url": "https://arxiv.org/abs/2005.11401"
+    },
+    {
+      "title": "Hidden Technical Debt in Machine Learning Systems",
+      "url": "https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html"
+    },
+    {
+      "title": "Guidelines for Human-AI Interaction",
+      "url": "https://doi.org/10.1145/3290605.3300233"
+    }
+  ]
+}

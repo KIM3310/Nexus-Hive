@@ -1,0 +1,23 @@
+name: Architecture Blueprint
+
+on:
+  push:
+    paths:
+      - "architecture/blueprint.json"
+      - "docs/cloud-ai-architecture.md"
+      - "scripts/validate_architecture_blueprint.py"
+      - ".github/workflows/architecture-blueprint.yml"
+  pull_request:
+    paths:
+      - "architecture/blueprint.json"
+      - "docs/cloud-ai-architecture.md"
+      - "scripts/validate_architecture_blueprint.py"
+      - ".github/workflows/architecture-blueprint.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate cloud and AI architecture blueprint
+        run: python3 scripts/validate_architecture_blueprint.py
