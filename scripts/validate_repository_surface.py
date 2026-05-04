@@ -40,6 +40,8 @@ BANNED_TERMS = {
     "career" + " signal",
     "best" + " fit roles",
     "role" + "-fit",
+    "role" + "_fit",
+    "cover" + " letter",
     "job" + " description",
     "required" + " qualifications",
     "preferred" + " qualifications",
@@ -88,6 +90,7 @@ TEXT_SUFFIXES = {
     ".go",
     ".js",
     ".json",
+    ".html",
     ".jsonl",
     ".jsx",
     ".md",
@@ -95,11 +98,23 @@ TEXT_SUFFIXES = {
     ".py",
     ".rs",
     ".sh",
+    ".sql",
+    ".swift",
     ".toml",
     ".ts",
     ".tsx",
     ".yml",
     ".yaml",
+}
+
+SKIP_FILENAMES = {
+    "Cargo.lock",
+    "Pipfile.lock",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "uv.lock",
+    "yarn.lock",
 }
 
 SKIP_PARTS = {
@@ -118,19 +133,16 @@ SKIP_PARTS = {
 
 
 def is_skipped(path: Path) -> bool:
-    return any(part in SKIP_PARTS for part in path.relative_to(ROOT).parts)
+    relative = path.relative_to(ROOT)
+    return path.name in SKIP_FILENAMES or any(part in SKIP_PARTS for part in relative.parts)
 
 
 def code_and_generated_files() -> list[Path]:
-    files: list[Path] = []
-    for directory in ("scripts", "cloudflare", "src", "app", "backend", "frontend"):
-        base = ROOT / directory
-        if not base.exists():
-            continue
-        for path in sorted(base.rglob("*")):
-            if path.is_file() and path.suffix in TEXT_SUFFIXES and not is_skipped(path):
-                files.append(path)
-    return files
+    return [
+        path
+        for path in sorted(ROOT.rglob("*"))
+        if path.is_file() and path.suffix in TEXT_SUFFIXES and not is_skipped(path)
+    ]
 
 
 def is_external_or_route(target: str) -> bool:

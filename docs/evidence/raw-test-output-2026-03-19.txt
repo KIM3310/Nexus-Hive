@@ -4,7 +4,7 @@ Platform: darwin (macOS), Python 3.11.15
 
 ============================= test session starts ==============================
 platform darwin -- Python 3.11.15, pytest-8.3.5, pluggy-1.6.0
-rootdir: /Users/doeonkim/repo-audit/Nexus-Hive
+rootdir: <repo-root>
 configfile: pyproject.toml
 plugins: anyio-4.12.1, langsmith-0.7.20
 collected 16 items
