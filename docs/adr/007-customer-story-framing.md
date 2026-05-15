@@ -147,11 +147,11 @@ Guardrails:
    when an engagement shape is meaningfully new.
 
 4. **SE + engineering review before merge.** Every update goes through
-   both an SE-lead review (for narrative accuracy) and an engineering
+   both an SE-owner review (for narrative accuracy) and an engineering
    review (for technical accuracy).
 
-5. **Ownership sits with the SE team lead.** Engineering can suggest
-   changes but the SE lead approves.
+5. **Ownership sits with the SE owner.** Engineering can suggest
+   changes but the SE owner approves.
 
 ## Consequences
 

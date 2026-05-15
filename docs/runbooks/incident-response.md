@@ -183,7 +183,7 @@ postmortem within 48 hours.
 | Tier | Who | When |
 |---|---|---|
 | Tier 1 | On-call platform engineer | Every page |
-| Tier 2 | Platform team lead | SEV-1 beyond 30 min, SEV-2 beyond 60 min |
+| Tier 2 | Platform owner | SEV-1 beyond 30 min, SEV-2 beyond 60 min |
 | Tier 3 | Data governance officer | Any audit-trail alert, any policy-engine mismatch on regulated data |
 | Tier 4 | AegisOps (our ops-copilot companion repo) | Cross-service incidents or multiple simultaneous SEV-2 alerts |
 
