@@ -14,6 +14,9 @@ on:
       - "scripts/validate_architecture_blueprint.py"
       - ".github/workflows/architecture-blueprint.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
