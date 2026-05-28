@@ -39,6 +39,10 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 
 ---
 
+## Commercialization Playbook
+
+- [Monetization and GTM playbook](docs/monetization-playbook.md) maps the repository to buyer segments, offer ladder, pricing hypotheses, proof gates, and risk boundaries.
+
 ## Architecture
 
 ```mermaid
