@@ -30,6 +30,13 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 | Safety boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
 | Fast proof | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
 
+## Reviewer Fast Path
+
+- **First minute:** Ask one seeded business question, inspect the SQL policy decision, then open the agent trace.
+- **Local demo:** Run `make run`, then open `http://localhost:8000` or `http://localhost:8000/docs`.
+- **Verification:** Run `make verify`; it covers lint, pytest, and smoke testing against the live local server.
+- **Commercial read:** Sell it as governed self-service analytics with warehouse adapter setup and policy templates.
+
 ---
 
 ## Architecture
