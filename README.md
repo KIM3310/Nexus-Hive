@@ -20,6 +20,18 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 
 ---
 
+## Product and Review Surface
+
+| Lens | Current answer |
+|---|---|
+| Buyer or user | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
+| Commercial route | Governed BI cockpit, warehouse adapter setup, policy template pack, and migration advisory. |
+| Review signal | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
+| Safety boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
+| Fast proof | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
+
+---
+
 ## Architecture
 
 ```mermaid
