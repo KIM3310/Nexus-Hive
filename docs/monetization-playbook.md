@@ -47,3 +47,6 @@ This file is a commercial planning artifact, not a guarantee of revenue. Use it 
 ## Positioning Note
 
 Lead with the specific operational pain, then show the runnable proof, then offer a narrow pilot. Do not pitch the repository as a vague app; pitch it as a concrete workflow with evidence, risk boundaries, and a next buying step.
+## Growth Model
+
+- [Revenue growth model](revenue-growth-model.md) translates this playbook into activation, pricing, retention, and ethical behavioral-design experiments.
