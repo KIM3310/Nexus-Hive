@@ -43,10 +43,10 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 
 - [Monetization and GTM playbook](docs/monetization-playbook.md) maps the repository to buyer segments, offer ladder, pricing hypotheses, proof gates, and risk boundaries.
 
-## Executive Proof Pack
+## Review Notes
 
-- [Reviewer evidence map](docs/reviewer-evidence-map.md) gives a 7-minute route through the strongest technical, buyer, and architecture signals.
-- [Quality gate](docs/quality-gate.md) lists the local checks, CI surface, release boundary, and no-key/demo expectations for this repository.
+- [Review guide](docs/reviewer-evidence-map.md) summarizes the project angle, first files to inspect, verification commands, and known boundaries.
+- [Quality notes](docs/quality-gate.md) lists the local checks, CI surface, and release expectations for this repository.
 
 ## Architecture
 
