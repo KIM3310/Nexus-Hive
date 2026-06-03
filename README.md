@@ -428,3 +428,7 @@ This repository includes a neutral cloud and AI engineering blueprint that maps 
 - [Cloud + AI architecture blueprint](docs/cloud-ai-architecture.md)
 - [Machine-readable architecture manifest](docs/architecture/blueprint.json)
 - Validation command: `python3 scripts/validate_architecture_blueprint.py`
+
+## Enterprise Productization
+
+- [Product operating model](docs/product-operating-model.md) defines the buyer, paid wedge, trust boundary, operating checks, and revenue path for this repository.
