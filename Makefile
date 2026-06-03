@@ -4,10 +4,10 @@ VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
 
-.PHONY: install lint test smoke verify run
+.PHONY: install seed lint test smoke verify run
 
 $(VENV_PYTHON):
-	$(PYTHON) -m venv $(VENV)
+	$(BOOTSTRAP_PYTHON) -m venv $(VENV)
 
 $(VENV_STAMP): pyproject.toml requirements.txt
 	@if [ ! -x "$(VENV_PYTHON)" ] || ! $(VENV_PYTHON) -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" >/dev/null 2>&1; then \
@@ -23,13 +23,16 @@ $(VENV_STAMP): pyproject.toml requirements.txt
 
 install: $(VENV_STAMP)
 
+seed: install
+	$(VENV_PYTHON) seed_db.py >/dev/null
+
 lint: install
 	$(VENV_PYTHON) -m ruff check .
 
-test: install
+test: seed
 	$(VENV_PYTHON) -m pytest -q
 
-smoke: install
+smoke: seed
 	@set -eu; \
 	PORT=8098; \
 	LOG=/tmp/nexus-hive-smoke.log; \
