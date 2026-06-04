@@ -134,29 +134,31 @@ SKIP_PARTS = {
 
 def is_skipped(path: Path) -> bool:
     relative = path.relative_to(ROOT)
-    return path.name in SKIP_FILENAMES or any(
-        part in SKIP_PARTS for part in relative.parts
-    )
+    has_skipped_name = path.name in SKIP_FILENAMES
+    has_skipped_part = any(part in SKIP_PARTS for part in relative.parts)
+    return has_skipped_name or has_skipped_part
 
 
 def code_and_generated_files() -> list[Path]:
-    return [
-        path
-        for path in sorted(ROOT.rglob("*"))
-        if path.is_file() and path.suffix in TEXT_SUFFIXES and not is_skipped(path)
-    ]
+    candidates: list[Path] = []
+    for path in sorted(ROOT.rglob("*")):
+        is_text_file = path.is_file() and path.suffix in TEXT_SUFFIXES
+        if is_text_file and not is_skipped(path):
+            candidates.append(path)
+    return candidates
 
 
 def is_external_or_route(target: str) -> bool:
     lowered = target.lower()
-    return (
-        lowered.startswith(("http://", "https://", "mailto:", "tel:"))
-        or target.startswith("#")
-        or (
-            target.startswith("/")
-            and not any(target.startswith(marker) for marker in LOCAL_PATH_MARKERS)
-        )
-    )
+    is_external = lowered.startswith(("http://", "https://", "mailto:", "tel:"))
+    is_anchor = target.startswith("#")
+    has_local_path_marker = False
+    for marker in LOCAL_PATH_MARKERS:
+        if target.startswith(marker):
+            has_local_path_marker = True
+            break
+    is_absolute_route = target.startswith("/") and not has_local_path_marker
+    return is_external or is_anchor or is_absolute_route
 
 
 def check_local_link(source: Path, target: str, line: int) -> None:
