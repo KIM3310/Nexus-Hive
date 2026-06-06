@@ -14,6 +14,15 @@ This file is a commercial planning artifact, but it does not publish public fina
 2. **Scoped diagnostic** - review the buyer workflow, data boundary, integration needs, and acceptance criteria.
 3. **Implementation or operating support** - connect only the resources approved in [service architecture](service-architecture.md).
 
+## Revenue Channel
+
+- **Channel:** B2B workflow and data automation
+- **First commercial action:** Workflow audit, controlled implementation, then template or support package for repeated operations.
+- **Conversion path:** Portfolio proof, vertical workflow demos, back-office outreach, and data or document automation case studies.
+- **Activation path:** Connect one approved input, one review step, and one export path before adding wider integrations.
+- **Retention path:** Template maintenance, reporting support, and workflow expansion after the first controlled rollout.
+- **Public boundary:** Do not publish projections, price promises, or buyer-specific contract assumptions in this repository.
+
 ## Acquisition Channels
 
 - Portfolio and GitHub proof links
