@@ -28,3 +28,4 @@ nohup.out
 .runtime/
 .codex_runs/
 .omc/
+.wrangler/
