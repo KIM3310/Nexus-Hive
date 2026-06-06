@@ -19,7 +19,9 @@
 }
 
 body {
-    background-color: var(--bg-dark);
+    background:
+        linear-gradient(135deg, rgba(94, 106, 210, 0.12), transparent 42%),
+        linear-gradient(180deg, #07080a 0%, #0d1017 100%);
     color: var(--text-primary);
     font-family: var(--font-ui);
     min-height: 100vh;
@@ -29,30 +31,6 @@ body {
     justify-content: center;
     align-items: flex-start;
     padding: 2rem 0;
-}
-
-/* Abstract Orbs */
-.glow-orb {
-    position: absolute;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
-    filter: blur(100px);
-    z-index: -1;
-    opacity: 0.15;
-}
-
-.glow-orb.primary {
-    top: -20vh;
-    left: -10vw;
-    background: var(--accent);
-}
-
-.glow-orb.secondary {
-    bottom: -20vh;
-    right: -10vw;
-    background: #9b59b6;
-    opacity: 0.1;
 }
 
 /* Layout */
