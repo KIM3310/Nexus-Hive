@@ -8,6 +8,10 @@ This file is a commercial planning artifact, but it does not publish public fina
 - **Primary buyer:** Analytics teams needing self-service insight under data-permission controls
 - **First motion:** Warehouse safety review and query approval workflow
 
+## Service Package
+
+Use [service package](service-package.md) as the repository-specific packaging layer for buyer, offer, polish, deliverables, activation, and margin controls. Keep public docs free of price promises and projections.
+
 ## Offer Ladder
 
 1. **Public proof review** - use the live demo, README, screenshots, and tests to establish technical credibility.
