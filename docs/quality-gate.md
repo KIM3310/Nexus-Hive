@@ -38,6 +38,6 @@ These notes keep the repository easy to review without overstating what is produ
 ## Before Presenting
 
 - README explains the user, the pain, the safety boundary, and the fast proof path.
-- `docs/monetization-playbook.md` explains the product, pilot, service, or paid proof-of-value angle when relevant.
+- `docs/service-launch-playbook.md` explains the product, pilot, service, or paid proof-of-value angle when relevant.
 - Tests or smoke checks are documented even when optional infrastructure is unavailable.
 - Failure modes and unsupported claims are visible before the project is presented externally.

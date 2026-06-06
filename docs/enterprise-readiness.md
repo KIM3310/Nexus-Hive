@@ -45,7 +45,7 @@ This note defines what an enterprise buyer, public-sector reviewer, serious user
 ## Acceptance Criteria
 
 - make verify can be run or the equivalent CI gate is visible.
-- README, review guide, quality notes, revenue model, and this readiness note agree on the same scope.
+- README, review guide, quality notes, service model, and this readiness note agree on the same scope.
 - Demo, fixture, synthetic, or public-data boundaries are explicit before a buyer sees outputs.
 - A reviewer can identify the first useful outcome without reading implementation details.
 - Production claims stay behind customer-specific validation, access control, monitoring, and support handoff.
