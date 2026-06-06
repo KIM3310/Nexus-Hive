@@ -51,9 +51,9 @@ Use this page as the short path through the repository. It keeps the review grou
 
 | Possible offer | Working scope assumption |
 |---|---|
-| Governed analytics cockpit pilot | $5k-$12k discovery + demo |
-| Warehouse adapter setup | $15k-$40k implementation |
-| Policy template and audit-readiness pack | $2k-$8k/month governance support |
+| Governed analytics cockpit pilot | Scope after buyer intake |
+| Warehouse adapter setup | Scope after buyer intake |
+| Policy template and audit-readiness pack | Scope after buyer intake |
 
 ## Boundaries
 

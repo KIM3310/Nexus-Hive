@@ -12,7 +12,7 @@ This is the buyer-ready version of the repository. It turns the technical proof 
 | Buyer | Data platform teams, BI owners, and operations leaders who need self-service questions without uncontrolled SQL. |
 | Pain wedge | Governed NL-to-SQL with policy checks, audit trail, and warehouse adapter path. |
 | Front-door offer | Governed analytics cockpit pilot |
-| Entry scope | $5k-$12k discovery + demo |
+| Entry scope | Scope after buyer intake |
 | Proof before pitch | make verify passes |
 | Next buyer action | Review one proof artifact, then choose diagnostic, workshop, pilot, support, or revival path. |
 
@@ -20,9 +20,9 @@ This is the buyer-ready version of the repository. It turns the technical proof 
 
 | Offer | Scope assumption | Buyer-facing scope |
 |---|---|---|
-| Governed analytics cockpit pilot | $5k-$12k discovery + demo | Publish 5 governed-query examples |
-| Warehouse adapter setup | $15k-$40k implementation | Build data-leader one-pager |
-| Policy template and audit-readiness pack | $2k-$8k/month governance support | Sell one adapter pilot |
+| Governed analytics cockpit pilot | Scope after buyer intake | Publish 5 governed-query examples |
+| Warehouse adapter setup | Scope after buyer intake | Build data-leader one-pager |
+| Policy template and audit-readiness pack | Scope after buyer intake | Sell one adapter pilot |
 
 ## Close Path
 

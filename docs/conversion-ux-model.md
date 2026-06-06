@@ -49,9 +49,9 @@ This note specializes the repository for service launch. It combines product str
 
 ## Conversion Path
 
-- Risk-reversing entry: Governed analytics cockpit pilot ($5k-$12k discovery + demo) with one acceptance metric.
-- Pilot: Warehouse adapter setup ($15k-$40k implementation) using buyer-approved data and named operators.
-- Recurring layer: Policy template and audit-readiness pack ($2k-$8k/month governance support) for monitoring, governance, support, or managed review.
+- Risk-reversing entry: Governed analytics cockpit pilot (scope after buyer intake) with one acceptance metric.
+- Pilot: Warehouse adapter setup (scope after buyer intake) using buyer-approved data and named operators.
+- Recurring layer: Policy template and audit-readiness pack (scope after buyer intake) for monitoring, governance, support, or managed review.
 
 ## Scope Frame
 
