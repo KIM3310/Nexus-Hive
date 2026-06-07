@@ -24,8 +24,8 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 
 | Lens | Current answer |
 |---|---|
-| Buyer or user | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
-| Commercial route | Governed BI cockpit, warehouse adapter setup, policy template pack, and migration advisory. |
+| Audience | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
+| Review path | Validate the demo, README, architecture notes, and quality gate before deeper workflow review. |
 | Review signal | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
 | Safety boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
 | Fast proof | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
@@ -35,22 +35,18 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 - **First minute:** Ask one seeded business question, inspect the SQL policy decision, then open the agent trace.
 - **Local demo:** Run `make run`, then open `http://localhost:8000` or `http://localhost:8000/docs`.
 - **Verification:** Run `make verify`; it covers lint, pytest, and smoke testing against the live local server.
-- **Commercial read:** Sell it as governed self-service analytics with warehouse adapter setup and policy templates.
 
 ---
 
 ## Service Launch Playbook
 
-- [Service launch playbook](docs/service-launch-playbook.md) maps the repository to buyer segments, offer ladder, proof gates, proof gates, and risk boundaries.
+- [Service launch playbook](docs/service-launch-playbook.md) maps the repository to review audiences, offer ladder, proof gates, proof gates, and risk boundaries.
 
 ## Review Notes
 
 - [Review guide](docs/reviewer-evidence-map.md) summarizes the project angle, first files to inspect, verification commands, and known boundaries.
 - [Quality notes](docs/quality-gate.md) lists the local checks, CI surface, and release expectations for this repository.
-- [Service growth model](docs/service-growth-model.md) maps the project to an ethical service path, activation loop, scope logic, and growth experiments.
 - [Enterprise readiness notes](docs/enterprise-readiness.md) outlines security, data, operations, integration, and handoff expectations.
-- [Conversion UX model](docs/conversion-ux-model.md) maps the buyer path, behavioral design, UI/UX direction, scope frame, and ethical conversion guardrails.
-- [Commercial offer](docs/commercial-offer.md) packages the repository into a buyer-ready offer ladder, proof gate, outreach angle, and close path.
 
 ## Architecture
 
@@ -334,7 +330,7 @@ common patterns; numbers illustrative.
 
 Each story walks through the problem, the 90- or 180-day rollout, the
 policy-tuning decisions, and the specific lessons that fed back into the
-product. Designed for SE discovery + pre-sales handoff.
+product. Designed for SE discovery + technical-review handoff.
 
 ---
 
@@ -431,7 +427,7 @@ This repository includes a neutral cloud and AI engineering blueprint that maps 
 
 ## Enterprise Productization
 
-- [Product operating model](docs/product-operating-model.md) defines the buyer, paid wedge, trust boundary, operating checks, and service path for this repository.
+- [Product operating model](docs/product-operating-model.md) defines the reviewer, trust boundary, trust boundary, operating checks, and service path for this repository.
 
 ## Service Architecture
 

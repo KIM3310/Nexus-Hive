@@ -1,64 +1,47 @@
-# Service Launch Playbook - Nexus-Hive
+# Technical Launch Playbook - Nexus-Hive
 
-This file is a commercial planning artifact, but it does not publish public financial assumptions, public financial guesses, or contract assumptions. Use it to keep the repository legible as a scoped service, pilot, workshop, license, or proof-of-value package.
+This playbook keeps launch review focused on evidence, deployment ownership, and operational readiness.
 
-## Commercial Lane
+## Review Lane
 
-- **Lane:** Governed analytics and NL-to-query
-- **Primary buyer:** Analytics teams needing self-service insight under data-permission controls
-- **First motion:** Warehouse safety review and query approval workflow
+- **Lane:** Repository-specific product and engineering proof
+- **Primary reader:** Technical reviewers, operators, maintainers, and partners
+- **First motion:** Inspect the live demo or static proof, README, architecture notes, and quality gate.
 
-## Service Package
+## Evidence Gates
 
-Use [service package](service-package.md) as the repository-specific packaging layer for buyer, offer, polish, deliverables, activation, and margin controls. Keep public docs free of price promises and projections.
+1. Public demo route or static proof surface is reachable.
+2. Local checks or CI pass for the current repository state.
+3. Architecture notes explain runtime, data, and integration boundaries.
+4. Security and privacy boundaries are visible before external data is used.
+5. Known limitations are documented plainly.
 
-## Offer Ladder
+## Launch Sequence
 
-1. **Public proof review** - use the live demo, README, screenshots, and tests to establish technical credibility.
-2. **Scoped diagnostic** - review the buyer workflow, data boundary, integration needs, and acceptance criteria.
-3. **Implementation or operating support** - connect only the resources approved in [service architecture](service-architecture.md).
+1. Confirm the README fast path and demo route.
+2. Run the repository quality gate and keep the output current.
+3. Review [service architecture](service-architecture.md) before adding runtime resources.
+4. Add only the minimum accounts, secrets, and integrations needed for the next workflow.
+5. Record screenshots or evidence artifacts after each deployment update.
 
-## Revenue Channel
+## Operating Boundaries
 
-- **Channel:** B2B workflow and data automation
-- **First commercial action:** Workflow audit, controlled implementation, then template or support package for repeated operations.
-- **Conversion path:** Portfolio proof, vertical workflow demos, back-office outreach, and data or document automation case studies.
-- **Activation path:** Connect one approved input, one review step, and one export path before adding wider integrations.
-- **Retention path:** Template maintenance, reporting support, and workflow expansion after the first controlled rollout.
-- **Public boundary:** Do not publish projections, price promises, or buyer-specific contract assumptions in this repository.
+- No private data unless storage, retention, deletion, and access controls are defined.
+- No committed credentials or tenant-specific configuration.
+- No external integration without a rollback or disable path.
+- No unsupported claims beyond what the demo, tests, and docs can verify.
 
-## Acquisition Channels
+## Useful Metrics
 
-- Portfolio and GitHub proof links
-- Direct outreach to teams with the matching workflow pain
-- Design-partner conversations anchored in the live demo
+- Demo availability
+- Quality gate pass rate
+- Build and deployment duration
+- Error rate and latency where runtime telemetry exists
+- Review completion for documented workflows
 
-## Proof Gates Before Selling
+## Maintenance Rhythm
 
-- Repository checks pass locally or in CI.
-- Demo or static proof surface is reachable.
-- Security, privacy, and operational boundaries are visible.
-- Required buyer data is synthetic, public, redacted, or explicitly approved.
-
-## Risk Boundaries
-
-- read-only adapters
-- query approval gates
-- row/column permission simulation before live data
-
-## 30/60/90 Day GTM
-
-- **30 days:** Validate one concrete buyer workflow and document the acceptance criteria.
-- **60 days:** Wire only the minimum resources listed in [service architecture](service-architecture.md).
-- **90 days:** Convert the strongest workflow into a repeatable implementation checklist.
-
-## Metrics That Matter
-
-- Qualified workflow conversations
-- Demo-to-call conversion
-- Activation completion for the scoped workflow
-- Reliability, latency, error, and support burden
-
-## Positioning Note
-
-Lead with the buyer's workflow, then show the runnable proof, then offer a bounded implementation path. Keep financial assumptions in private planning, not in public repository docs.
+- Refresh README and architecture notes after meaningful changes.
+- Re-run the quality gate before pushing.
+- Keep demo screenshots and evidence artifacts aligned with the deployed UI.
+- Remove stale generated files when they no longer support technical review.

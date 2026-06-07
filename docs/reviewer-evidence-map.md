@@ -47,13 +47,13 @@ Use this page as the short path through the repository. It keeps the review grou
 - Seeded question-to-SQL trace is inspectable
 - Policy rejection examples are visible
 
-## Commercial Notes
+## Review Notes
 
 | Possible offer | Working scope assumption |
 |---|---|
-| Governed analytics cockpit pilot | Scope after buyer intake |
-| Warehouse adapter setup | Scope after buyer intake |
-| Policy template and audit-readiness pack | Scope after buyer intake |
+| Governed analytics cockpit pilot | Scope after reviewer intake |
+| Warehouse adapter setup | Scope after reviewer intake |
+| Policy template and audit-readiness pack | Scope after reviewer intake |
 
 ## Boundaries
 

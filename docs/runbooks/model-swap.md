@@ -194,7 +194,7 @@ Keep the rollback window open for 24 hours. Track:
 - Error-rate trend vs the prior 24h
 - p99 latency trend
 - Per-user complaint volume (check `#analytics-users` Slack)
-- Token spend trajectory (for paid providers)
+- Token spend trajectory (for external providers)
 
 If any metric degrades beyond the SLO for 1 hour, roll back.
 

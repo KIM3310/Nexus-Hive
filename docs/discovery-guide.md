@@ -4,7 +4,7 @@
 
 - teams want self-service analytics but do not trust free-form SQL generation
 - data owners need audit and policy controls before rollout
-- buyers want measurable proof instead of a chart-only demo
+- reviewers want measurable proof instead of a chart-only demo
 
 ## Discovery questions
 
@@ -24,7 +24,7 @@
 
 ## Success criteria
 
-- buyer sees audit and policy before chart output
+- reviewer sees audit and policy before chart output
 - eval path is deterministic
 - fallback behavior is explicit
 - rollout story is clear for both analysts and reviewers
