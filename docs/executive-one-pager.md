@@ -10,7 +10,7 @@ Executives want self-service analytics, but most NL2SQL demos skip the audit, po
 - keeps query audit and evals first-class
 - gives reviewers a governed path from question to SQL to chart
 
-## Buyer value
+## Reviewer value
 
 - faster analyst iteration with lower governance risk
 - clearer proof that self-service analytics is controllable

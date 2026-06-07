@@ -35,7 +35,7 @@ Three problems emerged:
   SEs cited stale numbers in live demos.
 
 Meanwhile, SEs joining the team needed a place to learn the *tacit
-knowledge* of the sales engineering practice: who the privacy officer
+knowledge* of the solution engineering practice: who the privacy officer
 is in a regulated-healthcare deal, how to tune the policy profile in
 week 4, which numbers to lead with. None of that was in the code or the
 API docs.
@@ -205,7 +205,7 @@ Guardrails:
 
 Customer stories:
 
-- **Are not** marketing copy. No sales hyperbole. No unqualified
+- **Are not** marketing copy. No delivery hyperbole. No unqualified
   superlatives. No screenshots.
 - **Are not** private customer data. Even if based on a real
   engagement, all identifiable information is removed.

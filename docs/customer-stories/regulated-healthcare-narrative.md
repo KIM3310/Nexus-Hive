@@ -310,7 +310,7 @@ de-identified path to their answer." We hit 94% on that metric.
 Competing vendors highlighted cloud-native inference as a feature.
 Northstar saw cloud inference as a disqualifier. For regulated
 industries, framing airgap as a "feature" rather than a "workaround"
-shifted the sales conversation in our favor.
+shifted the review conversation in our favor.
 
 **4. The audit trail sells itself.**
 

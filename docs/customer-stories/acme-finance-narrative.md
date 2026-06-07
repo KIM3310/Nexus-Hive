@@ -32,7 +32,7 @@ The numbers as they first described them to us:
   engineering.
 - Unique SQL files in the internal dbt repo: **7,400**, with 38% flagged
   as stale or duplicated by their dbt metrics layer audit.
-- Customer-facing sales team's top complaint: "I asked a question in
+- Customer-facing solution team's top complaint: "I asked a question in
   February and got an answer in April."
 
 Their VP of Analytics, Marta Ruiz, described the situation in our
@@ -206,7 +206,7 @@ reduces compute-heavy full-table scans.
 
 ## Lessons we learned with Acme
 
-**1. The governance demo is the sales call.**
+**1. The governance demo is the review conversation.**
 
 Acme's auditor was the decision-maker nobody was budgeting for. The
 moment we put her in front of the policy-engine response, the
