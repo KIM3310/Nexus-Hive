@@ -32,7 +32,7 @@ Three problems emerged:
   templates to absorb the playbook.
 - **Out of date material.** Customer stories that referenced `phi3:3.8b`
   stayed in that state long after customers had migrated to Claude; new
-  SEs cited stale numbers in live demos.
+  SEs cited stale numbers in runtime walkthroughs.
 
 Meanwhile, SEs joining the team needed a place to learn the *tacit
 knowledge* of the solution engineering practice: who the privacy officer
@@ -123,7 +123,7 @@ Cons:
 
 - Stories drift further from the code than Option C because the
   publication toolchain is different.
-- Marketing-team-owned content has a different review tempo than the
+- Marketing-team-owned content has a different architecture tempo than the
   engineering release cycle.
 
 ## Decision
@@ -146,9 +146,9 @@ Guardrails:
    narrative.md` covers airgap + HIPAA. Additional stories added only
    when an engagement shape is meaningfully new.
 
-4. **SE + engineering review before merge.** Every update goes through
-   both an SE-owner review (for narrative accuracy) and an engineering
-   review (for technical accuracy).
+4. **SE + engineering architecture before merge.** Every update goes through
+   both an SE-owner architecture (for narrative accuracy) and an engineering
+   architecture (for technical accuracy).
 
 5. **Ownership sits with the SE owner.** Engineering can suggest
    changes but the SE owner approves.
@@ -172,7 +172,7 @@ Guardrails:
 
 - **External use is safe.** Because the stories are already
   composites, we can share them at conferences or in blog posts without
-  a legal review cycle per story.
+  a legal architecture cycle per story.
 
 - **Shared vocabulary with prospective customers.** Prospects reading
   the repo during pre-purchase due diligence get a consistent message
@@ -191,11 +191,11 @@ Guardrails:
   product changes. We address this by:
   - Adding a checklist item to the release template: "Does this
     change invalidate anything in `docs/customer-stories/`?"
-  - Reviewing the stories quarterly with the SE lead.
+  - Architectureing the stories quarterly with the SE lead.
 
 - **Narrative voice divergence.** Different contributors will write in
   different styles. A shared template and tone guide minimizes this;
-  the SE lead harmonizes during review.
+  the SE lead harmonizes during architecture.
 
 - **Length cost.** Each story is 500-800 lines. The repo grows. We
   accept this because the stories are load-bearing artifacts for the
@@ -226,7 +226,7 @@ Customer stories:
 
 - **Publish the stories to a standalone static site:** attractive if we
   want SEO and marketing polish, but rejected for now because it splits
-  the maintenance target. Revisit when we hire dedicated docs staff.
+  the maintenance target. Revisit when we add dedicated docs ownership.
 
 ## References
 

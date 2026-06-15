@@ -58,7 +58,7 @@ This means the same codebase and Docker image work for demos (SQLite) and produc
 
 - **Pluggable for future backends.** Adding a new warehouse (e.g., BigQuery, Redshift) requires implementing five methods and registering the adapter. No changes to the agent pipeline, policy engine, or API layer.
 
-- **Contract metadata.** Each adapter carries a `WarehouseAdapterContract` dataclass describing its capabilities, SQL dialect, execution mode, and review notes. This metadata flows into query tags, audit logs, and the `/api/meta` endpoint.
+- **Contract metadata.** Each adapter carries a `WarehouseAdapterContract` dataclass describing its capabilities, SQL dialect, execution mode, and architecture notes. This metadata flows into query tags, audit logs, and the `/api/meta` endpoint.
 
 ### Tradeoffs
 

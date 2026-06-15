@@ -34,7 +34,7 @@ three unattractive positions:
    edges around conditional resource inclusion (e.g., `ServiceMonitor`
    only when Prometheus Operator is installed).
 3. **Externalize all variance into ConfigMaps.** Hides deployment intent
-   behind runtime config, making static review harder and forcing the
+   behind runtime config, making static architecture harder and forcing the
    operator to cross-reference runtime state to answer "is HPA enabled?"
 
 We evaluated whether to stay with raw YAML + `kustomize`, introduce
@@ -49,7 +49,7 @@ Pros:
 
 - No new runtime dependency.
 - Native to `kubectl apply`.
-- Reviewers can read the final rendered YAML directly.
+- Technical readers can read the final rendered YAML directly.
 
 Cons:
 
@@ -142,7 +142,7 @@ The chart supersedes the raw manifests for any production deployment.
   images.
 
 - **Single source of truth for deployment shape.** `values.yaml` is
-  self-documenting and linted in CI. Reviewers can answer "is
+  self-documenting and linted in CI. Technical readers can answer "is
   NetworkPolicy enabled?" without reading YAML templates.
 
 - **Three overlays cover 90% of customer patterns.** `values-prod.yaml`

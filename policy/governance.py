@@ -199,7 +199,7 @@ def build_lineage_schema() -> Dict[str, Any]:
         "operator_rules": [
             "Aggregate metrics should be traced back to fact_sales grain before approval.",
             "Dimension joins must stay auditable and consistent with the modeled foreign-key relationships.",
-            "Reviewers should inspect lineage and quality gates before trusting NL2SQL output.",
+            "Operators should inspect lineage and quality gates before trusting NL2SQL output.",
         ],
     }
 
@@ -249,7 +249,7 @@ def build_metric_layer_schema() -> Dict[str, Any]:
         },
         "operator_rules": [
             "Certified metrics are the front door for executive analytics claims.",
-            "Non-certified metrics stay visible but require explicit reviewer approval before external sharing.",
+            "Non-certified metrics stay visible but require explicit architecture approval before external sharing.",
             "Metric definitions must map back to fact_sales grain and known lineage edges.",
         ],
     }
@@ -508,7 +508,7 @@ def build_governance_scorecard(focus: str = "quality") -> Dict[str, Any]:
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "auth_session": "/api/auth/session",
-            "review_pack": "/api/review-pack",
+            "architecture_pack": "/api/architecture-pack",
             "policy_check": "/api/policy/check",
             "query_session_board": "/api/query-session-board",
             "query_approval_board": "/api/query-approval-board",
@@ -644,7 +644,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
             "primary_surface": "/api/ask",
         },
         "snowflake-sql-contract": {
-            "fit": "Snowflake-style governed warehouse contract with query tagging and audit posture kept explicit.",
+            "fit": "Snowflake-style governed warehouse contract with query tagging and operating posture kept explicit.",
             "primary_surface": "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract",
         },
         "databricks-sql-contract": {
@@ -782,7 +782,7 @@ def build_semantic_governance_pack() -> Dict[str, Any]:
             "Use /api/schema/metrics to inspect the exact certification boundary behind each measure.",
             "Pair this pack with /api/runtime/warehouse-target-scorecard and /api/query-approval-board before claiming Snowflake or Databricks fit.",
         ],
-        "reviewer_notes": [
+        "architecture_notes": [
             "Certified metrics are the front door for external analytics claims.",
             "Warehouse target fit stays a contract preview unless the live connector posture changes.",
             "Review-required metrics remain visible so governance is explicit instead of silently hidden.",
@@ -798,7 +798,7 @@ def build_semantic_governance_pack() -> Dict[str, Any]:
             "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
             "gold_eval_run": "/api/evals/nl2sql-gold/run",
-            "review_pack": "/api/review-pack",
+            "architecture_pack": "/api/architecture-pack",
         },
     }
 
@@ -877,7 +877,7 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
             "Treat Snowflake and Databricks as explicit contract-preview targets until live connector posture changes.",
             "Keep the approval board in the loop so warehouse-native demos still show human review boundaries.",
         ],
-        "reviewer_notes": [
+        "architecture_notes": [
             "Snowflake and Databricks fit is expressed as an explicit contract preview with governance artifacts, not as fake live connectivity.",
             "The strongest public claim is governed warehouse-readiness, not production connector throughput.",
             "Lakehouse posture stays credible only when target scorecard, semantic pack, and query-tag contract all agree.",
@@ -891,6 +891,6 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
             "query_tag_schema": "/api/schema/query-tag",
             "query_approval_board": "/api/query-approval-board",
             "query_review_board": "/api/query-review-board",
-            "review_pack": "/api/review-pack",
+            "architecture_pack": "/api/architecture-pack",
         },
     }

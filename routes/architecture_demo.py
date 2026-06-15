@@ -1,5 +1,5 @@
 """
-Reviewer query demo route handler.
+Architecture query demo route handler.
 """
 
 import json
@@ -10,39 +10,39 @@ from uuid import uuid4
 
 import config as _config_module
 from config import (
-    REVIEWER_QUERY_DEMO_SCHEMA,
-    REVIEWER_QUERY_SCENARIOS,
+    ARCHITECTURE_QUERY_DEMO_SCHEMA,
+    ARCHITECTURE_QUERY_SCENARIOS,
     build_openai_runtime_contract,
     enforce_openai_public_rate_limit,
     utc_now_iso,
 )
-from models import ReviewerQueryDemoRequest
+from models import ArchitectureQueryDemoRequest
 from policy.governance import build_lineage_schema, build_metric_layer_schema
 from runtime_store import append_runtime_event
 from services.openai_helpers import (
     call_openai_moderation as _default_moderation,
-    call_openai_reviewer_demo_summary as _default_summary,
+    call_openai_architecture_demo_summary as _default_summary,
 )
 
 router = APIRouter()
 
 
-@router.post("/api/runtime/reviewer-query-demo")
-async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest, request: Request):
+@router.post("/api/runtime/architecture-query-demo")
+async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, request: Request):
     runtime = build_openai_runtime_contract()
     if not runtime["publicLiveApi"]:
         raise HTTPException(
             status_code=503,
-            detail="public OpenAI reviewer demo is unavailable; configure OPENAI_API_KEY and keep budgets above zero",
+            detail="public OpenAI architecture demo is unavailable; configure OPENAI_API_KEY and keep budgets above zero",
         )
     scenario_id = str(req.question_id or "").strip().lower()
-    scenario = REVIEWER_QUERY_SCENARIOS.get(scenario_id)
+    scenario = ARCHITECTURE_QUERY_SCENARIOS.get(scenario_id)
     if scenario is None:
         raise HTTPException(
             status_code=400,
             detail="question_id must be one of revenue-by-region or profit-top-regions",
         )
-    enforce_openai_public_rate_limit(f"reviewer-demo:{scenario_id}", int(runtime["publicRpm"]))
+    enforce_openai_public_rate_limit(f"architecture-demo:{scenario_id}", int(runtime["publicRpm"]))
     payload = {
         "question_id": scenario_id,
         "question": scenario["question"],
@@ -69,9 +69,9 @@ async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest, request: R
     append_runtime_event(
         {
             "service": "nexus-hive",
-            "event_type": "reviewer_query_demo",
+            "event_type": "architecture_query_demo",
             "method": "POST",
-            "path": "/api/runtime/reviewer-query-demo",
+            "path": "/api/runtime/architecture-query-demo",
             "status": "ok",
             "question_id": scenario_id,
             "at": utc_now_iso(),
@@ -80,7 +80,7 @@ async def reviewer_query_demo_endpoint(req: ReviewerQueryDemoRequest, request: R
     return {
         "status": "ok",
         "service": "nexus-hive",
-        "schema": REVIEWER_QUERY_DEMO_SCHEMA,
+        "schema": ARCHITECTURE_QUERY_DEMO_SCHEMA,
         "mode": runtime["deploymentMode"],
         "model": runtime["liveModel"],
         "scenarioId": scenario_id,

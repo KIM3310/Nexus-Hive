@@ -66,7 +66,7 @@ the per-case pass/fail across runs, and renders a bar chart saved to
 ### Interpretation
 
 - Scores >= 0.85 are considered production-ready for the default schema.
-- Scores in [0.70, 0.85) warrant a prompt-template review.
+- Scores in [0.70, 0.85) warrant a prompt-template architecture.
 - Scores < 0.70 indicate a serious regression and should block release.
 
 ## Sample results

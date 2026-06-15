@@ -34,7 +34,7 @@ BANNED_TERMS = {
     "job" + " seeker",
     "job" + "-seeker",
     "inter" + "view prep",
-    "career" + " signal",
+    "technical portfolio" + " signal",
     "채" + "용",
     "취" + "업",
     "구" + "직",

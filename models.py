@@ -11,7 +11,7 @@ class AskRequest(BaseModel):
     question: str
 
 
-class ReviewerQueryDemoRequest(BaseModel):
+class ArchitectureQueryDemoRequest(BaseModel):
     question_id: str
 
 

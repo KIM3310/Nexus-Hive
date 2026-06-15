@@ -214,13 +214,13 @@ curl "http://localhost:8000/api/query-audit/recent?limit=500" | \
   jq '.rows[] | select(.sql | contains("email"))' | head
 ```
 
-Review any recent queries that referenced the newly tightened column.
+Architecture any recent queries that referenced the newly tightened column.
 If those users should no longer see that column, notify them now.
 
 ### C.4. Update gold eval expected verdicts
 
 Any gold case that previously asserted `allow` for a query referencing the
-tightened column must be updated to `review` or `deny` as appropriate.
+tightened column must be updated to `architecture` or `deny` as appropriate.
 
 ### C.5. Test the new sensitivity
 
@@ -230,7 +230,7 @@ curl -X POST http://localhost:8000/api/policy/check \
   -d '{"sql": "SELECT email FROM users WHERE account_id=42", "role": "analyst"}' | jq
 ```
 
-Expected now: `verdict: "deny"` or `review` with a reason referencing
+Expected now: `verdict: "deny"` or `architecture` with a reason referencing
 `pii_l1`.
 
 ## Validation after any schema change

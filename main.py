@@ -25,7 +25,7 @@ from graph import ask_ollama, build_graph, translator_node, executor_node, visua
 from services.build_helpers import build_runtime_brief, build_runtime_meta  # noqa: F401
 from policy.governance import build_warehouse_brief  # noqa: F401
 from policy.audit import write_query_audit_snapshot as _write_query_audit_snapshot
-from services.openai_helpers import call_openai_moderation, call_openai_reviewer_demo_summary  # noqa: F401
+from services.openai_helpers import call_openai_moderation, call_openai_architecture_demo_summary  # noqa: F401
 from security import apply_operator_session
 from middleware import session_and_logging_middleware
 from routes import ALL_ROUTERS, configure_ask
@@ -67,11 +67,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Store lazy resolvers on app.state so the reviewer-demo route reads the
+# Store lazy resolvers on app.state so the architecture-demo route reads the
 # correct module-level references even when main.py is loaded multiple times.
 _g = globals()
 app.state._resolve_moderation = lambda: _g["call_openai_moderation"]
-app.state._resolve_summary = lambda: _g["call_openai_reviewer_demo_summary"]
+app.state._resolve_summary = lambda: _g["call_openai_architecture_demo_summary"]
 
 
 @app.middleware("http")

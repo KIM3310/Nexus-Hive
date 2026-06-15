@@ -28,10 +28,10 @@ def test_frontend_preview_asset_exists() -> None:
     assert PREVIEW_CARD.exists()
 
 
-def test_reviewer_priority_surface_contract() -> None:
+def test_architecture_priority_surface_contract() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     required_tokens = [
-        'id="reviewer-priority-panel"',
+        'id="architecture-priority-panel"',
         'id="priority-flow"',
         'id="priority-thread"',
         'id="priority-request"',
@@ -44,7 +44,7 @@ def test_reviewer_priority_surface_contract() -> None:
         'id="priority-staleness"',
         'id="priority-trace-note"',
         "Keep one request visible from ask to approval to chart to audit.",
-        "Recorded review mode demonstrates workflow shape only.",
+        "Recorded architecture mode demonstrates workflow shape only.",
         "Proof freshness should stay visible before any governed chart is shared.",
         "Trace continuity keeps retries and audit depth attached to the same request.",
         "Request continuity stays blocked until approval posture, chart posture, and audit freshness all point to the same request ID.",

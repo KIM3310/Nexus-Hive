@@ -37,15 +37,15 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     health = client.get("/health")
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
-    review_resource_pack = client.get("/api/runtime/review-resource-pack")
+    architecture_resource_pack = client.get("/api/runtime/architecture-resource-pack")
     warehouse_mode_switchboard = client.get("/api/runtime/warehouse-mode-switchboard")
     warehouse_brief = client.get("/api/runtime/warehouse-brief")
     warehouse_target_scorecard = client.get(
         "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract"
     )
     governance_scorecard = client.get("/api/runtime/governance-scorecard?focus=quality")
-    reviewer_query_demo = client.post(
-        "/api/runtime/reviewer-query-demo",
+    architecture_query_demo = client.post(
+        "/api/runtime/architecture-query-demo",
         json={"question_id": "revenue-by-region"},
     )
     answer_schema = client.get("/api/schema/answer")
@@ -76,7 +76,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         health_payload["links"]["warehouse_target_scorecard"]
         == "/api/runtime/warehouse-target-scorecard"
     )
-    assert health_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
+    assert health_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
@@ -125,9 +125,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert "/api/runtime/warehouse-mode-switchboard" in meta_payload["routes"]
     assert "/api/runtime/warehouse-brief" in meta_payload["routes"]
     assert "/api/runtime/warehouse-target-scorecard" in meta_payload["routes"]
-    assert "/api/runtime/reviewer-query-demo" in meta_payload["routes"]
+    assert "/api/runtime/architecture-query-demo" in meta_payload["routes"]
     assert "/api/auth/session" in meta_payload["routes"]
-    assert "/api/review-pack" in meta_payload["routes"]
+    assert "/api/architecture-pack" in meta_payload["routes"]
     assert "/api/schema/answer" in meta_payload["routes"]
     assert "/api/schema/lineage" in meta_payload["routes"]
     assert "/api/schema/metrics" in meta_payload["routes"]
@@ -178,9 +178,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
     assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
-    assert brief_payload["links"]["reviewer_query_demo"] == "/api/runtime/reviewer-query-demo"
+    assert brief_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
 
-    assert review_resource_pack.status_code == 404
+    assert architecture_resource_pack.status_code == 404
 
     assert warehouse_mode_switchboard.status_code == 200
     warehouse_switchboard_payload = warehouse_mode_switchboard.json()
@@ -218,8 +218,8 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
 
     assert governance_scorecard.status_code == 404
 
-    assert reviewer_query_demo.status_code == 503
-    assert "OPENAI_API_KEY" in reviewer_query_demo.json()["detail"]
+    assert architecture_query_demo.status_code == 503
+    assert "OPENAI_API_KEY" in architecture_query_demo.json()["detail"]
 
     assert answer_schema.status_code == 200
     schema_payload = answer_schema.json()
@@ -490,7 +490,7 @@ def test_operator_token_can_guard_mutating_routes() -> None:
     previous = os.environ.get("NEXUS_HIVE_OPERATOR_TOKEN")
     previous_roles = os.environ.get("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES")
     os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = "nexus-token"
-    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "reviewer"
+    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "architecture"
     client = TestClient(APP_MODULE.app)
     try:
         denied = client.post("/api/ask", json={"question": "Show total revenue by region"})
@@ -507,7 +507,7 @@ def test_operator_token_can_guard_mutating_routes() -> None:
             "/api/ask",
             headers={
                 "authorization": "Bearer nexus-token",
-                "x-operator-role": "reviewer",
+                "x-operator-role": "architecture",
             },
             json={"question": "Show total revenue by region"},
         )
@@ -641,7 +641,7 @@ def test_query_audit_summary_filters_and_top_questions(monkeypatch, tmp_path) ->
     assert invalid_filter.status_code == 400
 
 
-def test_reviewer_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
+def test_architecture_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-nexus-live")
     monkeypatch.setenv("OPENAI_PUBLIC_RPM", "3")
 
@@ -654,7 +654,7 @@ def test_reviewer_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
         assert model == "gpt-4.1-mini"
         assert payload["warehouse_target"] == "snowflake-sql-contract"
         return {
-            "reviewerSummary": "Certified revenue metric survives the Snowflake contract path.",
+            "architectureSummary": "Certified revenue metric survives the Snowflake contract path.",
             "warehouseFit": "snowflake-strong",
             "approvalReason": "Certified metric plus explicit regional grouping",
             "metricTrust": "certified",
@@ -662,17 +662,17 @@ def test_reviewer_query_demo_returns_bounded_live_envelope(monkeypatch) -> None:
         }
 
     monkeypatch.setattr(APP_MODULE, "call_openai_moderation", _fake_moderation)
-    monkeypatch.setattr(APP_MODULE, "call_openai_reviewer_demo_summary", _fake_summary)
+    monkeypatch.setattr(APP_MODULE, "call_openai_architecture_demo_summary", _fake_summary)
 
     client = TestClient(APP_MODULE.app)
     response = client.post(
-        "/api/runtime/reviewer-query-demo",
+        "/api/runtime/architecture-query-demo",
         json={"question_id": "revenue-by-region"},
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["schema"] == "nexus-hive-reviewer-query-demo-v1"
+    assert payload["schema"] == "nexus-hive-architecture-query-demo-v1"
     assert payload["mode"] == "public-capped-live"
     assert payload["model"] == "gpt-4.1-mini"
     assert payload["scenarioId"] == "revenue-by-region"

@@ -36,7 +36,7 @@ uvicorn main:app --reload --port 8000
 ```
 Nexus-Hive/
   graph/nodes.py         # LangGraph agent pipeline (Translator, Executor, Visualizer)
-  policy/engine.py       # Policy engine: deny/review/allow decisions
+  policy/engine.py       # Policy engine: deny/architecture/allow decisions
   policy/audit.py        # Audit trail writer
   warehouse_adapter.py   # Base adapter + SQLite adapter
   snowflake_adapter.py   # Snowflake live adapter

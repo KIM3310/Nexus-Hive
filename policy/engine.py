@@ -172,7 +172,7 @@ def build_policy_approval_bundle(verdict: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "approval_required": approval_required,
         "approval_actions": [
-            "Confirm the SQL scope is intentional before executing a reviewer-sensitive query.",
+            "Confirm the SQL scope is intentional before executing a architecture-sensitive query.",
             "Use /api/query-approval-board to see whether similar review-required queries are already waiting.",
             "Run /api/evals/nl2sql-gold/run if fallback or broad row access makes the request harder to trust.",
         ]

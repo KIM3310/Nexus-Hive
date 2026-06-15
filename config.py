@@ -71,7 +71,7 @@ QUERY_APPROVAL_BOARD_SCHEMA: str = "nexus-hive-query-approval-board-v1"
 WAREHOUSE_TARGET_SCORECARD_SCHEMA: str = "nexus-hive-warehouse-target-scorecard-v1"
 SEMANTIC_GOVERNANCE_PACK_SCHEMA: str = "nexus-hive-semantic-governance-pack-v1"
 LAKEHOUSE_READINESS_PACK_SCHEMA: str = "nexus-hive-lakehouse-readiness-pack-v1"
-REVIEWER_QUERY_DEMO_SCHEMA: str = "nexus-hive-reviewer-query-demo-v1"
+ARCHITECTURE_QUERY_DEMO_SCHEMA: str = "nexus-hive-architecture-query-demo-v1"
 
 # ---------------------------------------------------------------------------
 # Lineage relationships
@@ -199,7 +199,7 @@ OPENAI_PUBLIC_DEFAULT_MONTHLY_BUDGET_USD: float = 120.0
 OPENAI_PUBLIC_DEFAULT_RPM: int = 6
 OPENAI_TIMEOUT_S: float = 20.0
 
-REVIEWER_QUERY_SCENARIOS: Dict[str, Dict[str, Any]] = {
+ARCHITECTURE_QUERY_SCENARIOS: Dict[str, Dict[str, Any]] = {
     "revenue-by-region": {
         "question": "Show total net revenue by region",
         "sql": (
@@ -232,7 +232,7 @@ REVIEWER_QUERY_SCENARIOS: Dict[str, Dict[str, Any]] = {
 # Mutable global state
 # ---------------------------------------------------------------------------
 LAST_OPENAI_LIVE_RUN_AT: Optional[str] = None
-OPENAI_REVIEWER_RATE_BUCKETS: Dict[str, Dict[str, float]] = {}
+OPENAI_ARCHITECTURE_RATE_BUCKETS: Dict[str, Dict[str, float]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -422,9 +422,9 @@ def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
         HTTPException: If the rate limit has been exceeded (HTTP 429).
     """
     now: float = datetime.now(timezone.utc).timestamp()
-    bucket: Optional[Dict[str, float]] = OPENAI_REVIEWER_RATE_BUCKETS.get(key)
+    bucket: Optional[Dict[str, float]] = OPENAI_ARCHITECTURE_RATE_BUCKETS.get(key)
     if bucket is None or bucket["reset_at"] <= now:
-        OPENAI_REVIEWER_RATE_BUCKETS[key] = {"count": 1.0, "reset_at": now + 60.0}
+        OPENAI_ARCHITECTURE_RATE_BUCKETS[key] = {"count": 1.0, "reset_at": now + 60.0}
         return
     if bucket["count"] >= float(limit):
         _logger.warning(
@@ -432,5 +432,5 @@ def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
             key,
             limit,
         )
-        raise HTTPException(status_code=429, detail="reviewer query demo rate limit exceeded")
+        raise HTTPException(status_code=429, detail="architecture query demo rate limit exceeded")
     bucket["count"] += 1.0

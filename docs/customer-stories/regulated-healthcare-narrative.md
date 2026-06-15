@@ -35,7 +35,7 @@ Their pre-Nexus-Hive analytics workflow reflected these constraints:
 - 90% of analytical questions routed to a central analytics team of 24
   people.
 - Average turnaround: **9 business days** for bespoke requests, due to a
-  mandatory PHI review step performed by the privacy officer on all
+  mandatory PHI architecture step performed by the privacy officer on all
   queries touching identifiable data.
 - Four full-time analysts did nothing but **manual de-identification**
   of data extracts before those extracts left the warehouse for
@@ -79,10 +79,10 @@ officer endorsed in writing:
 
 ## The 180-day adoption timeline
 
-### Phase 1: Privacy architecture review (days 1-45)
+### Phase 1: Privacy architecture architecture (days 1-45)
 
 This phase is unique to regulated healthcare. We did not touch any
-infrastructure until the privacy review was complete.
+infrastructure until the privacy architecture was complete.
 
 **Days 1-15: Data inventory and labeling.**
 
@@ -100,17 +100,17 @@ infrastructure until the privacy review was complete.
   handbook. Examples:
   - Any `SELECT *` on a table containing a `phi_l1` column is `deny`.
   - `phi_l2` columns require aggregation of at least 10 records before
-    `allow`. Otherwise `review`.
+    `allow`. Otherwise `architecture`.
   - `state_restricted` data follows a row-access policy derived from
     the user's state-of-employment attribute in OKTA.
   - Write ops of any kind are `deny` on PHI-containing tables.
-- Privacy officer signed off on the rule set after 2 review cycles.
+- Privacy officer signed off on the rule set after 2 architecture cycles.
 
 **Days 31-45: HIPAA documentation.**
 
 - Wrote a **Privacy Impact Assessment** (PIA) appendix documenting:
   - Data types touched by Nexus-Hive
-  - Workflow for each `deny` / `review` / `allow` case
+  - Workflow for each `deny` / `architecture` / `allow` case
   - Audit-trail retention policy (7 years per Northstar's HIPAA policy)
   - Incident response path for a suspected breach
 - Privacy officer and CISO co-signed the PIA.
@@ -141,12 +141,12 @@ No software had been deployed yet. This is normal for healthcare.
 
 **Days 61-67: Soft launch to 8 users.**
 
-- Users: 4 analysts in population health, 2 finance reviewers, 1
+- Users: 4 analysts in population health, 2 finance technical readers, 1
   quality & safety analyst, 1 clinical research associate.
-- First 3 days: 42 questions, 43% `allow`, 38% `review`, 19% `deny`.
-- The high `review` rate was expected; we had deliberately erred on
+- First 3 days: 42 questions, 43% `allow`, 38% `architecture`, 19% `deny`.
+- The high `architecture` rate was expected; we had deliberately erred on
   the side of caution during rule design.
-- Every `review` was adjudicated by the privacy officer in a
+- Every `architecture` was adjudicated by the privacy officer in a
   next-day queue. Her verdicts were logged in the audit trail as
   training signal.
 
@@ -229,7 +229,7 @@ used in IRB-approved research cohorts.
 | Central analytics team backlog | 180+ open | 40-60 open | -70% |
 | Analyst FTEs on manual de-identification | 4 | 1 | -75% |
 | PHI exposure incidents | 1 near-miss in prior 12mo | 0 | -100% |
-| Queries touching identifiable data | 100% (manually reviewed) | 8% (all audited) | -92% |
+| Queries touching identifiable data | 100% (manually approved) | 8% (all audited) | -92% |
 | Gold-eval score (healthcare schema) | - | 0.87 | baseline |
 | Audit-trail completeness for HIPAA disclosures | ~65% (manual) | 100% (automated) | +35pp |
 | Databricks cost per answered question | $2.40 | $1.15 | -52% |
@@ -267,10 +267,10 @@ is slower than Claude on the cloud, but the privacy argument was
 decisive. The p95 latency of 2.8 seconds was a tradeoff Northstar
 was happy to make.
 
-**4. The privacy officer in every major review.**
+**4. The privacy officer in every major architecture.**
 
 At each 30-day checkpoint, the privacy officer sat in a 45-minute
-review meeting. She had veto authority. This was scary to product
+architecture meeting. She had veto authority. This was scary to product
 velocity at first but turned out to be the biggest trust-building
 asset in the engagement. By day 180, she was one of our
 strongest advocates internally.
@@ -296,7 +296,7 @@ Northstar's engagement produced four upstream changes to Nexus-Hive:
 We initially viewed the privacy officer as a compliance check. She
 turned out to be our best product partner. Her feedback drove 3 of the
 4 upstream product changes. Future healthcare engagements should
-include the privacy officer in all design reviews from day one.
+include the privacy officer in all design architectures from day one.
 
 **2. Deny rates of 15-20% are a sign of health, not failure.**
 
@@ -310,7 +310,7 @@ de-identified path to their answer." We hit 94% on that metric.
 Competing vendors highlighted cloud-native inference as a feature.
 Northstar saw cloud inference as a disqualifier. For regulated
 industries, framing airgap as a "feature" rather than a "workaround"
-shifted the review conversation in our favor.
+shifted the architecture conversation in our favor.
 
 **4. The audit trail sells itself.**
 
@@ -335,7 +335,7 @@ should set the 180-day expectation upfront.
   overrides; 23 policy rules in `policy/profiles/northstar_hipaa.yaml`;
   row-access hooks in `databricks_adapter.py` (extension point)
 - **HIPAA Audit export CLI**: shipped as `cli/audit_hipaa_export.py`
-- **Follow-up engagements**: quarterly governance review, second-year
+- **Follow-up engagements**: quarterly governance architecture, second-year
   expansion planning (clinical operations and revenue cycle), research
   analytics agent for bioinformatics pilots
 

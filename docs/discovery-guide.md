@@ -4,12 +4,12 @@
 
 - teams want self-service analytics but do not trust free-form SQL generation
 - data owners need audit and policy controls before rollout
-- reviewers want measurable proof instead of a chart-only demo
+- technical readers want measurable proof instead of a chart-only demo
 
 ## Discovery questions
 
 1. Which analyst workflows are blocked by governance, not by dashboards?
-2. What must be reviewed before a generated query can be trusted?
+2. What must be approved before a generated query can be trusted?
 3. Which roles need policy preview versus full execution access?
 4. What fallback behavior is acceptable when the live model path degrades?
 5. Which questions belong in the first gold eval set?
@@ -24,10 +24,10 @@
 
 ## Success criteria
 
-- reviewer sees audit and policy before chart output
+- technical reader sees audit and policy before chart output
 - eval path is deterministic
 - fallback behavior is explicit
-- rollout story is clear for both analysts and reviewers
+- rollout story is clear for both analysts and technical readers
 
 ## Follow-up artifacts
 

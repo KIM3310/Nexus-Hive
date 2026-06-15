@@ -5,13 +5,13 @@ This document keeps the public architecture plan focused on deployment boundarie
 ## Technical Role
 
 - **Lane:** Repository-specific proof surface and implementation reference
-- **Primary reader:** Technical reviewers, operators, maintainers, and partners
-- **First motion:** Validate the live demo, README, architecture notes, and local checks before expanding the runtime surface.
+- **Primary reader:** Operators, maintainers, and partners
+- **First motion:** Validate the runtime walkthrough, README, architecture notes, and local checks before expanding the runtime surface.
 
 ## Recommended Architecture
 
 ~~~text
-User or reviewer
+User or operator
   -> public proof surface
   -> scoped app/API layer only when state or integrations are required
   -> managed data, object storage, queue, and observability after ownership is clear

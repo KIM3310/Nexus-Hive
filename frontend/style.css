@@ -216,13 +216,13 @@ body {
     padding: 1.1rem 1.25rem;
 }
 
-.reviewer-priority-panel {
+.architecture-priority-panel {
     padding: 1.25rem;
     display: grid;
     gap: 1rem;
 }
 
-.reviewer-priority-header {
+.architecture-priority-header {
     align-items: center;
 }
 

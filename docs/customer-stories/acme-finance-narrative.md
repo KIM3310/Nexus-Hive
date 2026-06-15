@@ -36,13 +36,13 @@ The numbers as they first described them to us:
   February and got an answer in April."
 
 Their VP of Analytics, Marta Ruiz, described the situation in our
-discovery call: "We've hired our way out of this twice. It works for six
+discovery call: "We've staffed our way out of this twice. It works for six
 months, then the backlog catches back up. We need a different shape of
 solution, not a bigger team."
 
 Acme had already tried two SaaS NL-to-SQL tools before us. The first
 generated confident-but-wrong SQL that an auditor caught in a compliance
-review. The second required all queries to run through a single shared
+architecture. The second required all queries to run through a single shared
 Snowflake warehouse, spiking their costs and producing `QUERY_TAG` noise
 their cost-attribution team could not unscramble. Both were shelved
 within 90 days.
@@ -53,7 +53,7 @@ Two features closed the conversation during our first technical deep-dive:
 
 1. **Policy engine between generation and execution.** The auditor who
    had killed their previous tool was invited to the second demo. When
-   she saw the `deny` / `review` / `allow` decision surfacing before
+   she saw the `deny` / `architecture` / `allow` decision surfacing before
    execution, with the reason spelled out and the rule ID logged, she
    moved from skeptical to supportive inside 20 minutes.
 
@@ -97,35 +97,35 @@ be renegotiated.
 
 - 25 pilot users onboarded with a 45-minute enablement session. A 6-page
   cheat sheet covered the question-asking idioms that worked well and
-  the ones that routed to `review` (write ops, cross-joins, wildcard
+  the ones that routed to `architecture` (write ops, cross-joins, wildcard
   selects).
 - First week saw 118 questions asked, with a 71% `allow` rate, 19%
-  `review`, 10% `deny`. The `deny` bucket was dominated by users
+  `architecture`, 10% `deny`. The `deny` bucket was dominated by users
   attempting `SELECT *` on `advisor_clients` - a table with PII columns.
 
 **Week 4: First policy tuning.**
 
-- The `review` rate was higher than Acme wanted for a smooth user
+- The `architecture` rate was higher than Acme wanted for a smooth user
   experience, and the data governance officer wanted to relax a few
   over-strict rules without compromising the PII protection that
   motivated them.
 - Three rule adjustments:
-  - Non-aggregated queries on `transactions` were flagged for review by
+  - Non-aggregated queries on `transactions` were flagged for architecture by
     default. Changed to `allow` when the query included a date filter
     narrower than 90 days.
   - `advisor_clients` wildcard selects stayed at `deny`, but a new
     policy-suggested rewrite offered the user a curated column list.
-  - Queries with `JOIN` on 3+ tables were auto-flagged for review. The
+  - Queries with `JOIN` on 3+ tables were auto-flagged for architecture. The
     threshold moved to 5+ after 72 hours of data showed the 3-4 range
     was overwhelmingly benign.
-- `review` rate dropped from 19% to 6% in 48 hours; `allow` rose to 85%.
+- `architecture` rate dropped from 19% to 6% in 48 hours; `allow` rose to 85%.
 
 **Week 5: First real story of value.**
 
 - A senior financial advisor who had waited 11 days for a custom report
   on client-tier retention produced the same answer in 40 minutes of
   self-service use. The advisor had never written SQL. The policy
-  engine flagged two of her attempts for review and suggested
+  engine flagged two of her attempts for architecture and suggested
   correctives; the eventual accepted query was within 3% of the
   hand-written version the analytics team later audited against.
 
@@ -145,16 +145,16 @@ be renegotiated.
   end-to-end and later wrote a one-page postmortem as internal training
   material.
 
-**Week 8: Governance review.**
+**Week 8: Governance architecture.**
 
-- Acme's governance board reviewed 4 weeks of audit-trail data. Key
+- Acme's governance board examined 4 weeks of audit-trail data. Key
   findings they reported back to us:
   - **Zero unauthorized PII exposure incidents** across 4,800 questions.
   - **100% of queries** tagged with the expected cost center and
     business domain.
   - **18 queries** were flagged as "suspicious" by their internal SIEM
     rules; all 18 were legitimate and documented.
-  - **6 queries** routed to `review` turned into training examples for a
+  - **6 queries** routed to `architecture` turned into training examples for a
     new user cohort the following week.
 - Governance board approved expansion to full production readiness.
 
@@ -206,7 +206,7 @@ reduces compute-heavy full-table scans.
 
 ## Lessons we learned with Acme
 
-**1. The governance demo is the review conversation.**
+**1. The governance demo is the architecture conversation.**
 
 Acme's auditor was the decision-maker nobody was budgeting for. The
 moment we put her in front of the policy-engine response, the
@@ -216,9 +216,9 @@ conversation flipped from "does this work?" to "how do we deploy this?".
 organization has the authority to kill this tool?" and then make sure
 that person sees the audit trail in the second demo.
 
-**2. Tune the `review` queue in week 4, not week 1.**
+**2. Tune the `architecture` queue in week 4, not week 1.**
 
-Early `review` rates of 15-20% feel too high to analysts, but the data
+Early `architecture` rates of 15-20% feel too high to analysts, but the data
 from the first two weeks is exactly what lets governance and analytics
 teams collaboratively relax rules that turn out to be overreach. Trying
 to tune preemptively leaves real governance gaps.
@@ -249,7 +249,7 @@ chargeback model.
 
 Acme's pilot produced three upstream changes to Nexus-Hive:
 
-1. **Configurable `review` threshold for JOIN count** (was hardcoded to
+1. **Configurable `architecture` threshold for JOIN count** (was hardcoded to
    3, now exposed in the policy profile).
 2. **"Suggested rewrite" surface** on `deny` responses - users get a
    clean column list when they try `SELECT *`.
@@ -274,8 +274,8 @@ Acme's year-two plan is:
   3 overrides (HPA max 20, Claude Sonnet 4, GKE workload identity)
 - **Policy profile**: extended from `strict` with 3 relaxations detailed
   in week 4 above
-- **Follow-up engagements**: quarterly governance review, airgap
-  rollout planning kickoff in Q3, architecture review for the chart
+- **Follow-up engagements**: quarterly governance architecture, airgap
+  rollout planning kickoff in Q3, architecture architecture for the chart
   narrative agent
 
 ## Notes for a solutions engineer using this story

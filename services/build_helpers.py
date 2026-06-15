@@ -26,7 +26,7 @@ from policy.governance import (
     build_governance_scorecard,
     build_warehouse_brief,
 )
-from review_resource_pack import build_review_resource_pack
+from architecture_resource_pack import build_architecture_resource_pack
 from runtime_store import build_runtime_store_summary
 from security import (
     operator_auth_status,
@@ -77,13 +77,13 @@ def build_runtime_meta() -> Dict[str, Any]:
         "recent_audit_count": warehouse_brief["recent_audit_count"],
         "runtime_event_count": runtime_persistence["persisted_count"],
         "next_action": (
-            "POST /api/runtime/reviewer-query-demo with a fixed question_id for the bounded public warehouse demo."
+            "POST /api/runtime/architecture-query-demo with a fixed question_id for the bounded public warehouse demo."
             if openai_runtime["publicLiveApi"]
             else "POST /api/ask with an executive question, then follow the returned /api/stream URL."
             if db_exists
             and schema_loaded
             and (OLLAMA_URL.startswith("http") or ALLOW_HEURISTIC_FALLBACK)
-            else "Run `python3 seed_db.py` and verify either Ollama or heuristic fallback is enabled before live demos."
+            else "Run `python3 seed_db.py` and verify either Ollama or heuristic fallback is enabled before runtime walkthroughs."
         ),
     }
     return {
@@ -109,16 +109,16 @@ def build_runtime_meta() -> Dict[str, Any]:
             "/health",
             "/api/meta",
             "/api/runtime/brief",
-            "/api/runtime/review-resource-pack",
+            "/api/runtime/architecture-resource-pack",
             "/api/runtime/warehouse-mode-switchboard",
             "/api/runtime/warehouse-brief",
             "/api/runtime/warehouse-target-scorecard",
             "/api/runtime/governance-scorecard",
             "/api/runtime/semantic-governance-pack",
             "/api/runtime/lakehouse-readiness-pack",
-            "/api/runtime/reviewer-query-demo",
+            "/api/runtime/architecture-query-demo",
             "/api/auth/session",
-            "/api/review-pack",
+            "/api/architecture-pack",
             "/api/schema/answer",
             "/api/schema/lineage",
             "/api/schema/metrics",
@@ -143,13 +143,13 @@ def build_runtime_meta() -> Dict[str, Any]:
             "chart-config-generation",
             "sse-agent-trace-streaming",
             "runtime-brief-surface",
-            "review-resource-pack-surface",
+            "architecture-resource-pack-surface",
             "warehouse-mode-switchboard-surface",
             "warehouse-brief-surface",
             "warehouse-target-scorecard-surface",
             "semantic-governance-pack-surface",
             "lakehouse-readiness-pack-surface",
-            "reviewer-query-demo-surface",
+            "architecture-query-demo-surface",
             "lineage-schema-surface",
             "metric-layer-schema-surface",
             "policy-schema-surface",
@@ -162,7 +162,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "query-audit-summary-surface",
             "query-audit-detail-surface",
             "governance-scorecard-surface",
-            "review-pack-surface",
+            "architecture-pack-surface",
             "answer-schema-surface",
         ],
     }
@@ -172,7 +172,7 @@ def build_runtime_brief() -> Dict[str, Any]:
     runtime_meta = build_runtime_meta()
     warehouse_brief = build_warehouse_brief()
     governance_scorecard = build_governance_scorecard("quality")
-    review_resource_pack = build_review_resource_pack()
+    architecture_resource_pack = build_architecture_resource_pack()
     diagnostics = runtime_meta["diagnostics"]
     db_ready = diagnostics["db_ready"]
 
@@ -193,7 +193,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "retry_budget": 3,
             "seeded_rows": 10000,
             "runtime_routes": len(runtime_meta["routes"]),
-            "review_pack_scenarios": review_resource_pack["summary"]["scenario_count"],
+            "architecture_pack_scenarios": architecture_resource_pack["summary"]["scenario_count"],
         },
         "warehouse_contract": {
             "mode": warehouse_brief["warehouse_mode"],
@@ -220,20 +220,20 @@ def build_runtime_brief() -> Dict[str, Any]:
         "review_flow": [
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
-            "Read /api/runtime/review-resource-pack for the built-in no-key walkthrough before any live demo claim.",
+            "Read /api/runtime/architecture-resource-pack for the built-in no-key walkthrough before any runtime walkthrough claim.",
             "Read /api/schema/metrics to confirm the semantic metric contract before trusting warehouse-target claims.",
             "Read /api/runtime/semantic-governance-pack to see metric certification, approval posture, and warehouse survival in one surface.",
             "Read /api/runtime/lakehouse-readiness-pack to compress Snowflake and Databricks delivery posture into one platform-facing surface.",
-            "Use /api/runtime/reviewer-query-demo with a fixed question_id when you need a bounded public live warehouse demo.",
+            "Use /api/runtime/architecture-query-demo with a fixed question_id when you need a bounded public live warehouse demo.",
             "Read /api/schema/query-tag to verify warehouse tagging and audit dimensions before a live review.",
-            "Read /api/runtime/brief for agent contract, retry policy, and reviewer guidance.",
+            "Read /api/runtime/brief for agent contract, retry policy, and architecture guidance.",
             "Open /api/query-session-board to revisit saved analyst sessions before re-running a question.",
             "Ask a question through /api/ask or the frontend to validate SQL, execution, and chart generation.",
             "Inspect the streamed agent trace before trusting any rendered answer.",
         ],
         "watchouts": [
             "The visualization agent uses the shape of returned rows; poor SQL still yields poor charts.",
-            "Ollama availability affects live demos, but the runtime brief remains available without it.",
+            "Ollama availability affects runtime walkthroughs, but the runtime brief remains available without it.",
             "SQLite is used as a local warehouse stand-in, not a claim of production warehouse scale.",
             "Query tags are governance proof fields and not a substitute for warehouse-native access controls.",
         ],
@@ -252,5 +252,5 @@ def build_runtime_brief() -> Dict[str, Any]:
             },
         ],
         "routes": runtime_meta["routes"],
-        "links": {"reviewer_query_demo": "/api/runtime/reviewer-query-demo"},
+        "links": {"architecture_query_demo": "/api/runtime/architecture-query-demo"},
     }

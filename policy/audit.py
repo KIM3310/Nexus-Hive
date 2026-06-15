@@ -53,7 +53,7 @@ def build_query_audit_schema() -> Dict[str, Any]:
         "operator_rules": [
             "Each governed query keeps a stable request_id from acceptance through terminal state.",
             "SQL text should remain reviewable even when execution fails.",
-            "Audit history is for review posture, not a substitute for warehouse-native lineage tooling.",
+            "Audit history is for architecture posture, not a substitute for warehouse-native lineage tooling.",
         ],
     }
 

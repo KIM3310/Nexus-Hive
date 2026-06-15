@@ -2,7 +2,7 @@
 
 Updated: 2026-05-30
 
-These notes keep the repository easy to review without overstating what is production-ready.
+These notes keep the repository easy to architecture without overstating what is production-ready.
 
 ## Profile
 
@@ -10,7 +10,7 @@ These notes keep the repository easy to review without overstating what is produ
 |---|---|
 | Repository | `Nexus-Hive` |
 | Primary stack | Python, Terraform, Helm, Docker |
-| Review expectation | Local review should not require customer data or production credentials. |
+| System expectation | Local architecture should not require customer data or production credentials. |
 
 ## Commands
 
@@ -23,7 +23,7 @@ These notes keep the repository easy to review without overstating what is produ
 
 - .github/workflows/architecture-blueprint.yml
 - .github/workflows/ci.yml
-- .github/workflows/dependency-review.yml
+- .github/workflows/dependency-architecture.yml
 - .github/workflows/repository-health.yml
 - .github/workflows/repository-surface.yml
 - .github/workflows/secret-scan.yml
@@ -37,7 +37,7 @@ These notes keep the repository easy to review without overstating what is produ
 
 ## Before Presenting
 
-- README explains the user, the pain, the safety boundary, and the fast proof path.
+- README explains the user, the pain, the safety boundary, and the fast path path.
 - `docs/service-launch-playbook.md` explains the product, pilot, service, or proof-of-value angle when relevant.
 - Tests or smoke checks are documented even when optional infrastructure is unavailable.
 - Failure modes and unsupported claims are visible before the project is presented externally.

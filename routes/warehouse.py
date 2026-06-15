@@ -21,7 +21,7 @@ async def warehouse_mode_switchboard_endpoint():
         "status": "ok",
         "service": "nexus-hive",
         "schema": "nexus-hive-warehouse-mode-switchboard-v1",
-        "headline": "Compact board for comparing SQLite preview, Snowflake live posture, and Databricks live posture before a reviewer switches lanes.",
+        "headline": "Compact board for comparing SQLite preview, Snowflake live posture, and Databricks live posture before a architecture switches lanes.",
         "active_target": active_adapter.contract.name,
         "active_execution_mode": active_adapter.contract.execution_mode,
         "targets": [
@@ -30,7 +30,7 @@ async def warehouse_mode_switchboard_endpoint():
                 "configured": True,
                 "execution_mode": "local-sqlite",
                 "primary_surface": "/api/runtime/brief",
-                "why_it_matters": "Fastest no-key review path for governed analytics and audit posture.",
+                "why_it_matters": "Fastest no-key review path for governed analytics and operating posture.",
             },
             {
                 "target": "snowflake-sql-contract",
@@ -39,7 +39,7 @@ async def warehouse_mode_switchboard_endpoint():
                 if snowflake_configured()
                 else "contract-preview",
                 "primary_surface": "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract",
-                "why_it_matters": "Best path when reviewer trust depends on live Snowflake execution and metric certification.",
+                "why_it_matters": "Best path when architecture trust depends on live Snowflake execution and metric certification.",
             },
             {
                 "target": "databricks-sql-contract",
@@ -48,7 +48,7 @@ async def warehouse_mode_switchboard_endpoint():
                 if databricks_configured()
                 else "contract-preview",
                 "primary_surface": "/api/runtime/lakehouse-readiness-pack?target=databricks-sql-contract",
-                "why_it_matters": "Best path when reviewer trust depends on live Databricks SQL execution and lakehouse delivery posture.",
+                "why_it_matters": "Best path when architecture trust depends on live Databricks SQL execution and lakehouse delivery posture.",
             },
         ],
         "review_sequence": [

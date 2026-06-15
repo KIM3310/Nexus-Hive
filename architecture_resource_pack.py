@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 EXTERNAL_DIR = ROOT / "data" / "external" / "global_online_orders"
 
 
-def build_review_resource_pack() -> Dict[str, Any]:
+def build_architecture_resource_pack() -> Dict[str, Any]:
     scenarios = [
         {
             "scenario_id": "revenue-by-region",
@@ -39,11 +39,11 @@ def build_review_resource_pack() -> Dict[str, Any]:
         {
             "check_id": "confirm-runtime",
             "surface": "/health",
-            "why_it_matters": "Reviewers should confirm database, model, and fallback posture before reading any answer surface.",
+            "why_it_matters": "Operators should confirm database, model, and fallback posture before reading any answer surface.",
         },
         {
             "check_id": "open-resource-pack",
-            "surface": "/api/runtime/review-resource-pack",
+            "surface": "/api/runtime/architecture-resource-pack",
             "why_it_matters": "Built-in scenarios keep the strongest no-key walkthrough explicit without private warehouse data.",
         },
         {
@@ -66,7 +66,7 @@ def build_review_resource_pack() -> Dict[str, Any]:
         },
         {
             "case_id": "semantic-pack-boundary",
-            "goal": "Certified metrics and target posture should remain visible in one review surface.",
+            "goal": "Certified metrics and target posture should remain visible in one architecture surface.",
             "proof_surface": "/api/runtime/semantic-governance-pack",
         },
         {
@@ -86,7 +86,7 @@ def build_review_resource_pack() -> Dict[str, Any]:
             "playbook_id": "runtime-first",
             "entry_surface": "/health",
             "handoff_surface": "/api/runtime/brief",
-            "focus": "Use when the reviewer needs the shortest path from service posture to governed analytics proof.",
+            "focus": "Use when the architecture needs the shortest path from service posture to governed analytics proof.",
         },
         {
             "playbook_id": "semantic-metrics-first",
@@ -106,8 +106,8 @@ def build_review_resource_pack() -> Dict[str, Any]:
         "status": "ok",
         "service": "nexus-hive",
         "generated_at": None,
-        "schema": "nexus-hive-review-resource-pack-v1",
-        "headline": "Built-in governed analytics review pack for a no-key walkthrough.",
+        "schema": "nexus-hive-architecture-resource-pack-v1",
+        "headline": "Built-in governed analytics architecture brief for a no-key walkthrough.",
         "summary": {
             "scenario_count": len(scenarios),
             "operator_check_count": len(operator_checks),
@@ -130,27 +130,27 @@ def build_review_resource_pack() -> Dict[str, Any]:
         "operator_checks": operator_checks,
         "validation_cases": validation_cases,
         "playbooks": playbooks,
-        "reviewer_fast_path": [
+        "architecture_fast_path": [
             "/health",
             "/api/runtime/brief",
-            "/api/runtime/review-resource-pack",
+            "/api/runtime/architecture-resource-pack",
             "/api/runtime/warehouse-mode-switchboard",
             "/api/runtime/semantic-governance-pack",
             "/api/runtime/warehouse-target-scorecard",
             "/api/query-review-board",
-            "/api/review-pack",
+            "/api/architecture-pack",
         ],
         "links": {
             "health": "/health",
             "runtime_brief": "/api/runtime/brief",
-            "review_resource_pack": "/api/runtime/review-resource-pack",
+            "architecture_resource_pack": "/api/runtime/architecture-resource-pack",
             "warehouse_mode_switchboard": "/api/runtime/warehouse-mode-switchboard",
             "warehouse_brief": "/api/runtime/warehouse-brief",
             "warehouse_target_scorecard": "/api/runtime/warehouse-target-scorecard",
             "semantic_governance_pack": "/api/runtime/semantic-governance-pack",
             "governance_scorecard": "/api/runtime/governance-scorecard",
             "query_review_board": "/api/query-review-board",
-            "review_pack": "/api/review-pack",
+            "architecture_pack": "/api/architecture-pack",
         },
     }
 

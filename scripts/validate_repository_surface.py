@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the repository review surface.
+"""Validate the repository architecture surface.
 
 The check is intentionally dependency-free so active and archived repositories can
 run the same guard in CI. It verifies public-facing docs, local links, architecture
@@ -37,7 +37,7 @@ BANNED_TERMS = {
     "job" + " seeker",
     "job" + "-seeker",
     "inter" + "view prep",
-    "career" + " signal",
+    "technical portfolio" + " signal",
     "best" + " fit roles",
     "role" + "-fit",
     "role" + "_fit",

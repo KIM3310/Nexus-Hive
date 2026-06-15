@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAI integration with capped public live API and rate limiting
 - Governance scorecard, session board, and approval board runtime surfaces
 - Semantic governance pack and lakehouse readiness pack endpoints
-- Reviewer query demo with gold eval scoring
+- Technical reader query demo with gold eval scoring
 - Structured JSON logging with request-scoped correlation IDs
 - k6 load test script for governance endpoints
 
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Multi-agent NL-to-SQL pipeline (Translator, Executor, Visualizer) built on LangGraph
 - Multi-warehouse support (SQLite, Snowflake, Databricks) via adapter pattern
-- Policy engine with deny/review/allow decisions for SQL governance
+- Policy engine with deny/architecture/allow decisions for SQL governance
 - Audit trail with JSONL logging and query-audit API endpoints
 - Query tag governance metadata compatible with Snowflake QUERY_TAG and Databricks tags
 - Session governance surfaces (query session board, approval board)

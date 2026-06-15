@@ -129,7 +129,7 @@ class WarehouseAdapter:
         return self.contract.sql_dialect
 
     def prompt_execution_note(self) -> str:
-        """Return a reviewer note for LLM prompt construction.
+        """Return a architecture note for LLM prompt construction.
 
         Returns:
             A human-readable note about execution posture.
