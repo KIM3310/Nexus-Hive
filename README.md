@@ -26,7 +26,7 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 |---|---|
 | Audience | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
 | Review path | Validate the demo, README, architecture notes, and quality gate before deeper workflow review. |
-| Review signal | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
+| Architecture signal | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
 | Safety boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
 | Fast proof | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
 
@@ -428,6 +428,10 @@ This repository includes a neutral cloud and AI engineering blueprint that maps 
 ## Enterprise Productization
 
 - [Product operating model](docs/product-operating-model.md) defines the reviewer, trust boundary, trust boundary, operating checks, and service path for this repository.
+
+## System Architecture
+
+- [System architecture](docs/system-architecture.md) maps the runtime boundary, data/control flow, cloud or local deployment surface, and operating assumptions for this repository.
 
 ## Service Architecture
 
