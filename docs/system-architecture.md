@@ -106,3 +106,7 @@ python3 scripts/validate_architecture_blueprint.py
 CI workflow: `.github/workflows/architecture-blueprint.yml`.
 
 Update this document whenever runtime entrypoints, data stores, hosted services, model/provider boundaries, or operating assumptions change.
+
+## Revenue Architecture Overlay
+
+See [Revenue Architecture](./revenue-architecture.md) for the free-tier-first launch stack, productized offer, metering hooks, paywall boundary, and cost guardrails that turn this system architecture into a service path.
