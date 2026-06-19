@@ -5,7 +5,7 @@
   "repository_url": "https://github.com/KIM3310/Nexus-Hive",
   "architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md",
   "revenue_architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md",
-  "lead_capture_url": "mailto:ehdjs1351@gmail.com?subject=Nexus%20Hive%20private%20workspace&body=I%20am%20interested%20in%20paid%20private%20connector%20pack%20for%20Snowflake%2FDatabricks%2FPostgres%20plus%20audit%20export%20bundle%20for%20Nexus%20Hive.",
+  "lead_capture_url": "https://github.com/KIM3310/Nexus-Hive/issues/new?template=service-inquiry.yml&title=Private+workspace+inquiry%3A+Nexus+Hive",
   "productized_offer": "governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts",
   "first_paid_sku": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
   "free_lead_magnet": "public governed analytics demo over synthetic sales data",

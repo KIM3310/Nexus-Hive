@@ -444,7 +444,7 @@ This repository includes a neutral cloud and AI engineering blueprint that maps 
 - Public entry: public governed analytics demo over synthetic sales data
 - Paid boundary: paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle
 - Canonical URL: https://nexus-hive.pages.dev/
-- Lead capture: mailto:ehdjs1351@gmail.com?subject=Nexus%20Hive%20private%20workspace&body=I%20am%20interested%20in%20paid%20private%20connector%20pack%20for%20Snowflake%2FDatabricks%2FPostgres%20plus%20audit%20export%20bundle%20for%20Nexus%20Hive.
+- Lead capture: https://github.com/KIM3310/Nexus-Hive/issues/new?template=service-inquiry.yml&title=Private+workspace+inquiry%3A+Nexus+Hive
 - Machine-readable offer: [docs/service-offer.json](docs/service-offer.json)
 - Search growth implementation: [docs/search-growth-implementation.md](docs/search-growth-implementation.md)
 - Revenue architecture: [docs/revenue-architecture.md](docs/revenue-architecture.md)

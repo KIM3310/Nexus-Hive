@@ -1,0 +1,56 @@
+name: Private workspace or paid package inquiry
+description: Request a private workspace, connector pack, report pack, or paid adaptation for this repository.
+title: "Private workspace inquiry: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to start a concrete service conversation.
+
+        Public entry: public governed analytics demo over synthetic sales data
+        Paid boundary: paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle
+        Canonical URL: https://nexus-hive.pages.dev/
+  - type: input
+    id: organization
+    attributes:
+      label: Organization or project
+      description: The team, company, or project this request is for.
+      placeholder: Example team, company, or project name
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Interested package
+      options:
+        - Private workspace
+        - Connector or deployment package
+        - Report or export pack
+        - Implementation support
+        - Template or architecture adaptation
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow to support
+      description: Describe the workflow, data boundary, or operating problem.
+      placeholder: What should the private workspace, connector, report, or deployment help with?
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Useful outcome
+      description: Define what would make a small paid pilot worth continuing.
+      placeholder: Faster handoff, reusable report, private connector, saved history, local deployment, recurring readiness view, etc.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Data boundary
+      options:
+        - label: I can start with synthetic or anonymized data.
+        - label: I need a private workspace or customer-owned runtime before sharing data.
+        - label: I need a local or self-hosted deployment path.
