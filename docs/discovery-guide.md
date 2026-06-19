@@ -4,7 +4,7 @@
 
 - teams want self-service analytics but do not trust free-form SQL generation
 - data owners need audit and policy controls before rollout
-- technical readers want measurable proof instead of a chart-only demo
+- architecture inspection paths want measurable proof instead of a chart-only demo
 
 ## Discovery questions
 
@@ -24,10 +24,10 @@
 
 ## Success criteria
 
-- technical reader sees audit and policy before chart output
+- architecture inspection sees audit and policy before chart output
 - eval path is deterministic
 - fallback behavior is explicit
-- rollout story is clear for both analysts and technical readers
+- rollout story is clear for both analysts and architecture inspection paths
 
 ## Follow-up artifacts
 

@@ -156,7 +156,7 @@ def build_runtime_meta() -> Dict[str, Any]:
             "query-tag-schema-surface",
             "query-audit-surface",
             "gold-eval-surface",
-            "policy-preview-surface",
+            "policy-parchitecture-surface",
             "query-session-board-surface",
             "query-review-board-surface",
             "query-audit-summary-surface",
@@ -217,7 +217,7 @@ def build_runtime_brief() -> Dict[str, Any]:
             "operator_required_roles": operator_auth_status()["required_roles"],
             "runtime_persistence_enabled": governance_scorecard["persistence"]["enabled"],
         },
-        "review_flow": [
+        "architecture_flow": [
             "Open /health to confirm database and model posture.",
             "Read /api/runtime/warehouse-brief for adapter mode, lineage, and quality-gate posture.",
             "Read /api/runtime/architecture-resource-pack for the built-in no-key walkthrough before any runtime walkthrough claim.",

@@ -30,7 +30,7 @@ async def warehouse_mode_switchboard_endpoint():
                 "configured": True,
                 "execution_mode": "local-sqlite",
                 "primary_surface": "/api/runtime/brief",
-                "why_it_matters": "Fastest no-key review path for governed analytics and operating posture.",
+                "why_it_matters": "Fastest no-key architecture path for governed analytics and operating posture.",
             },
             {
                 "target": "snowflake-sql-contract",
@@ -51,7 +51,7 @@ async def warehouse_mode_switchboard_endpoint():
                 "why_it_matters": "Best path when architecture trust depends on live Databricks SQL execution and lakehouse delivery posture.",
             },
         ],
-        "review_sequence": [
+        "architecture_sequence": [
             "Read /api/runtime/brief for the overall governed runtime posture.",
             "Use /api/runtime/warehouse-mode-switchboard to decide which warehouse lane is the strongest current proof.",
             "Open the target-specific scorecard or readiness pack before making a live warehouse claim.",

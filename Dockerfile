@@ -6,7 +6,7 @@ COPY pyproject.toml README.md requirements.txt ./
 COPY main.py seed_db.py security.py runtime_store.py config.py ./
 COPY logging_config.py circuit_breaker.py exceptions.py warehouse_adapter.py ./
 COPY snowflake_adapter.py databricks_adapter.py ./
-COPY review_resource_pack.py ./
+COPY architecture_resource_pack.py ./
 COPY graph ./graph
 COPY policy ./policy
 COPY routes ./routes

@@ -12,7 +12,7 @@ def build_architecture_resource_pack() -> Dict[str, Any]:
         {
             "scenario_id": "revenue-by-region",
             "question": "Show total net revenue by region",
-            "goal": "Keep the shortest governed analytics walkthrough tied to a certified metric and review-safe SQL path.",
+            "goal": "Keep the shortest governed analytics walkthrough tied to a certified metric and inspection-safe SQL path.",
             "next_surface": "/api/runtime/semantic-governance-pack",
         },
         {

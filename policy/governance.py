@@ -558,7 +558,7 @@ def build_warehouse_brief() -> Dict[str, Any]:
         "service": "nexus-hive",
         "generated_at": utc_now_iso(),
         "readiness_contract": "nexus-hive-warehouse-brief-v1",
-        "headline": "Governed analytics brief tying warehouse mode, lineage, quality gate, and audit trail into one reviewable surface.",
+        "headline": "Governed analytics brief tying warehouse mode, lineage, quality gate, and audit trail into one inspectable surface.",
         "warehouse_mode": active_adapter.contract.name,
         "selected_adapter": active_adapter.describe(),
         "fallback_mode": "heuristic" if ALLOW_HEURISTIC_FALLBACK else "disabled",
@@ -640,7 +640,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
     ]
     target_notes = {
         "sqlite-demo": {
-            "fit": "Deterministic governed BI review path with live local execution.",
+            "fit": "Deterministic governed BI architecture path with live local execution.",
             "primary_surface": "/api/ask",
         },
         "snowflake-sql-contract": {
@@ -669,7 +669,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
                 "status": (
                     "ready"
                     if execution_mode == "local-sqlite" and quality_gate.get("status") == "ok"
-                    else "review-ready"
+                    else "architecture-ready"
                     if quality_gate.get("status") == "ok"
                     else "attention"
                 ),
@@ -701,7 +701,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
             "runtime_event_count": governance_scorecard["persistence"]["persisted_count"],
         },
         "targets": cards,
-        "review_actions": [
+        "architecture_actions": [
             "Read this scorecard before claiming Snowflake or Databricks fit from the generic warehouse brief alone.",
             "Use /api/schema/metrics to verify which certified metrics survive across warehouse targets.",
             "Pair this view with query approval and policy surfaces before promising platform-native governance behavior.",
@@ -861,7 +861,7 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
                 "fit": str(item.get("fit", "")),
                 "tag_transport": adapter_notes.get(str(item.get("target", "")), ""),
                 "blockers": [str(blocker) for blocker in item.get("blockers", [])],
-                "review_surfaces": [
+                "architecture_surfaces": [
                     "/api/runtime/lakehouse-readiness-pack",
                     "/api/runtime/warehouse-target-scorecard",
                     "/api/runtime/semantic-governance-pack",
@@ -875,7 +875,7 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
             "Start with certified metrics and approval rules so adapter claims stay governed before connector work begins.",
             "Preview warehouse tagging and request metadata through /api/schema/query-tag before any platform-native story is repeated.",
             "Treat Snowflake and Databricks as explicit contract-preview targets until live connector posture changes.",
-            "Keep the approval board in the loop so warehouse-native demos still show human review boundaries.",
+            "Keep the approval board in the loop so warehouse-native demos still show human check boundaries.",
         ],
         "architecture_notes": [
             "Snowflake and Databricks fit is expressed as an explicit contract preview with governance artifacts, not as fake live connectivity.",

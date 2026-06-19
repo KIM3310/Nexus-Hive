@@ -6,7 +6,7 @@ Nexus-Hive delivers governed analytics by turning natural-language questions int
 
 ## System boundary
 
-- browser UI for analysts and technical readers
+- browser UI for analysts and architecture inspection paths
 - FastAPI runtime for ask, policy, audit, and eval surfaces
 - warehouse and semantic model
 - audit log and architecture summary layer
@@ -15,7 +15,7 @@ Nexus-Hive delivers governed analytics by turning natural-language questions int
 
 ```mermaid
 flowchart LR
-  User[Analyst or Technical reader] --> UI[Frontend]
+  User[Analyst or Architecture inspection] --> UI[Frontend]
   UI --> API[FastAPI Runtime]
   API --> Policy[Policy Check]
   API --> Warehouse[SQLite or Warehouse Adapter]
@@ -49,5 +49,5 @@ flowchart LR
 
 - add warehouse-specific adapters and secrets profiles
 - add row-level access simulation per role
-- add signed audit export for external technical readers
+- add signed audit export for external architecture inspection paths
 - add deployment topology docs for private warehouse networking

@@ -17,7 +17,7 @@ Repository-local proof surface for governed analytics, data contracts, and decis
 
 ```mermaid
 flowchart LR
-    User["User or technical reader"] --> Surface["Public demo, CLI, package, or README surface"]
+    User["User or architecture inspection"] --> Surface["Public demo, CLI, package, or README surface"]
     Surface --> Runtime["Runtime boundary: Python service or lab runtime, Terraform infrastructure modules, Container build surface, Local compose environment, GitHub Actions validation"]
     Runtime --> Control["Control plane: configuration, policies, adapters, and jobs"]
     Control --> Data["Data and artifacts: fixtures, reports, logs, exports, or model outputs"]

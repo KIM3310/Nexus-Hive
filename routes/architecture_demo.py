@@ -88,7 +88,7 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
         "capped": True,
         "traceId": uuid4().hex[:12],
         "estimatedCostUsd": scenario["estimated_cost_usd"],
-        "nextReviewPath": scenario["next_review_path"],
+        "nextArchitecturePath": scenario["next_architecture_path"],
         "result": {
             "question": scenario["question"],
             "sql": scenario["sql"],

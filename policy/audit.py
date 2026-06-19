@@ -52,7 +52,7 @@ def build_query_audit_schema() -> Dict[str, Any]:
         "stages": ["accepted", "completed", "failed"],
         "operator_rules": [
             "Each governed query keeps a stable request_id from acceptance through terminal state.",
-            "SQL text should remain reviewable even when execution fails.",
+            "SQL text should remain inspectable even when execution fails.",
             "Audit history is for architecture posture, not a substitute for warehouse-native lineage tooling.",
         ],
     }
@@ -592,7 +592,7 @@ def build_query_review_board(
         "attention_items": [to_board_item(item) for item in attention_items],
         "healthy_items": [to_board_item(item) for item in healthy_items],
         "policy_reasons": audit_summary["top_policy_reasons"],
-        "review_actions": [
+        "architecture_actions": [
             "Start with failed or denied requests before reviewing successful output.",
             "Use /api/query-audit/{request_id} to inspect one request in detail.",
             "Use /api/policy/check before approving risky SQL changes.",
@@ -697,7 +697,7 @@ def build_query_session_board(
             "latest_updated_at": session_items[0]["updated_at"] if session_items else None,
         },
         "items": session_items,
-        "review_actions": [
+        "architecture_actions": [
             "Open the saved session detail before reusing a generated chart or answer.",
             "Keep attention and review sessions visible until their policy issues are resolved.",
             "Promote ready sessions only after a quick SQL and row-count check.",
@@ -762,7 +762,7 @@ def build_query_approval_board(limit: int = 5) -> Dict[str, Any]:
             "latest_updated_at": items[0]["updated_at"] if items else None,
         },
         "items": items,
-        "review_actions": [
+        "architecture_actions": [
             "Keep review-required queries separate from healthy completed traffic.",
             "Use /api/policy/check to restate why the SQL needs a human look.",
             "Open /api/query-audit/{request_id} before approving the chart or answer.",

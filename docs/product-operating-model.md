@@ -42,7 +42,7 @@ This repository is packaged as a concrete system surface, not a loose code sampl
 1. Start with the README quickstart and the local verification command above.
 2. Confirm `.github/workflows` checks match the local command path.
 3. Confirm architecture and repository-surface validators pass after docs, workflow, or positioning changes.
-4. Inspect public demos and homepage metadata before linking the repo from the portfolio.
+4. Inspect public demos and homepage metadata before linking the repo from the project index.
 5. Record any failing external dependency as an explicit operating limitation instead of hiding it.
 
 ## Service Next Step

@@ -141,7 +141,7 @@ No software had been deployed yet. This is normal for healthcare.
 
 **Days 61-67: Soft launch to 8 users.**
 
-- Users: 4 analysts in population health, 2 finance technical readers, 1
+- Users: 4 analysts in population health, 2 finance architecture inspection paths, 1
   quality & safety analyst, 1 clinical research associate.
 - First 3 days: 42 questions, 43% `allow`, 38% `architecture`, 19% `deny`.
 - The high `architecture` rate was expected; we had deliberately erred on

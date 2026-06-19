@@ -108,7 +108,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         == "nexus-hive-warehouse-target-scorecard-v1"
     )
     assert meta_payload["governance_scorecard_contract"] == "nexus-hive-governance-scorecard-v1"
-    assert meta_payload["openai"]["deploymentMode"] == "review-only-live"
+    assert meta_payload["openai"]["deploymentMode"] == "read-only-live"
     assert meta_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert meta_payload["lineage_contract"] == "nexus-hive-lineage-v1"
     assert meta_payload["metric_layer_contract"] == "nexus-hive-metric-layer-v1"
@@ -144,7 +144,7 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     assert runtime_brief.status_code == 200
     brief_payload = runtime_brief.json()
     assert brief_payload["readiness_contract"] == "nexus-hive-runtime-brief-v1"
-    assert brief_payload["deploymentMode"] == "review-only-live"
+    assert brief_payload["deploymentMode"] == "read-only-live"
     assert brief_payload["evidence_counts"]["agent_nodes"] == 3
     assert brief_payload["report_contract"]["schema"] == "nexus-hive-answer-v1"
     assert brief_payload["warehouse_contract"]["mode"] == "sqlite-demo"

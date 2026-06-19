@@ -210,7 +210,7 @@ ARCHITECTURE_QUERY_SCENARIOS: Dict[str, Dict[str, Any]] = {
         "metric_ids": ["net_revenue"],
         "warehouse_target": "snowflake-sql-contract",
         "approval_posture": "allow",
-        "next_review_path": "/api/runtime/semantic-governance-pack",
+        "next_architecture_path": "/api/runtime/semantic-governance-pack",
         "estimated_cost_usd": 0.011,
     },
     "profit-top-regions": {
@@ -223,7 +223,7 @@ ARCHITECTURE_QUERY_SCENARIOS: Dict[str, Dict[str, Any]] = {
         "metric_ids": ["profit"],
         "warehouse_target": "databricks-sql-contract",
         "approval_posture": "review",
-        "next_review_path": "/api/runtime/lakehouse-readiness-pack",
+        "next_architecture_path": "/api/runtime/lakehouse-readiness-pack",
         "estimated_cost_usd": 0.012,
     },
 }
@@ -386,7 +386,7 @@ def build_openai_runtime_contract() -> Dict[str, Any]:
     )
     return {
         "api_key_configured": bool(api_key),
-        "deploymentMode": "public-capped-live" if public_live_api else "review-only-live",
+        "deploymentMode": "public-capped-live" if public_live_api else "read-only-live",
         "publicLiveApi": public_live_api,
         "liveModel": str(os.getenv("OPENAI_MODEL_PUBLIC", "")).strip()
         or OPENAI_PUBLIC_DEFAULT_MODEL,

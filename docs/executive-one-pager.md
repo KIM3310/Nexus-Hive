@@ -8,13 +8,13 @@ Executives want self-service analytics, but most NL2SQL demos skip the audit, po
 
 - adds policy preview before execution
 - keeps query audit and evals first-class
-- gives technical readers a governed path from question to SQL to chart
+- gives architecture inspection paths a governed path from question to SQL to chart
 
-## Technical reader value
+## Architecture inspection value
 
 - faster analyst iteration with lower governance risk
 - clearer proof that self-service analytics is controllable
-- auditability for technical readers and data owners
+- auditability for architecture inspection paths and data owners
 
 ## Key metrics
 

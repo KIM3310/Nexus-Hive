@@ -160,7 +160,7 @@ class TestPolicyAllowSafeQueries:
 
 
 # ---------------------------------------------------------------------------
-# Review path: borderline cases
+# Architecture path: borderline cases
 # ---------------------------------------------------------------------------
 
 
