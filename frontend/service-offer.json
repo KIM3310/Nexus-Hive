@@ -1,0 +1,73 @@
+{
+  "name": "Nexus Hive",
+  "slug": "Nexus-Hive",
+  "canonical_url": "https://nexus-hive.pages.dev/",
+  "repository_url": "https://github.com/KIM3310/Nexus-Hive",
+  "architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md",
+  "revenue_architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md",
+  "lead_capture_url": "mailto:ehdjs1351@gmail.com?subject=Nexus%20Hive%20private%20workspace&body=I%20am%20interested%20in%20paid%20private%20connector%20pack%20for%20Snowflake%2FDatabricks%2FPostgres%20plus%20audit%20export%20bundle%20for%20Nexus%20Hive.",
+  "productized_offer": "governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts",
+  "first_paid_sku": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+  "free_lead_magnet": "public governed analytics demo over synthetic sales data",
+  "search_positioning": {
+    "primary_query": "Nexus Hive governed query gateway",
+    "secondary_queries": [
+      "Nexus Hive demo",
+      "Nexus Hive system architecture",
+      "Nexus Hive business tool",
+      "governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts service"
+    ],
+    "audience_intent": "Find a runnable demo, inspect the system architecture, and decide whether a private workspace or implementation package is useful."
+  },
+  "monetization_boundary": {
+    "free": "public governed analytics demo over synthetic sales data",
+    "paid": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+    "metering_hooks": [
+      "workspace_id",
+      "plan",
+      "quota_day",
+      "export_count",
+      "lead_source"
+    ],
+    "cost_guardrails": [
+      "static first",
+      "edge functions",
+      "customer API keys",
+      "cached AI outputs",
+      "synthetic public data"
+    ]
+  },
+  "structured_data": {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Nexus Hive",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web, serverless, and local development environments",
+    "url": "https://nexus-hive.pages.dev/",
+    "codeRepository": "https://github.com/KIM3310/Nexus-Hive",
+    "description": "Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private.",
+    "creator": {
+      "@type": "Person",
+      "name": "KIM3310",
+      "url": "https://github.com/KIM3310"
+    },
+    "offers": [
+      {
+        "@type": "Offer",
+        "name": "public governed analytics demo over synthetic sales data",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": "https://nexus-hive.pages.dev/"
+      },
+      {
+        "@type": "Offer",
+        "name": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+        "availability": "https://schema.org/LimitedAvailability",
+        "url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md"
+      }
+    ],
+    "isAccessibleForFree": true,
+    "keywords": "Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, connector, pack, Snowflake, Databricks, Postgres, export, bundle"
+  }
+}

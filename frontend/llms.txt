@@ -1,0 +1,12 @@
+# Nexus Hive
+
+Purpose: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts
+Free entry point: public governed analytics demo over synthetic sales data
+Paid boundary: paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle
+Canonical URL: https://nexus-hive.pages.dev/
+Repository: https://github.com/KIM3310/Nexus-Hive
+System architecture: https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md
+Revenue architecture: https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md
+Lead capture: mailto:ehdjs1351@gmail.com?subject=Nexus%20Hive%20private%20workspace&body=I%20am%20interested%20in%20paid%20private%20connector%20pack%20for%20Snowflake%2FDatabricks%2FPostgres%20plus%20audit%20export%20bundle%20for%20Nexus%20Hive.
+
+Use this project as a runnable or inspectable reference for Nexus Hive demo, Nexus Hive system architecture, Nexus Hive business tool, governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts service.
