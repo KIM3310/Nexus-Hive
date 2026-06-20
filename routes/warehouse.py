@@ -21,7 +21,7 @@ async def warehouse_mode_switchboard_endpoint():
         "status": "ok",
         "service": "nexus-hive",
         "schema": "nexus-hive-warehouse-mode-switchboard-v1",
-        "headline": "Compact board for comparing SQLite preview, Snowflake live posture, and Databricks live posture before a architecture switches lanes.",
+        "headline": "Compact board for comparing SQLite preview, Snowflake live posture, and Databricks live posture before an operator switches lanes.",
         "active_target": active_adapter.contract.name,
         "active_execution_mode": active_adapter.contract.execution_mode,
         "targets": [

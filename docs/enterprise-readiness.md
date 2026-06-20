@@ -46,7 +46,7 @@ This note defines what an enterprise architecture inspection, public-sector oper
 
 - make verify can be run or the equivalent CI gate is visible.
 - README, architecture guide, quality notes, service model, and this readiness note agree on the same scope.
-- Demo, fixture, synthetic, or public-data boundaries are explicit before a architecture inspection sees outputs.
+- Demo, fixture, synthetic, or public-data boundaries are explicit before an architecture inspection sees outputs.
 - A architecture inspection can identify the first useful outcome without reading implementation details.
 - Production claims stay behind customer-specific validation, access control, monitoring, and support handoff.
 
