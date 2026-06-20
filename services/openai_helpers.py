@@ -6,6 +6,7 @@ so that test monkeypatching on the main module can propagate here.
 """
 
 import json
+import os
 from typing import Any, Dict
 
 import httpx
@@ -14,14 +15,22 @@ from fastapi import HTTPException
 from config import OPENAI_BASE_URL, OPENAI_TIMEOUT_S
 
 
+def _openai_compatible_headers(api_key: str) -> Dict[str, str]:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if os.getenv("OPENROUTER_API_KEY", "").strip():
+        headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "").strip() or "https://nexus-hive.pages.dev"
+        headers["X-OpenRouter-Title"] = os.getenv("OPENROUTER_APP_TITLE", "").strip() or "Nexus-Hive"
+    return headers
+
+
 async def _call_openai_moderation(api_key: str, payload: str) -> None:
     async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S) as client:
         response = await client.post(
             f"{OPENAI_BASE_URL}/moderations",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=_openai_compatible_headers(api_key),
             json={"model": "omni-moderation-latest", "input": payload},
         )
         response.raise_for_status()
@@ -36,10 +45,7 @@ async def _call_openai_architecture_demo_summary(
     async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_S) as client:
         response = await client.post(
             f"{OPENAI_BASE_URL}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=_openai_compatible_headers(api_key),
             json={
                 "model": model,
                 "temperature": 0.2,

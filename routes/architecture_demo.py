@@ -33,7 +33,7 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
     if not runtime["publicLiveApi"]:
         raise HTTPException(
             status_code=503,
-            detail="public OpenAI architecture demo is unavailable; configure OPENAI_API_KEY and keep budgets above zero",
+            detail="public OpenRouter/OpenAI architecture demo is unavailable; configure OPENROUTER_API_KEY or OPENAI_API_KEY and keep budgets above zero",
         )
     scenario_id = str(req.question_id or "").strip().lower()
     scenario = ARCHITECTURE_QUERY_SCENARIOS.get(scenario_id)
@@ -53,7 +53,7 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
         "lineage_schema": build_lineage_schema()["schema"],
         "metric_layer_schema": build_metric_layer_schema()["schema"],
     }
-    api_key = str(os.getenv("OPENAI_API_KEY", "")).strip()
+    api_key = str(os.getenv("OPENROUTER_API_KEY", "")).strip() or str(os.getenv("OPENAI_API_KEY", "")).strip()
 
     # Look up helpers via the app state so that test monkeypatching
     # on the correct main module instance propagates correctly.
@@ -84,7 +84,7 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
         "mode": runtime["deploymentMode"],
         "model": runtime["liveModel"],
         "scenarioId": scenario_id,
-        "moderated": True,
+        "moderated": bool(runtime["moderationEnabled"]),
         "capped": True,
         "traceId": uuid4().hex[:12],
         "estimatedCostUsd": scenario["estimated_cost_usd"],
