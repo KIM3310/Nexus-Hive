@@ -1,0 +1,29 @@
+name: Privacy or data request
+description: Request a private path for privacy/data handling; do not post personal data here
+title: "[Privacy/Data]: "
+labels: ["privacy", "needs-private-channel"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not post personal data, secrets, payment details, or customer data in this public issue. This template only records that a private privacy/data request path is needed.
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request type
+      options:
+        - Access/export request
+        - Deletion request
+        - Correction request
+        - Privacy question
+        - Data incident concern
+        - Need private contact channel
+    validations:
+      required: true
+  - type: textarea
+    id: non_sensitive_context
+    attributes:
+      label: Non-sensitive context
+      description: Summarize without personal data or confidential details.
+    validations:
+      required: true

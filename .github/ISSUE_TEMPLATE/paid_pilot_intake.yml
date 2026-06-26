@@ -1,0 +1,38 @@
+name: Paid pilot intake
+description: Non-sensitive scoping for a paid discovery or pilot request
+title: "[Paid pilot]: "
+labels: ["business-intake"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, customer data, payment details, production logs, contracts, or personal data. Use this issue only for non-sensitive scoping.
+  - type: input
+    id: use_case
+    attributes:
+      label: Use case
+      description: What business workflow or problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success metric
+      description: What result would make the pilot successful?
+    validations:
+      required: true
+  - type: dropdown
+    id: sensitivity
+    attributes:
+      label: Data sensitivity
+      options:
+        - Public/demo data only
+        - Internal non-sensitive data
+        - Customer/personal/regulated data - private channel required
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Timeline, integration, compliance, access, or support constraints. Keep it non-sensitive.
