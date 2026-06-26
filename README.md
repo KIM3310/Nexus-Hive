@@ -99,8 +99,11 @@ The pipeline is built with **LangGraph** as a compiled state graph. Each agent i
 ```bash
 git clone https://github.com/KIM3310/Nexus-Hive.git && cd Nexus-Hive
 make install                 # creates venv, installs deps
-python3 seed_db.py           # seeds 10k enterprise sales records into SQLite
+make seed                    # seeds 10k enterprise sales records into SQLite
 make run                     # starts uvicorn on http://localhost:8000
+
+# If your default python3 is older than 3.11:
+make BOOTSTRAP_PYTHON=/path/to/python3.11 install
 ```
 
 Open [http://localhost:8000](http://localhost:8000) for the frontend, or [http://localhost:8000/docs](http://localhost:8000/docs) for Swagger UI.
