@@ -1,6 +1,6 @@
 # Revenue Readiness
 
-This repository was included in the KIM3310 portfolio monetization audit on 2026-06-26.
+This repository was included in the KIM3310 portfolio monetization audit on 2026-06-26. Monetization classifications are planning recommendations, not revenue guarantees; re-run the portfolio audit after material repo changes.
 
 ## Current positioning
 
@@ -37,5 +37,6 @@ The portfolio automation may prepare docs, checklists, local branches, and free 
 
 ## Evidence
 
-- Portfolio dashboard: `/Users/dragon/github-monetization-workspace/portfolio-dashboard.md`
-- Per-repo audit report: `/Users/dragon/github-monetization-workspace/reports/audit/Nexus-Hive.md`
+- Portfolio dashboard: maintained in the local audit workspace as `portfolio-dashboard.md`.
+- Per-repo audit report: maintained in the local audit workspace as `reports/audit/Nexus-Hive.md`.
+- Rerun convention: regenerate inventory, audit, dashboard, and this document before using it for a public launch or paid offer.
