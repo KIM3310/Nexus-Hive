@@ -316,10 +316,15 @@ def seed_demo_tables_from_sqlite(
     )
 
     counts: Dict[str, int] = {}
+    source_queries = {
+        "products": "SELECT * FROM products",
+        "regions": "SELECT * FROM regions",
+        "sales": "SELECT * FROM sales",
+    }
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
-        for table_name in ("products", "regions", "sales"):
-            rows = [dict(row) for row in conn.execute(f"SELECT * FROM {table_name}").fetchall()]
+        for table_name, source_query in source_queries.items():
+            rows = [dict(row) for row in conn.execute(source_query).fetchall()]
             counts[table_name] = len(rows)
             for index in range(0, len(rows), batch_size):
                 chunk = rows[index : index + batch_size]

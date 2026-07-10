@@ -44,7 +44,7 @@ def test_architecture_priority_surface_contract() -> None:
         'id="priority-staleness"',
         'id="priority-trace-note"',
         "Keep one request visible from ask to approval to chart to audit.",
-        "Recorded architecture mode demonstrates workflow shape only.",
+        "Recorded review mode demonstrates workflow shape only.",
         "Proof freshness should stay visible before any governed chart is shared.",
         "Trace continuity keeps retries and audit depth attached to the same request.",
         "Request continuity stays blocked until approval posture, chart posture, and audit freshness all point to the same request ID.",

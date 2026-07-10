@@ -42,6 +42,10 @@ from databricks_adapter import (
 
 _logger = logging.getLogger("nexus_hive.warehouse_adapter")
 
+
+def _quote_sqlite_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
+
 # ---------------------------------------------------------------------------
 # Adapter contract (immutable descriptor)
 # ---------------------------------------------------------------------------
@@ -129,7 +133,7 @@ class WarehouseAdapter:
         return self.contract.sql_dialect
 
     def prompt_execution_note(self) -> str:
-        """Return an architecture note for LLM prompt construction.
+        """Return a review note for LLM prompt construction.
 
         Returns:
             A human-readable note about execution posture.
@@ -404,9 +408,11 @@ class SqliteWarehouseAdapter(WarehouseAdapter):
             )
             tables: List[str] = [row[0] for row in cursor.fetchall()]
             for table in tables:
-                cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
+                quoted_table = _quote_sqlite_identifier(table)
+                # table comes from sqlite metadata and is quoted before interpolation.
+                cursor.execute(f"SELECT COUNT(*) FROM {quoted_table}")  # nosec B608
                 row_count: int = int(cursor.fetchone()[0] or 0)
-                cursor.execute(f'PRAGMA table_info("{table}")')
+                cursor.execute(f"PRAGMA table_info({quoted_table})")
                 columns = cursor.fetchall()
                 profiles.append(
                     {

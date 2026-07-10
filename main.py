@@ -67,7 +67,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Store lazy resolvers on app.state so the architecture-demo route reads the
+# Store lazy resolvers on app.state so the governance-demo route reads the
 # correct module-level references even when main.py is loaded multiple times.
 _g = globals()
 app.state._resolve_moderation = lambda: _g["call_openai_moderation"]

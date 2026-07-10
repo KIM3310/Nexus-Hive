@@ -448,5 +448,5 @@ def enforce_openai_public_rate_limit(key: str, limit: int) -> None:
             key,
             limit,
         )
-        raise HTTPException(status_code=429, detail="architecture query demo rate limit exceeded")
+        raise HTTPException(status_code=429, detail="governance query demo rate limit exceeded")
     bucket["count"] += 1.0

@@ -21,8 +21,8 @@ All core runtime endpoints respond correctly:
 - Runtime brief and warehouse brief
 - Warehouse target scorecard and governance scorecard
 - Semantic governance pack and lakehouse readiness pack
-- Architecture pack, schema endpoints (answer, policy, metrics, query-tag, query-audit)
-- Query session/approval/architecture boards
+- Review pack, schema endpoints (answer, policy, metrics, query-tag, query-audit)
+- Query session/approval/review boards
 - NL2SQL gold eval suite and eval runner
 - Query audit recent and summary
 
@@ -38,7 +38,7 @@ All failures are test-vs-implementation drift — tests reference response field
 | test_stream_completion_writes_query_audit_detail | AttributeError: no 'ask_ollama' |
 | test_policy_and_fallback_path | AttributeError: no 'ask_ollama' |
 | test_query_audit_summary_filters | AttributeError: no 'AUDIT_LOG_PATH' |
-| test_query_architecture_board_prioritizes | AttributeError: no 'AUDIT_LOG_PATH' |
+| test_query_review_board_prioritizes | AttributeError: no 'AUDIT_LOG_PATH' |
 
 ## Query Execution Metrics
 

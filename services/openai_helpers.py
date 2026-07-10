@@ -1,5 +1,5 @@
 """
-OpenAI API helper functions for moderation and architecture demo summaries.
+OpenAI API helper functions for moderation and governance demo summaries.
 
 The actual callable references are stored in `moderation_fn` and `summary_fn`
 so that test monkeypatching on the main module can propagate here.
@@ -36,7 +36,7 @@ async def _call_openai_moderation(api_key: str, payload: str) -> None:
         response.raise_for_status()
         data = response.json()
     if data.get("results", [{}])[0].get("flagged"):
-        raise HTTPException(status_code=400, detail="architecture scenario blocked by moderation")
+        raise HTTPException(status_code=400, detail="governance scenario blocked by moderation")
 
 
 async def _call_openai_architecture_demo_summary(
@@ -54,7 +54,7 @@ async def _call_openai_architecture_demo_summary(
                     {
                         "role": "system",
                         "content": (
-                            "You are a governed analytics architecture. Return JSON with keys "
+                            "You are a data governance reviewer. Return JSON with keys "
                             "architectureSummary, warehouseFit, approvalReason, metricTrust, nextAction."
                         ),
                     },
@@ -69,13 +69,13 @@ async def _call_openai_architecture_demo_summary(
         data = response.json()
     content = str(data.get("choices", [{}])[0].get("message", {}).get("content", "")).strip()
     if not content:
-        raise HTTPException(status_code=502, detail="OpenAI architecture demo returned empty content")
+        raise HTTPException(status_code=502, detail="OpenAI governance demo returned empty content")
     try:
         result: Dict[str, Any] = json.loads(content)
         return result
     except json.JSONDecodeError as exc:
         raise HTTPException(
-            status_code=502, detail="OpenAI architecture demo returned invalid JSON"
+            status_code=502, detail="OpenAI governance demo returned invalid JSON"
         ) from exc
 
 

@@ -1,5 +1,5 @@
 """
-Architecture query demo route handler.
+Governance query demo route handler.
 """
 
 import json
@@ -33,7 +33,7 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
     if not runtime["publicLiveApi"]:
         raise HTTPException(
             status_code=503,
-            detail="public OpenRouter/OpenAI architecture demo is unavailable; configure OPENROUTER_API_KEY or OPENAI_API_KEY and keep budgets above zero",
+            detail="public OpenRouter/OpenAI governance demo is unavailable; configure OPENROUTER_API_KEY or OPENAI_API_KEY and keep budgets above zero",
         )
     scenario_id = str(req.question_id or "").strip().lower()
     scenario = ARCHITECTURE_QUERY_SCENARIOS.get(scenario_id)

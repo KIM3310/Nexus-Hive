@@ -20,31 +20,31 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 
 ---
 
-## Product and System Surface
+## System Overview
 
 | Lens | Current answer |
 |---|---|
-| Audience | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
-| Architecture path | Validate the demo, README, architecture notes, and quality gate before deeper workflow architecture. |
-| System signal | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
-| Safety boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
-| Fast path | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
+| Users | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
+| Technical path | Validate the demo, README, architecture notes, and quality gate before deeper workflow review. |
+| System scope | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
+| Operating boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
+| Evaluation path | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
 
-## System Fast Path
+## Evaluation Path
 
-- **First minute:** Ask one seeded business question, inspect the SQL policy decision, then open the agent trace.
+- **Start here:** Ask one seeded business question, inspect the SQL policy decision, then open the agent trace.
 - **Local demo:** Run `make run`, then open `http://localhost:8000` or `http://localhost:8000/docs`.
-- **Verification:** Run `make verify`; it covers lint, pytest, and smoke testing against the live local server.
+- **Checks:** Run `make verify`; it covers lint, pytest, and smoke testing against the live local server.
 
 ---
 
 ## Service Launch Playbook
 
-- [Service launch playbook](docs/service-launch-playbook.md) maps the repository to architecture audiences, operating gates, operating boundaries, and risk controls.
+- [Service launch playbook](docs/service-launch-playbook.md) maps the repository to intended audiences, operating gates, operating boundaries, and risk controls.
 
 ## Architecture Notes
 
-- [Architecture guide](docs/architecture-evidence-map.md) summarizes the project angle, first files to inspect, runtime commands, and known boundaries.
+- [Architecture guide](docs/architecture-evidence-map.md) summarizes the system scope, first files to inspect, runtime commands, and known boundaries.
 - [Quality notes](docs/quality-gate.md) lists the local checks, CI surface, and release expectations for this repository.
 - [Enterprise readiness notes](docs/enterprise-readiness.md) outlines security, data, operations, integration, and handoff expectations.
 
@@ -69,7 +69,7 @@ flowchart TB
 
     subgraph Governance["Governance Layer"]
         direction LR
-        PE["Policy Engine\nDeny / Architecture / Allow"]
+        PE["Policy Engine\nDeny / Review / Allow"]
         AT["Audit Trail\nJSONL + query tags"]
         GE["Gold Eval Suite\nSQL quality scoring"]
     end
@@ -132,7 +132,7 @@ make verify   # runs lint + pytest + smoke test against a live server
 | **API Framework** | FastAPI 0.115+ | Async HTTP, OpenAPI docs, middleware |
 | **Agent Orchestration** | LangGraph + LangChain Core | State graph, conditional edges, typed agent state |
 | **LLM Runtime** | Ollama (phi3 default) | Local inference for SQL generation + chart config |
-| **Policy Engine** | Custom Python | Deny/architecture/allow decisions, sensitive column gating |
+| **Policy Engine** | Custom Python | Deny/review/allow decisions, sensitive column gating |
 | **Warehouse (Demo)** | SQLite + Pandas | Zero-config local execution with 10k seeded records |
 | **Warehouse (Prod)** | Snowflake, Databricks | Live adapters via `snowflake-connector-python` / `databricks-sdk` |
 | **Visualization** | Chart.js | Bar, line, pie, doughnut charts from query results |
@@ -159,12 +159,12 @@ All adapters implement the same 5-method interface (`get_schema`, `run_scalar_qu
 
 | Feature | Description | Endpoint |
 |---------|------------|----------|
-| **Policy Engine** | Deny write ops, block `SELECT *`, gate sensitive columns by role, flag non-aggregated queries for architecture | `POST /api/policy/check` |
+| **Policy Engine** | Deny write ops, block `SELECT *`, gate sensitive columns by role, flag non-aggregated queries for review | `POST /api/policy/check` |
 | **Audit Trails** | Every query logged with request ID, role, policy verdict, adapter, execution time | `GET /api/query-audit/recent` |
 | **Query Tags** | Structured tags mapping onto Snowflake `QUERY_TAG` and Databricks warehouse tag conventions | `GET /api/schema/query-tag` |
 | **Session Boards** | Operator surfaces for pending approvals, approval histories, query throughput | `GET /api/query-session-board` |
 | **Gold Evals** | Built-in evaluation suite scoring generated SQL against expected feature patterns | `GET /api/evals/nl2sql-gold/run` |
-| **Approval Workflows** | Architecture-required queries produce actionable approval bundles | `GET /api/query-approval-board` |
+| **Approval Workflows** | Review-required queries produce actionable approval bundles | `GET /api/query-approval-board` |
 
 ---
 
@@ -203,7 +203,7 @@ Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs) (Swag
 |--------|-------|
 | Test files | 8 |
 | Total test cases | 80+ |
-| Policy engine tests | 38 (deny, architecture, allow, sensitive columns, query tags) |
+| Policy engine tests | 38 (deny, review, allow, sensitive columns, query tags) |
 | Agent orchestration tests | 12 (translator, executor, visualizer, routing) |
 | API endpoint tests | 15 (health, meta, ask, policy, audit, schema) |
 | SQL validation tests | 9 (read-only enforcement, injection blocking) |
@@ -333,7 +333,7 @@ common patterns; numbers illustrative.
 
 Each story walks through the problem, the 90- or 180-day rollout, the
 policy-tuning decisions, and the specific lessons that fed back into the
-product. Designed for SE discovery + architecture-walkthrough handoff.
+product. Designed for SE discovery + technical-review handoff.
 
 ---
 
@@ -356,7 +356,7 @@ product. Designed for SE discovery + architecture-walkthrough handoff.
 | Failed request rate | 0.3% |
 | `http_req_duration` p95 | 1,390 ms |
 | `http_req_duration` p99 | 1,842 ms |
-| Policy allow / architecture / deny | 82.6% / 13.1% / 4.3% |
+| Policy allow / review / deny | 82.6% / 13.1% / 4.3% |
 | Gold eval score (mean of 5 runs, Claude Sonnet 4) | 0.91 |
 | Gold eval score stdev | 0.022 |
 | SLO compliance | pass |
@@ -422,15 +422,13 @@ MIT
 
 ## Cloud + AI Architecture
 
-This repository includes a neutral cloud and AI engineering blueprint that maps the current proof surface to runtime boundaries, data contracts, model-risk controls, deployment posture, and validation hooks.
-
 - [Cloud + AI architecture blueprint](docs/cloud-ai-architecture.md)
 - [Machine-readable architecture manifest](docs/architecture/blueprint.json)
 - Validation command: `python3 scripts/validate_architecture_blueprint.py`
 
 ## Enterprise Productization
 
-- [Product operating model](docs/product-operating-model.md) defines the architecture inspection, trust boundary, trust boundary, operating checks, and service path for this repository.
+- [Product operating model](docs/product-operating-model.md) defines the product scope, trust boundary, operating checks, and service path for this repository.
 
 ## System Architecture
 

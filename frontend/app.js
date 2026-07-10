@@ -60,27 +60,27 @@ const nativeFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
     const target = typeof input === 'string' ? input : input?.url || '';
     if (shouldPreferRecordedReview() && target.startsWith('/api/')) {
-        throw new Error(`Recorded architecture mode blocks live API call: ${target}`);
+        throw new Error(`Recorded review mode blocks live API call: ${target}`);
     }
     return nativeFetch(input, init);
 };
 
 const REVIEW_LENSES = {
     analyst: {
-        headline: 'Architecture-first governed path',
+        headline: 'Governance-first review path',
         summary: 'Start with the approval board, then open the review board and audit detail before presenting any chart answer.',
         cards: [
             ['01 · Approval', 'Review-required SQL should stop at a human gate first.'],
             ['02 · Review', 'Use the review board for fallback-heavy or denied requests.'],
             ['03 · Audit', 'Copy the governed claim only after the audit trace is visible.'],
         ],
-        actions: ['Copy Architecture Routes', 'Copy Governed Claim', 'Copy Architecture Bundle'],
+        actions: ['Copy Review Routes', 'Copy Governed Claim', 'Copy Review Bundle'],
     },
     architecture: {
-        headline: 'Human-architecture path for risky SQL',
+        headline: 'Human-review path for risky SQL',
         summary: 'Use this lens when the audience cares about policy verdicts, denied requests, and the trust boundary around fallback answers.',
         cards: [
-            ['01 · Policy preview', 'Run or seed a denied query to show the architecture gate before execution.'],
+            ['01 · Policy preview', 'Run or seed a denied query to show the review gate before execution.'],
             ['02 · Audit detail', 'Focus the latest audit so SQL, retries, and fallback flags stay visible.'],
             ['03 · Decision brief', 'Copy the query decision brief once the policy story is concrete.'],
         ],
@@ -88,13 +88,13 @@ const REVIEW_LENSES = {
     },
     executive: {
         headline: 'Executive BI walkthrough',
-        summary: 'Lead with the governed claim, then use the gold eval summary and architecture bundle to explain why this workflow is safe to trust.',
+        summary: 'Lead with the governed claim, then use the gold eval summary and review bundle to explain why this workflow is safe to trust.',
         cards: [
             ['01 · Governed claim', 'Summarize readiness, schema, and current policy posture in one block.'],
             ['02 · Gold eval', 'Use the eval summary before talking about chart quality or rollout.'],
-            ['03 · Architecture bundle', 'End with the bundle so the walkthrough path is easy to replay later.'],
+            ['03 · Review bundle', 'End with the bundle so the walkthrough path is easy to replay later.'],
         ],
-        actions: ['Copy Governed Claim', 'Copy Gold Eval', 'Copy Architecture Bundle'],
+        actions: ['Copy Governed Claim', 'Copy Gold Eval', 'Copy Review Bundle'],
     },
 };
 
@@ -121,7 +121,7 @@ const RECORDED_REVIEW = {
         agent_contract: [
             { agent: 'Planner', responsibility: 'Translate the business question into a governed SQL intent.' },
             { agent: 'Policy', responsibility: 'Block or escalate risky SQL before execution.' },
-            { agent: 'Architecture', responsibility: 'Package answer, chart, and audit trace into one shareable decision surface.' },
+            { agent: 'Review', responsibility: 'Package answer, chart, and audit trace into one shareable decision surface.' },
         ],
         watchouts: [
             'Recorded mode proves the workflow shape, not live infra latency.',
@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         agentLogs.scrollTop = agentLogs.scrollHeight;
     }
 
-    function activateRecordedReview(reason = 'architecture surfaces') {
+    function activateRecordedReview(reason = 'review surfaces') {
         if (statusText) {
             statusText.innerText = 'Recorded review only';
         }
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         recordedReviewActive = true;
-        addLog(`Backend unavailable. Loaded recorded architecture flow for ${reason}.`, 'success');
+        addLog(`Backend unavailable. Loaded recorded review flow for ${reason}.`, 'success');
         renderArchitecturePriority();
     }
 
@@ -557,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         priorityBadge.innerText = recordedReviewActive ? 'RECORDED REVIEW' : 'LIVE REVIEW';
         prioritySummary.innerText = recordedReviewActive
-            ? 'Recorded mode shows the architecture flow shape with one request thread. Do not treat it as live warehouse runtime evidence.'
+            ? 'Recorded mode shows the review flow with one request thread. Do not treat it as live warehouse runtime evidence.'
             : 'Use one request ID as the continuity anchor so approval posture, chart output, and audit proof stay on the same top-fold story.';
         const questionLane = latest.question || latestAuditDetailPayload?.question || 'Run a governed question or focus a recorded audit request.';
         const chartPosture = latest.chart_type
@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const trace = describeTraceContinuity();
         if (priorityTrace) priorityTrace.innerText = trace.summary;
         priorityProofNote.innerText = recordedReviewActive
-            ? 'Recorded architecture mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
+            ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
             : `Live walkthrough path: ${routePreview}.`;
         if (priorityStaleness) {
             priorityStaleness.innerText = recordedReviewActive
@@ -658,10 +658,10 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDetailCard(storyboardAudit, [
             `Audit proof: ${fallbackLabel}`,
             `Gold eval: ${evalSummary.pass_count ?? 0}/${evalSummary.case_count ?? 0} cases`,
-            `Session posture: ${compareCount > 0 ? 'compare lane available for architecture replay' : 'single governed path focused'}`,
+            `Session posture: ${compareCount > 0 ? 'compare lane available for review replay' : 'single governed path focused'}`,
         ]);
         renderDetailCard(storyboardNext, [
-            `Next architecture move: ${nextAction}`,
+            `Next review move: ${nextAction}`,
             `Fast path: ${(architectureRoutes[0] || '/api/query-approval-board')} → ${(architectureRoutes[1] || '/api/query-review-board')} → ${(architectureRoutes[2] || '/api/evals/nl2sql-gold/run')}`,
             recordedReviewActive
                 ? 'Recorded mode proves approval, audit, and chart storytelling without claiming live warehouse latency.'
@@ -763,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadArchitecturePack() {
         if (shouldPreferRecordedReview()) {
             const payload = RECORDED_REVIEW.architecturePack;
-            activateRecordedReview('architecture pack');
+            activateRecordedReview('review pack');
             const proofBundle = payload.proof_bundle || {};
             const answerContract = payload.answer_contract || {};
             const proofAssets = (payload.proof_assets || []).map((item) =>
@@ -780,17 +780,17 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(architecturePackPromises, [...(payload.executive_promises || []), ...proofAssets]);
             renderReviewList(architecturePackBoundary, payload.trust_boundary || []);
             renderReviewList(architecturePackSequence, [...twoMinuteArchitecture, ...(payload.architecture_sequence || [])]);
-            renderReviewList(architecturePackWatchouts, [...(payload.watchouts || []), 'Recorded architecture pack shows workflow shape only; avoid implying live warehouse execution.']);
+            renderReviewList(architecturePackWatchouts, [...(payload.watchouts || []), 'Recorded review pack shows workflow shape only; avoid implying live warehouse execution.']);
             renderStoryboard();
             return;
         }
         try {
             const response = await fetch(apiUrl('/api/architecture-pack'));
             if (!response.ok) {
-                throw new Error(`Architecture pack request failed with ${response.status}`);
+                throw new Error(`Review pack request failed with ${response.status}`);
             }
 
-            const payload = await readJsonOrThrow(response, 'Architecture pack');
+            const payload = await readJsonOrThrow(response, 'Review pack');
             const proofBundle = payload.proof_bundle || {};
             const answerContract = payload.answer_contract || {};
             const proofAssets = (payload.proof_assets || []).map((item) =>
@@ -799,7 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const twoMinuteArchitecture = (payload.two_minute_architecture || []).map((item) => `2-minute: ${item}`);
             latestArchitectureRoutes = proofBundle.architecture_routes || [];
 
-            architecturePackHeadline.innerText = payload.headline || 'Architecture pack available.';
+            architecturePackHeadline.innerText = payload.headline || 'Review pack available.';
             architecturePackBadge.innerText = String(payload.status || 'review-pending')
                 .replace(/-/g, ' ')
                 .toUpperCase();
@@ -814,9 +814,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(architecturePackWatchouts, [...(payload.watchouts || []), 'Keep one request ID attached through approval, chart, and audit when presenting this pack.']);
             renderStoryboard();
         } catch (error) {
-            console.warn('Recorded architecture pack fallback:', error);
+            console.warn('Recorded review pack fallback:', error);
             const payload = RECORDED_REVIEW.architecturePack;
-            activateRecordedReview('architecture pack');
+            activateRecordedReview('review pack');
             const proofBundle = payload.proof_bundle || {};
             const answerContract = payload.answer_contract || {};
             const proofAssets = (payload.proof_assets || []).map((item) =>
@@ -833,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReviewList(architecturePackPromises, [...(payload.executive_promises || []), ...proofAssets]);
             renderReviewList(architecturePackBoundary, payload.trust_boundary || []);
             renderReviewList(architecturePackSequence, [...twoMinuteArchitecture, ...(payload.architecture_sequence || [])]);
-            renderReviewList(architecturePackWatchouts, [...(payload.watchouts || []), 'Recorded architecture pack shows workflow shape only; avoid implying live warehouse execution.']);
+            renderReviewList(architecturePackWatchouts, [...(payload.watchouts || []), 'Recorded review pack shows workflow shape only; avoid implying live warehouse execution.']);
             renderStoryboard();
         }
     }
@@ -1281,8 +1281,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ? latestArchitectureRoutes
             : ['/health', '/api/runtime/brief', '/api/architecture-pack', '/api/query-audit/recent'];
         const ok = await copyTextToClipboard(routes.join('\n'));
-        addLog(ok ? 'Copied architecture route checklist.' : 'Failed to copy architecture route checklist.', ok ? 'success' : 'error');
-        showToast(ok ? 'Architecture routes copied' : 'Copy failed');
+        addLog(ok ? 'Copied review route checklist.' : 'Failed to copy review route checklist.', ok ? 'success' : 'error');
+        showToast(ok ? 'Review routes copied' : 'Copy failed');
     }
 
     async function copyGovernedClaim() {
@@ -1405,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function copyReviewBundle() {
         const bundle = [
-            'Nexus-Hive architecture bundle',
+            'Nexus-Hive review bundle',
             `Headline: ${architecturePackHeadline.innerText || '-'}`,
             `Routes: ${architecturePackRoutes.innerText || '-'}`,
             `Schema: ${architecturePackSchema.innerText || '-'}`,
@@ -1416,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map((route) => `- ${route}`)),
         ];
         const ok = await copyTextToClipboard(bundle.join('\n'));
-        addLog(ok ? 'Copied architecture bundle.' : 'Failed to copy architecture bundle.', ok ? 'success' : 'error');
+        addLog(ok ? 'Copied review bundle.' : 'Failed to copy review bundle.', ok ? 'success' : 'error');
     }
 
     function renderLensPanel() {
@@ -1439,9 +1439,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function runLensAction(action) {
-        if (action === 'Copy Architecture Routes') return copyArchitectureRoutes();
+        if (action === 'Copy Review Routes') return copyArchitectureRoutes();
         if (action === 'Copy Governed Claim') return copyGovernedClaim();
-        if (action === 'Copy Architecture Bundle') return copyReviewBundle();
+        if (action === 'Copy Review Bundle') return copyReviewBundle();
         if (action === 'Copy Query Decision Brief') return copyQueryDecisionBrief();
         if (action === 'Copy Latest Audit') return copyLatestAuditSnapshot();
         if (action === 'Seed Denied SQL') return seedDeniedSql();
@@ -1573,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 data = JSON.parse(event.data);
             } catch (error) {
-                console.warn("EventSource delivered non-JSON payload, keeping recorded architecture mode:", error);
+                console.warn("EventSource delivered non-JSON payload, keeping recorded review mode:", error);
                 eventSource.close();
                 askBtn.disabled = false;
                 nlInput.disabled = false;
@@ -1607,7 +1607,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         eventSource.onerror = function (err) {
-            console.warn("EventSource failed, keeping recorded architecture mode:", err);
+            console.warn("EventSource failed, keeping recorded review mode:", err);
             addLog("Lost connection to the LangGraph Hive Engine.", "error");
             eventSource.close();
             loadWarehouseBrief();
@@ -1667,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = event.key.toLowerCase();
         if (key === '?') {
             if (governanceHotkeys) {
-                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · D decision brief · B architecture bundle · A latest audit.';
+                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · D decision brief · B review bundle · A latest audit.';
             }
             return;
         }

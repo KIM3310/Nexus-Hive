@@ -6,16 +6,16 @@ Nexus-Hive delivers governed analytics by turning natural-language questions int
 
 ## System boundary
 
-- browser UI for analysts and architecture inspection paths
+- browser UI for analysts and data owners
 - FastAPI runtime for ask, policy, audit, and eval surfaces
 - warehouse and semantic model
-- audit log and architecture summary layer
+- audit log and review summary layer
 
 ## Deployment topology
 
 ```mermaid
 flowchart LR
-  User[Analyst or Architecture inspection] --> UI[Frontend]
+  User[Analyst or Data owner] --> UI[Frontend]
   UI --> API[FastAPI Runtime]
   API --> Policy[Policy Check]
   API --> Warehouse[SQLite or Warehouse Adapter]
@@ -28,7 +28,7 @@ flowchart LR
 
 - every request can emit a stable `request_id`
 - policy preview exists before execution
-- fallback SQL and chart generation preserve the architecture path when model runtime degrades
+- fallback SQL and chart generation preserve the review path when model runtime degrades
 - gold eval suite provides a deterministic governed-analytics baseline
 
 ## What makes this useful for an AI engineer
@@ -42,12 +42,12 @@ flowchart LR
 
 - clear data plane vs policy plane separation
 - semantic and policy surfaces are explicit
-- governed architecture path is available without trusting live generation blindly
+- governed review path is available without trusting live generation blindly
 - rollout path to warehouse adapters is visible
 
 ## Production hardening next steps
 
 - add warehouse-specific adapters and secrets profiles
 - add row-level access simulation per role
-- add signed audit export for external architecture inspection paths
+- add signed audit export for external security approvers
 - add deployment topology docs for private warehouse networking

@@ -8,24 +8,24 @@ Executives want self-service analytics, but most NL2SQL demos skip the audit, po
 
 - adds policy preview before execution
 - keeps query audit and evals first-class
-- gives architecture inspection paths a governed path from question to SQL to chart
+- gives data owners a governed path from question to SQL to chart
 
-## Architecture inspection value
+## Data owner value
 
 - faster analyst iteration with lower governance risk
 - clearer proof that self-service analytics is controllable
-- auditability for architecture inspection paths and data owners
+- auditability for security approvers and data owners
 
 ## Key metrics
 
 - eval pass rate on gold questions
-- deny/architecture ratio for policy checks
+- deny/review ratio for policy checks
 - fallback rate
 - time from question to governed answer
 
 ## Rollout
 
-1. architecture-only governed demo
+1. review-only governed demo
 2. pilot with one warehouse and one analyst group
 3. broader rollout with role-aware policies and warehouse adapters
 

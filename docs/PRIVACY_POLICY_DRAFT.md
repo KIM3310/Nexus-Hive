@@ -26,13 +26,13 @@ Do not collect personal data, payment data, uploaded files, analytics identifier
 
 ## Owner inputs required before publication
 
-- Legal entity / operator name: `TBD`
-- Privacy contact email or private form: `TBD`
-- Jurisdiction and governing law: `TBD`
-- Data retention period: `TBD`
-- Subprocessors / hosting / analytics / payment providers: `TBD`
-- Cookie/analytics disclosure: `TBD`
-- Data deletion/export process owner: `TBD`
+- Legal entity / operator name: `Owner input required`
+- Privacy contact email or private form: `Owner input required`
+- Jurisdiction and governing law: `Owner input required`
+- Data retention period: `Owner input required`
+- Subprocessors / hosting / analytics / payment providers: `Owner input required`
+- Cookie/analytics disclosure: `Owner input required`
+- Data deletion/export process owner: `Owner input required`
 
 ## Sources used for drafting
 

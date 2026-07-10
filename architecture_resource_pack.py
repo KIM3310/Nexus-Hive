@@ -12,7 +12,7 @@ def build_architecture_resource_pack() -> Dict[str, Any]:
         {
             "scenario_id": "revenue-by-region",
             "question": "Show total net revenue by region",
-            "goal": "Keep the shortest governed analytics walkthrough tied to a certified metric and inspection-safe SQL path.",
+            "goal": "Keep the shortest governed analytics walkthrough tied to a certified metric and review-safe SQL path.",
             "next_surface": "/api/runtime/semantic-governance-pack",
         },
         {
@@ -66,7 +66,7 @@ def build_architecture_resource_pack() -> Dict[str, Any]:
         },
         {
             "case_id": "semantic-pack-boundary",
-            "goal": "Certified metrics and target posture should remain visible in one architecture surface.",
+            "goal": "Certified metrics and target posture should remain visible in one review surface.",
             "proof_surface": "/api/runtime/semantic-governance-pack",
         },
         {
@@ -86,7 +86,7 @@ def build_architecture_resource_pack() -> Dict[str, Any]:
             "playbook_id": "runtime-first",
             "entry_surface": "/health",
             "handoff_surface": "/api/runtime/brief",
-            "focus": "Use when the architecture needs the shortest path from service posture to governed analytics proof.",
+            "focus": "Use when a data owner needs the shortest path from service posture to governed analytics proof.",
         },
         {
             "playbook_id": "semantic-metrics-first",
@@ -107,7 +107,7 @@ def build_architecture_resource_pack() -> Dict[str, Any]:
         "service": "nexus-hive",
         "generated_at": None,
         "schema": "nexus-hive-architecture-resource-pack-v1",
-        "headline": "Built-in governed analytics architecture brief for a no-key walkthrough.",
+        "headline": "Built-in governed analytics review brief for a no-key walkthrough.",
         "summary": {
             "scenario_count": len(scenarios),
             "operator_check_count": len(operator_checks),

@@ -37,7 +37,7 @@ BANNED_TERMS = {
     "job" + " seeker",
     "job" + "-seeker",
     "inter" + "view prep",
-    "technical architecture" + " signal",
+    "career" + " signal",
     "best" + " fit roles",
     "role" + "-fit",
     "role" + "_fit",

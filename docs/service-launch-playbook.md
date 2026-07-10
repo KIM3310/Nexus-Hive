@@ -1,8 +1,8 @@
 # Technical Launch Playbook - Nexus-Hive
 
-This playbook keeps launch architecture focused on evidence, deployment ownership, and operational readiness.
+This playbook keeps launch review focused on evidence, deployment ownership, and operational readiness.
 
-## Architecture Lane
+## Review Lane
 
 - **Lane:** Repository-specific product and engineering proof
 - **Primary reader:** Operators, maintainers, and partners
@@ -20,7 +20,7 @@ This playbook keeps launch architecture focused on evidence, deployment ownershi
 
 1. Confirm the README fast path and demo route.
 2. Run the repository quality gate and keep the output current.
-3. Architecture [service architecture](service-architecture.md) before adding runtime resources.
+3. Review [service architecture](service-architecture.md) before adding runtime resources.
 4. Add only the minimum accounts, secrets, and integrations needed for the next workflow.
 5. Record screenshots or evidence artifacts after each deployment update.
 
@@ -37,11 +37,11 @@ This playbook keeps launch architecture focused on evidence, deployment ownershi
 - Quality gate pass rate
 - Build and deployment duration
 - Error rate and latency where runtime telemetry exists
-- Architecture completion for documented workflows
+- Review completion for documented workflows
 
 ## Maintenance Rhythm
 
 - Refresh README and architecture notes after meaningful changes.
 - Re-run the quality gate before pushing.
 - Keep demo screenshots and evidence artifacts aligned with the deployed UI.
-- Remove stale generated files when they no longer support architecture walkthrough.
+- Remove stale generated files when they no longer support the technical walkthrough.

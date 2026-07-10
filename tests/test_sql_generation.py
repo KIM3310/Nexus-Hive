@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import time
+import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -29,6 +30,7 @@ from policy.engine import (
     infer_sql_from_question,
 )
 from warehouse_adapter import validate_sql_safety
+from warehouse_adapter import SqliteWarehouseAdapter, WarehouseAdapterContract
 from exceptions import (
     SQLValidationError,
     PolicyDeniedError,
@@ -101,6 +103,39 @@ class TestSQLInference:
         """Empty question should return the default query."""
         sql: str = infer_sql_from_question("")
         assert "SELECT" in sql.upper()
+
+
+class TestSqliteMetadataQuoting:
+    def test_table_profiles_quote_embedded_quote_identifiers(self, tmp_path: Path) -> None:
+        db_path = tmp_path / "quoted.db"
+        table_name = 'sales"archive'
+        with sqlite3.connect(db_path) as conn:
+            conn.execute('CREATE TABLE "sales""archive" ("odd""column" TEXT)')
+            conn.execute('INSERT INTO "sales""archive" ("odd""column") VALUES (?)', ("ok",))
+
+        adapter = SqliteWarehouseAdapter(
+            WarehouseAdapterContract(
+                name="sqlite-test",
+                status="active",
+                role="test",
+                sql_dialect="SQLite",
+                execution_mode="local-sqlite",
+                capabilities=[],
+                backing_store="test",
+                review_note="test",
+            )
+        )
+
+        profiles = adapter.build_table_profiles(db_path)
+
+        assert profiles == [
+            {
+                "table": table_name,
+                "row_count": 1,
+                "column_count": 1,
+                "columns": ['odd"column'],
+            }
+        ]
 
 
 # ---------------------------------------------------------------------------

@@ -490,7 +490,7 @@ def test_operator_token_can_guard_mutating_routes() -> None:
     previous = os.environ.get("NEXUS_HIVE_OPERATOR_TOKEN")
     previous_roles = os.environ.get("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES")
     os.environ["NEXUS_HIVE_OPERATOR_TOKEN"] = "nexus-token"
-    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "architecture"
+    os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = "security-approver"
     client = TestClient(APP_MODULE.app)
     try:
         denied = client.post("/api/ask", json={"question": "Show total revenue by region"})
@@ -507,7 +507,7 @@ def test_operator_token_can_guard_mutating_routes() -> None:
             "/api/ask",
             headers={
                 "authorization": "Bearer nexus-token",
-                "x-operator-role": "architecture",
+                "x-operator-role": "security-approver",
             },
             json={"question": "Show total revenue by region"},
         )

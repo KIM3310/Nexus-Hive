@@ -5,7 +5,7 @@ Last updated: 2026-06-03 KST
 
 ## Enterprise Product Position
 
-Governed analytics copilot with audited NL2SQL, policy checks, and runtime architecture surfaces.
+Governed analytics copilot with audited NL2SQL, policy checks, and runtime review surfaces.
 
 This repository is packaged as a concrete system surface, not a loose code sample. The enterprise value is a narrow proof that can be inspected, run, tested, and converted into a scoped implementation motion.
 

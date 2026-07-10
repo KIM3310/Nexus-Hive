@@ -249,7 +249,7 @@ def build_metric_layer_schema() -> Dict[str, Any]:
         },
         "operator_rules": [
             "Certified metrics are the front door for executive analytics claims.",
-            "Non-certified metrics stay visible but require explicit architecture approval before external sharing.",
+            "Non-certified metrics stay visible but require explicit data-owner approval before external sharing.",
             "Metric definitions must map back to fact_sales grain and known lineage edges.",
         ],
     }
@@ -640,11 +640,11 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
     ]
     target_notes = {
         "sqlite-demo": {
-            "fit": "Deterministic governed BI architecture path with live local execution.",
+            "fit": "Deterministic governed BI review path with live local execution.",
             "primary_surface": "/api/ask",
         },
         "snowflake-sql-contract": {
-            "fit": "Snowflake-style governed warehouse contract with query tagging and operating posture kept explicit.",
+            "fit": "Snowflake-style governed warehouse contract with query tagging and audit posture kept explicit.",
             "primary_surface": "/api/runtime/warehouse-target-scorecard?target=snowflake-sql-contract",
         },
         "databricks-sql-contract": {
@@ -669,7 +669,7 @@ def build_warehouse_target_scorecard(target: Optional[str] = None) -> Dict[str, 
                 "status": (
                     "ready"
                     if execution_mode == "local-sqlite" and quality_gate.get("status") == "ok"
-                    else "architecture-ready"
+                    else "contract-preview"
                     if quality_gate.get("status") == "ok"
                     else "attention"
                 ),
@@ -875,7 +875,7 @@ def build_lakehouse_readiness_pack(target: Optional[str] = None) -> Dict[str, An
             "Start with certified metrics and approval rules so adapter claims stay governed before connector work begins.",
             "Preview warehouse tagging and request metadata through /api/schema/query-tag before any platform-native story is repeated.",
             "Treat Snowflake and Databricks as explicit contract-preview targets until live connector posture changes.",
-            "Keep the approval board in the loop so warehouse-native demos still show human check boundaries.",
+            "Keep the approval board in the loop so warehouse-native demos still show human review boundaries.",
         ],
         "architecture_notes": [
             "Snowflake and Databricks fit is expressed as an explicit contract preview with governance artifacts, not as fake live connectivity.",
