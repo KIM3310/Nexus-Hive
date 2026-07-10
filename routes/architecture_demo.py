@@ -53,7 +53,10 @@ async def architecture_query_demo_endpoint(req: ArchitectureQueryDemoRequest, re
         "lineage_schema": build_lineage_schema()["schema"],
         "metric_layer_schema": build_metric_layer_schema()["schema"],
     }
-    api_key = str(os.getenv("OPENROUTER_API_KEY", "")).strip() or str(os.getenv("OPENAI_API_KEY", "")).strip()
+    api_key = (
+        str(os.getenv("OPENROUTER_API_KEY", "")).strip()
+        or str(os.getenv("OPENAI_API_KEY", "")).strip()
+    )
 
     # Look up helpers via the app state so that test monkeypatching
     # on the correct main module instance propagates correctly.

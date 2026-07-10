@@ -21,8 +21,12 @@ def _openai_compatible_headers(api_key: str) -> Dict[str, str]:
         "Content-Type": "application/json",
     }
     if os.getenv("OPENROUTER_API_KEY", "").strip():
-        headers["HTTP-Referer"] = os.getenv("OPENROUTER_HTTP_REFERER", "").strip() or "https://nexus-hive.pages.dev"
-        headers["X-OpenRouter-Title"] = os.getenv("OPENROUTER_APP_TITLE", "").strip() or "Nexus-Hive"
+        headers["HTTP-Referer"] = (
+            os.getenv("OPENROUTER_HTTP_REFERER", "").strip() or "https://nexus-hive.pages.dev"
+        )
+        headers["X-OpenRouter-Title"] = (
+            os.getenv("OPENROUTER_APP_TITLE", "").strip() or "Nexus-Hive"
+        )
     return headers
 
 

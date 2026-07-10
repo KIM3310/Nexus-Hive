@@ -46,6 +46,7 @@ _logger = logging.getLogger("nexus_hive.warehouse_adapter")
 def _quote_sqlite_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
+
 # ---------------------------------------------------------------------------
 # Adapter contract (immutable descriptor)
 # ---------------------------------------------------------------------------

@@ -76,7 +76,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
         health_payload["links"]["warehouse_target_scorecard"]
         == "/api/runtime/warehouse-target-scorecard"
     )
-    assert health_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
+    assert (
+        health_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
+    )
     assert health_payload["links"]["auth_session"] == "/api/auth/session"
     assert health_payload["links"]["answer_schema"] == "/api/schema/answer"
     assert health_payload["links"]["lineage_schema"] == "/api/schema/lineage"
@@ -178,7 +180,9 @@ def test_health_and_meta_expose_runtime_diagnostics() -> None:
     )
     assert brief_payload["warehouse_contract"]["gold_eval_schema"] == "nexus-hive-gold-eval-v1"
     assert brief_payload["warehouse_contract"]["operator_auth_enabled"] is False
-    assert brief_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
+    assert (
+        brief_payload["links"]["architecture_query_demo"] == "/api/runtime/architecture-query-demo"
+    )
 
     assert architecture_resource_pack.status_code == 404
 

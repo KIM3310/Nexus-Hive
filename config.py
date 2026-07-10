@@ -198,9 +198,7 @@ OPENAI_BASE_URL: str = (
     else "https://api.openai.com/v1"
 )
 OPENAI_PUBLIC_DEFAULT_MODEL: str = (
-    "google/gemini-3.5-flash"
-    if os.getenv("OPENROUTER_API_KEY", "").strip()
-    else "gpt-4.1-mini"
+    "google/gemini-3.5-flash" if os.getenv("OPENROUTER_API_KEY", "").strip() else "gpt-4.1-mini"
 )
 OPENAI_PUBLIC_DEFAULT_DAILY_BUDGET_USD: float = 4.0
 OPENAI_PUBLIC_DEFAULT_MONTHLY_BUDGET_USD: float = 120.0
@@ -404,13 +402,16 @@ def build_openai_runtime_contract() -> Dict[str, Any]:
         or "https://nexus-hive.pages.dev",
         "appTitle": str(os.getenv("OPENROUTER_APP_TITLE", "")).strip() or "Nexus-Hive",
         "publicLiveApi": public_live_api,
-        "liveModel": str(os.getenv("OPENROUTER_MODEL" if uses_openrouter else "OPENAI_MODEL_PUBLIC", "")).strip()
+        "liveModel": str(
+            os.getenv("OPENROUTER_MODEL" if uses_openrouter else "OPENAI_MODEL_PUBLIC", "")
+        ).strip()
         or OPENAI_PUBLIC_DEFAULT_MODEL,
         "refreshModel": str(os.getenv("OPENAI_MODEL_REFRESH", "")).strip() or "gpt-5.2",
         "dailyBudgetUsd": daily_budget,
         "monthlyBudgetUsd": monthly_budget,
         "killSwitch": kill_switch,
-        "moderationEnabled": (not uses_openrouter) and read_bool_env("OPENAI_MODERATION_ENABLED", True),
+        "moderationEnabled": (not uses_openrouter)
+        and read_bool_env("OPENAI_MODERATION_ENABLED", True),
         "publicRpm": max(
             1,
             min(
