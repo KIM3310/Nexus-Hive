@@ -69,5 +69,29 @@
     ],
     "isAccessibleForFree": true,
     "keywords": "Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, connector, pack, Snowflake, Databricks, Postgres, export, bundle"
+  },
+  "commerce": {
+    "gateway_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers",
+    "lane_id": "nexus-data-contract-lab",
+    "lane_name": "Nexus Data Contract Lab",
+    "billing_mode": "quote",
+    "price_unit": "scope-before-invoice for connector, warehouse, and audit-export work",
+    "fulfillment_kind": "connector readiness map, data-quality contract pack, export boundary, and migration report",
+    "risk_bucket": "data-high-trust",
+    "checkout": {
+      "provider": "lemon-squeezy",
+      "status": "account-onboarding-required",
+      "fallback_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers"
+    },
+    "sponsorship": {
+      "provider": "github-sponsors",
+      "eligible": true,
+      "status": "account-onboarding-required"
+    },
+    "advertising": {
+      "provider": null,
+      "eligible": false,
+      "status": "not-applicable"
+    }
   }
 }
