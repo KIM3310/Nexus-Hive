@@ -84,12 +84,14 @@ Expected response:
 In `tests/test_gold_evals.py`, add a case that exercises the new column:
 
 ```python
-{
-  "id": "gold-042-customer-segment",
-  "question": "Show net revenue by customer segment in Q4 2025",
-  "expected_features": ["customer_segment", "SUM(net_revenue)", "GROUP BY"],
-  "policy_verdict_expected": "allow",
-},
+(
+    {
+        "id": "gold-042-customer-segment",
+        "question": "Show net revenue by customer segment in Q4 2025",
+        "expected_features": ["customer_segment", "SUM(net_revenue)", "GROUP BY"],
+        "policy_verdict_expected": "allow",
+    },
+)
 ```
 
 ### A.5. Run the gold eval
