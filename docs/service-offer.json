@@ -86,7 +86,7 @@
     "sponsorship": {
       "provider": "github-sponsors",
       "eligible": true,
-      "status": "account-onboarding-required"
+      "status": "sponsors-listing-not-configured"
     },
     "advertising": {
       "provider": null,
