@@ -5,9 +5,9 @@
   "repository_url": "https://github.com/KIM3310/Nexus-Hive",
   "architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md",
   "revenue_architecture_url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md",
-  "lead_capture_url": "https://github.com/KIM3310/Nexus-Hive/issues/new?template=service-inquiry.yml&title=Private+workspace+inquiry%3A+Nexus+Hive",
+  "lead_capture_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry",
   "productized_offer": "governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts",
-  "first_paid_sku": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+  "first_paid_sku": "quoted private AI readiness sprint for governed analytics connectors and audit export scoping",
   "free_lead_magnet": "public governed analytics demo over synthetic sales data",
   "search_positioning": {
     "primary_query": "Nexus Hive governed query gateway",
@@ -21,7 +21,7 @@
   },
   "monetization_boundary": {
     "free": "public governed analytics demo over synthetic sales data",
-    "paid": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+    "paid": "quoted private AI readiness sprint for governed analytics connectors and audit export scoping",
     "metering_hooks": [
       "workspace_id",
       "plan",
@@ -45,7 +45,7 @@
     "operatingSystem": "Web, serverless, and local development environments",
     "url": "https://nexus-hive.pages.dev/",
     "codeRepository": "https://github.com/KIM3310/Nexus-Hive",
-    "description": "Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private.",
+    "description": "Nexus Hive is a public synthetic governed analytics demo. Paid work is a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping; no self-serve checkout is configured.",
     "creator": {
       "@type": "Person",
       "name": "KIM3310",
@@ -62,30 +62,30 @@
       },
       {
         "@type": "Offer",
-        "name": "paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle",
+        "name": "quoted private AI readiness sprint for governed analytics connectors and audit export scoping",
         "availability": "https://schema.org/LimitedAvailability",
-        "url": "https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md"
+        "url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry"
       }
     ],
     "isAccessibleForFree": true,
-    "keywords": "Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, connector, pack, Snowflake, Databricks, Postgres, export, bundle"
+    "keywords": "Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, private AI readiness sprint, connector scoping, audit export"
   },
   "commerce": {
     "gateway_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers",
-    "lane_id": "nexus-data-contract-lab",
-    "lane_name": "Nexus Data Contract Lab",
+    "lane_id": "private-ai-readiness-sprint",
+    "lane_name": "Private AI Readiness Sprint",
     "billing_mode": "quote",
-    "price_unit": "scope-before-invoice for connector, warehouse, and audit-export work",
-    "fulfillment_kind": "connector readiness map, data-quality contract pack, export boundary, and migration report",
-    "risk_bucket": "data-high-trust",
+    "price_unit": "typical discovery scope from USD 2,500",
+    "fulfillment_kind": "use-case scorecard, data and policy boundaries, evaluation plan, deployment options, and go or no-go roadmap",
+    "risk_bucket": "high-trust-b2b",
     "checkout": {
-      "provider": "lemon-squeezy",
-      "status": "account-onboarding-required",
-      "fallback_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers"
+      "provider": null,
+      "status": "not-configured",
+      "fallback_url": "https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry"
     },
     "sponsorship": {
       "provider": "github-sponsors",
-      "eligible": true,
+      "eligible": false,
       "status": "sponsors-listing-not-configured"
     },
     "advertising": {

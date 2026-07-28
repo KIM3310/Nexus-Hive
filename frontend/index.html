@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <meta name="description" content="Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private." />
+    <meta name="description" content="Nexus Hive is a public synthetic governed analytics demo. Paid work is a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Nexus Hive" />
-    <meta property="og:description" content="Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private." />
+    <meta property="og:description" content="Nexus Hive is a public synthetic governed analytics demo. Paid work is a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping." />
     <meta property="og:image" content="/preview-card.svg">
     <meta property="og:image:alt" content="Nexus-Hive executive BI copilot review card">
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Nexus Hive" />
-    <meta name="twitter:description" content="Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private." />
+    <meta name="twitter:description" content="Nexus Hive is a public synthetic governed analytics demo. Paid work is a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping." />
     <meta name="twitter:image" content="/preview-card.svg">
     <title>Nexus-Hive | Executive BI Copilot</title>
     <link
@@ -22,13 +22,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
   <meta name="robots" content="index,follow,max-image-preview:large" />
-  <meta name="keywords" content="Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, connector, pack, Snowflake, Databricks, Postgres, export, bundle" />
+  <meta name="keywords" content="Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, private AI readiness sprint, connector scoping, audit export" />
   <link rel="canonical" href="https://nexus-hive.pages.dev/" />
   <meta property="og:url" content="https://nexus-hive.pages.dev/" />
   <meta property="og:site_name" content="Nexus Hive" />
   <link rel="alternate" type="application/json" title="Service offer" href="service-offer.json" />
 <!-- search-growth-jsonld:start -->
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nexus Hive","applicationCategory":"BusinessApplication","operatingSystem":"Web, serverless, and local development environments","url":"https://nexus-hive.pages.dev/","codeRepository":"https://github.com/KIM3310/Nexus-Hive","description":"Nexus Hive: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. Free entry point: public governed analytics demo over synthetic sales data. Paid path: paid private.","creator":{"@type":"Person","name":"KIM3310","url":"https://github.com/KIM3310"},"offers":[{"@type":"Offer","name":"public governed analytics demo over synthetic sales data","price":"0","priceCurrency":"USD","availability":"https://schema.org/InStock","url":"https://nexus-hive.pages.dev/"},{"@type":"Offer","name":"paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle","availability":"https://schema.org/LimitedAvailability","url":"https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md"}],"isAccessibleForFree":true,"keywords":"Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, connector, pack, Snowflake, Databricks, Postgres, export, bundle"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nexus Hive","applicationCategory":"BusinessApplication","operatingSystem":"Web, serverless, and local development environments","url":"https://nexus-hive.pages.dev/","codeRepository":"https://github.com/KIM3310/Nexus-Hive","description":"Nexus Hive is a public synthetic governed analytics demo. Paid work is a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping; no self-serve checkout is configured.","creator":{"@type":"Person","name":"KIM3310","url":"https://github.com/KIM3310"},"offers":[{"@type":"Offer","name":"public governed analytics demo over synthetic sales data","price":"0","priceCurrency":"USD","availability":"https://schema.org/InStock","url":"https://nexus-hive.pages.dev/"},{"@type":"Offer","name":"quoted private AI readiness sprint for governed analytics connectors and audit export scoping","availability":"https://schema.org/LimitedAvailability","url":"https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry"}],"isAccessibleForFree":true,"keywords":"Nexus-Hive, Nexus, Hive, governed, query, gateway, policy, checks, semantic, metadata, audit, logs, warehouse, adapter, contracts, private AI readiness sprint, connector scoping, audit export"}</script>
 <!-- search-growth-jsonld:end -->
 <style id="search-growth-offer-style">
     .search-growth-offer {
@@ -89,6 +89,27 @@
       color: white;
     }
     .search-growth-offer .offer-actions a.secondary { background: white; color: #15171c; }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .topbar-cta {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(242, 244, 247, 0.28);
+      border-radius: 10px;
+      padding: 0 12px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 780;
+      background: rgba(255, 255, 255, 0.08);
+    }
     @media (max-width: 720px) {
       .search-growth-offer .offer-grid { grid-template-columns: 1fr; }
       .search-growth-offer .offer-actions a { width: 100%; }
@@ -106,9 +127,12 @@
                     <p class="brief-label">Analytics runtime</p>
                     <h1>Executive Data Copilot</h1>
                 </div>
-                <div class="status-indicator">
-                    <span class="dot pulse"></span>
-                    <span id="status-text">Waiting for query</span>
+                <div class="topbar-actions">
+                    <a class="topbar-cta" href="https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry">Private readiness inquiry</a>
+                    <div class="status-indicator">
+                        <span class="dot pulse"></span>
+                        <span id="status-text">Waiting for query</span>
+                    </div>
                 </div>
             </header>
 
@@ -502,15 +526,15 @@
         <!-- search-growth-offer:start -->
 <section class="search-growth-offer" aria-labelledby="search-growth-offer-title">
   <p class="offer-kicker">Service launch path</p>
-  <h2 id="search-growth-offer-title">Nexus Hive can start free, then convert on private value.</h2>
-  <p>Governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. The free surface stays public and synthetic; paid value begins with paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle.</p>
+  <h2 id="search-growth-offer-title">Request private readiness scoping for governed analytics.</h2>
+  <p>Governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts. The public surface stays synthetic; paid work starts with a quoted private AI readiness sprint for connector, policy, audit-export, and deployment scoping.</p>
   <div class="offer-grid" aria-label="Free and paid service boundaries">
     <div><span>Free entry</span><strong>public governed analytics demo over synthetic sales data</strong></div>
-    <div><span>Paid SKU</span><strong>paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle</strong></div>
+    <div><span>Paid inquiry</span><strong>quoted private AI readiness sprint for governed analytics connectors and audit export scoping</strong></div>
     <div><span>Search intent</span><strong>Nexus Hive demo / Nexus Hive system architecture</strong></div>
   </div>
   <div class="offer-actions">
-    <a href="https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers">View paid options</a>
+    <a href="https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry">Request private readiness scope</a>
     <a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md" target="_blank" rel="noopener noreferrer">Revenue architecture</a>
     <a class="secondary" href="https://github.com/KIM3310/Nexus-Hive" target="_blank" rel="noopener noreferrer">Repository</a>
   </div>

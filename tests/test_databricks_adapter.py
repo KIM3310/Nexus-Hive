@@ -409,6 +409,16 @@ class TestDatabricksHelpers:
         assert "`default`" in fqn
         assert "`sales`" in fqn
 
+    def test_table_fqn_escapes_malicious_metadata_table_name(
+        self, mock_databricks_env: None
+    ) -> None:
+        """_table_fqn should keep metadata-derived names inside one escaped identifier."""
+        from databricks_adapter import _table_fqn
+
+        fqn = _table_fqn("sales`; DROP TABLE users; --")
+
+        assert fqn == "`main`.`default`.`sales``; DROP TABLE users; --`"
+
     def test_build_workspace_client_raises_when_unavailable(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

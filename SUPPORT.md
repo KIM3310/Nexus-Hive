@@ -8,7 +8,7 @@ Use GitHub Issues for non-sensitive bugs, documentation problems, and feature re
 
 ## Paid pilot / business inquiries
 
-Use the paid-pilot intake issue template for non-sensitive scoping only. Customer names, contracts, production data, and pricing discussions should move to an owner-approved private channel before work begins.
+Use the [central Cloudflare D1 private inquiry](https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry) for commercial scoping. Public GitHub issues are limited to non-sensitive bugs, documentation problems, and product discussion.
 
 ## Privacy or data requests
 
@@ -20,4 +20,4 @@ Do not put personal data in a public issue. Use the privacy/data request templat
 - Paid pilot requests: first response target is 1 business day after a private support channel and paid scope are approved.
 - Security-sensitive reports: do not disclose publicly; use the private channel specified by the owner.
 
-Generated: 2026-06-26. This support policy is operational guidance, not a legal SLA.
+Last reviewed: 2026-07-28. This support policy is operational guidance, not a legal SLA.

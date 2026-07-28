@@ -8,13 +8,13 @@
 locals {
   # Map of env-var-name -> secret-id. Used both here and in cloud-run.tf.
   secret_env_map = {
-    SNOWFLAKE_PASSWORD  = "nexus-hive-snowflake-password"
-    SNOWFLAKE_USER      = "nexus-hive-snowflake-user"
-    SNOWFLAKE_ACCOUNT   = "nexus-hive-snowflake-account"
-    DATABRICKS_TOKEN    = "nexus-hive-databricks-token"
-    DATABRICKS_HOST     = "nexus-hive-databricks-host"
-    OPENAI_API_KEY      = "nexus-hive-openai-api-key"
-    ANTHROPIC_API_KEY   = "nexus-hive-anthropic-api-key"
+    SNOWFLAKE_PASSWORD   = "nexus-hive-snowflake-password"
+    SNOWFLAKE_USER       = "nexus-hive-snowflake-user"
+    SNOWFLAKE_ACCOUNT    = "nexus-hive-snowflake-account"
+    DATABRICKS_TOKEN     = "nexus-hive-databricks-token"
+    DATABRICKS_HOST      = "nexus-hive-databricks-host"
+    OPENAI_API_KEY       = "nexus-hive-openai-api-key"
+    ANTHROPIC_API_KEY    = "nexus-hive-anthropic-api-key"
     NEXUS_OPERATOR_TOKEN = "nexus-hive-operator-token"
   }
 }

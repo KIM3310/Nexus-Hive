@@ -321,19 +321,20 @@ Five step-by-step runbooks live at `docs/runbooks/`:
 
 ---
 
-## Customer Stories
+## Composite Discovery Narratives
 
-Narrative case studies written as SE-style handouts. Composites drawn from
-common patterns; numbers illustrative.
+Narrative discovery handouts for technical review conversations. They are
+fictional composites, not customer references, production evidence, or outcome
+claims.
 
-| Story | Vertical | Deployment shape | Headline outcome |
-|---|---|---|---|
-| [Acme Finance](docs/customer-stories/acme-finance-narrative.md) | Financial services | GKE + Snowflake, SSO, Prometheus | Dashboard lead time 3 days -> 6 hours (-94%), 85% of queries self-served |
-| [Northstar Health](docs/customer-stories/regulated-healthcare-narrative.md) | Regulated healthcare | Airgapped AKS + Databricks, HIPAA BAA | Bespoke analytics turnaround 9 days -> 1 day (-89%), zero PHI incidents across 180 days |
+| Narrative | Use |
+|---|---|
+| [Acme Finance](docs/customer-stories/acme-finance-narrative.md) | Fictional financial-services discovery scenario |
+| [Northstar Health](docs/customer-stories/regulated-healthcare-narrative.md) | Fictional regulated-healthcare discovery scenario |
 
-Each story walks through the problem, the 90- or 180-day rollout, the
-policy-tuning decisions, and the specific lessons that fed back into the
-product. Designed for SE discovery + technical-review handoff.
+Use these narratives to frame questions and implementation boundaries. Do not
+present them as live customer deployments, benchmarks, references, or guaranteed
+business results.
 
 ---
 
@@ -443,9 +444,9 @@ MIT
 ## Search And Service Surface
 
 - Public entry: public governed analytics demo over synthetic sales data
-- Paid boundary: paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle
+- Paid boundary: quoted private AI readiness sprint for governed analytics connectors and audit export scoping
 - Canonical URL: https://nexus-hive.pages.dev/
-- Lead capture: https://github.com/KIM3310/Nexus-Hive/issues/new?template=service-inquiry.yml&title=Private+workspace+inquiry%3A+Nexus+Hive
+- Lead capture: https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry
 - Commercial route: https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers
 - Machine-readable offer: [docs/service-offer.json](docs/service-offer.json)
 - Search growth implementation: [docs/search-growth-implementation.md](docs/search-growth-implementation.md)

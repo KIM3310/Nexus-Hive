@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 _logger = logging.getLogger("nexus_hive.snowflake_adapter")
 
@@ -150,6 +151,27 @@ _pool = SnowflakeConnectionPool()
 
 # Default query timeout in seconds
 SNOWFLAKE_QUERY_TIMEOUT_SEC: int = int(os.getenv("SNOWFLAKE_QUERY_TIMEOUT_SEC", "120"))
+_SNOWFLAKE_SIMPLE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]{0,254}$")
+
+
+def _quote_identifier(identifier: str) -> str:
+    """Return a Snowflake double-quoted identifier after rejecting invalid input."""
+    value = str(identifier).strip()
+    if not value:
+        raise ValueError("Snowflake identifier cannot be empty")
+    if "\x00" in value:
+        raise ValueError("Snowflake identifier cannot contain NUL bytes")
+    if len(value) > 255:
+        raise ValueError("Snowflake identifier cannot exceed 255 characters")
+    return f'"{value.replace(chr(34), chr(34) * 2)}"'
+
+
+def _identifier_lookup_name(identifier: str) -> str:
+    """Return the INFORMATION_SCHEMA lookup name for a Snowflake identifier."""
+    value = str(identifier).strip()
+    if _SNOWFLAKE_SIMPLE_IDENTIFIER_RE.fullmatch(value):
+        return value.upper()
+    return value
 
 
 def _open_cursor(conn: Any) -> Any:
@@ -162,6 +184,7 @@ def _open_cursor(conn: Any) -> Any:
 def execute_snowflake_query(
     sql: str,
     *,
+    params: Sequence[Any] | None = None,
     timeout_sec: int = SNOWFLAKE_QUERY_TIMEOUT_SEC,
     max_rows: int = 500,
 ) -> Dict[str, Any]:
@@ -192,7 +215,10 @@ def execute_snowflake_query(
     try:
         # Set statement-level timeout
         cursor.execute(f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}")
-        cursor.execute(sql)
+        if params is None:
+            cursor.execute(sql)
+        else:
+            cursor.execute(sql, params)
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
         rows = cursor.fetchmany(max_rows)
         # Get total row count if available
@@ -230,6 +256,7 @@ def execute_snowflake_query(
 def execute_snowflake_rows(
     sql: str,
     *,
+    params: Sequence[Any] | None = None,
     timeout_sec: int = SNOWFLAKE_QUERY_TIMEOUT_SEC,
     max_rows: int = 1000,
 ) -> Dict[str, Any]:
@@ -239,7 +266,10 @@ def execute_snowflake_rows(
     cursor = _open_cursor(conn)
     try:
         cursor.execute(f"ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = {timeout_sec}")
-        cursor.execute(sql)
+        if params is None:
+            cursor.execute(sql)
+        else:
+            cursor.execute(sql, params)
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
         rows = cursor.fetchmany(max_rows)
         row_count = cursor.rowcount if cursor.rowcount is not None else len(rows)
@@ -306,15 +336,20 @@ def build_snowflake_table_profiles() -> List[Dict[str, Any]]:
         table_name = str(item.get("table_name") or "").strip()
         if not table_name:
             continue
-        row_count = run_snowflake_scalar_query(f"SELECT COUNT(*) AS row_count FROM {table_name}")
+        table_identifier = _quote_identifier(table_name)
+        # Metadata table name is validated and Snowflake-quoted before interpolation.
+        row_count = run_snowflake_scalar_query(
+            f"SELECT COUNT(*) AS row_count FROM {table_identifier}"  # nosec B608
+        )
         columns = execute_snowflake_rows(
-            f"""
+            """
             SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_schema = CURRENT_SCHEMA()
-              AND table_name = '{table_name.upper()}'
+              AND table_name = %s
             ORDER BY ordinal_position
             """,
+            params=(_identifier_lookup_name(table_name),),
             max_rows=200,
         )
         profiles.append(
@@ -345,9 +380,10 @@ def get_snowflake_schema() -> str:
     schema_parts: List[str] = []
     for row in tables:
         table_name = row[1]  # name is the second column in SHOW TABLES
+        table_identifier = _quote_identifier(str(table_name))
         ddl_cursor = conn.cursor()
         try:
-            ddl_cursor.execute(f"SELECT GET_DDL('TABLE', '{table_name}')")
+            ddl_cursor.execute("SELECT GET_DDL('TABLE', %s)", (table_identifier,))
             ddl_row = ddl_cursor.fetchone()
             if ddl_row:
                 schema_parts.append(f"Table: {table_name}\nDDL: {ddl_row[0]}\n")

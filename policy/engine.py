@@ -248,13 +248,14 @@ def infer_sql_from_question(question: str) -> str:
 
     if "profit" in normalized and "region" in normalized:
         limit: int = 5 if "top 5" in normalized else 10
+        # The only interpolated value is an internal numeric constant.
         return (
             "SELECT r.region_name, ROUND(SUM(s.profit), 2) AS total_profit "
             "FROM sales s "
             "JOIN regions r ON s.region_id = r.region_id "
             "GROUP BY r.region_name "
             "ORDER BY total_profit DESC "
-            f"LIMIT {limit}"
+            f"LIMIT {limit}"  # nosec B608
         )
 
     if (

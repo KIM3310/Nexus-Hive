@@ -198,8 +198,9 @@ def run_databricks_scalar_query(sql: str) -> int:
 
 
 def fetch_databricks_date_window() -> Dict[str, Optional[str]]:
+    # _table_fqn backtick-quotes the controlled table identifier.
     result = execute_databricks_rows(
-        f"SELECT MIN(date) AS min_date, MAX(date) AS max_date FROM {_table_fqn('sales')}",
+        f"SELECT MIN(date) AS min_date, MAX(date) AS max_date FROM {_table_fqn('sales')}",  # nosec B608
         max_rows=1,
     )
     row = result["rows"][0] if result["rows"] else {}
@@ -226,8 +227,9 @@ def _table_names() -> List[str]:
 def build_databricks_table_profiles() -> List[Dict[str, Any]]:
     profiles: List[Dict[str, Any]] = []
     for table_name in _table_names():
+        # _table_fqn backtick-quotes metadata table identifiers.
         count_result = execute_databricks_rows(
-            f"SELECT COUNT(*) AS row_count FROM {_table_fqn(table_name)}",
+            f"SELECT COUNT(*) AS row_count FROM {_table_fqn(table_name)}",  # nosec B608
             max_rows=1,
         )
         describe_result = execute_databricks_rows(
@@ -340,8 +342,9 @@ def seed_demo_tables_from_sqlite(
                             serialized.append(str(value))
                     values_sql.append("(" + ", ".join(serialized) + ")")
                 columns_sql = ", ".join(_quote(column) for column in chunk[0].keys())
+                # Seed source uses an internal table allowlist, quoted columns, and escaped literals.
                 _execute_statement(
-                    f"INSERT INTO {_table_fqn(table_name)} ({columns_sql}) VALUES {', '.join(values_sql)}",
+                    f"INSERT INTO {_table_fqn(table_name)} ({columns_sql}) VALUES {', '.join(values_sql)}",  # nosec B608
                     timeout_sec=max(DATABRICKS_QUERY_TIMEOUT_SEC, 180),
                 )
     return counts

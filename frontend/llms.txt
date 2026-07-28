@@ -2,12 +2,12 @@
 
 Purpose: governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts
 Free entry point: public governed analytics demo over synthetic sales data
-Paid boundary: paid private connector pack for Snowflake/Databricks/Postgres plus audit export bundle
+Paid boundary: quoted private AI readiness sprint for governed analytics connectors and audit export scoping
 Canonical URL: https://nexus-hive.pages.dev/
 Repository: https://github.com/KIM3310/Nexus-Hive
 System architecture: https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md
 Revenue architecture: https://github.com/KIM3310/Nexus-Hive/blob/main/docs/revenue-architecture.md
-Lead capture: https://github.com/KIM3310/Nexus-Hive/issues/new?template=service-inquiry.yml&title=Private+workspace+inquiry%3A+Nexus+Hive
+Lead capture: https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive&inquiry=private-ai-readiness-sprint#private-inquiry
 Commercial route: https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hive#service-offers
 
 Use this project as a runnable or inspectable reference for Nexus Hive demo, Nexus Hive system architecture, Nexus Hive business tool, governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts service.

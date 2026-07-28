@@ -247,6 +247,54 @@ class TestSnowflakeScalarQuery:
 class TestSnowflakeSchema:
     """Tests for Snowflake schema retrieval."""
 
+    def test_quote_identifier_escapes_malicious_metadata_name(self) -> None:
+        """Snowflake identifier quoting should keep metadata table names as identifiers."""
+        from snowflake_adapter import _quote_identifier
+
+        assert _quote_identifier('SALES"; DROP TABLE USERS; --') == (
+            '"SALES""; DROP TABLE USERS; --"'
+        )
+        with pytest.raises(ValueError, match="empty"):
+            _quote_identifier("")
+
+    def test_build_profiles_quotes_malicious_metadata_table_name(
+        self, mock_snowflake_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Metadata-derived table names should be quoted and bound before query execution."""
+        malicious_name = 'SALES"; DROP TABLE USERS; --'
+        scalar_queries: List[str] = []
+        rows_calls: List[tuple[str, tuple[Any, ...] | None]] = []
+
+        import snowflake_adapter
+
+        def mock_execute_rows(
+            sql: str,
+            *,
+            params: tuple[Any, ...] | None = None,
+            **kwargs: Any,
+        ) -> Dict[str, Any]:
+            rows_calls.append((sql, params))
+            if "information_schema.tables" in sql:
+                return {"rows": [{"table_name": malicious_name}]}
+            if "information_schema.columns" in sql:
+                return {"rows": [{"column_name": "ID", "data_type": "NUMBER"}]}
+            raise AssertionError(f"unexpected query: {sql}")
+
+        def mock_scalar_query(sql: str) -> int:
+            scalar_queries.append(sql)
+            return 7
+
+        monkeypatch.setattr(snowflake_adapter, "execute_snowflake_rows", mock_execute_rows)
+        monkeypatch.setattr(snowflake_adapter, "run_snowflake_scalar_query", mock_scalar_query)
+
+        profiles = snowflake_adapter.build_snowflake_table_profiles()
+
+        assert profiles[0]["row_count"] == 7
+        assert scalar_queries == [
+            'SELECT COUNT(*) AS row_count FROM "SALES""; DROP TABLE USERS; --"'
+        ]
+        assert rows_calls[1][1] == (malicious_name,)
+
     def test_get_schema_returns_ddl_text(
         self, mock_snowflake_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -292,6 +340,43 @@ class TestSnowflakeSchema:
         assert "SALES" in schema
         assert "REGIONS" in schema
         assert "CREATE TABLE" in schema
+
+    def test_get_schema_binds_quoted_malicious_metadata_table_name(
+        self, mock_snowflake_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """GET_DDL should receive metadata-derived names through bound parameters."""
+        malicious_name = 'SALES"; DROP TABLE USERS; --'
+
+        show_tables_cursor = MagicMock()
+        show_tables_cursor.fetchall = MagicMock(return_value=[(None, malicious_name, None)])
+        show_tables_cursor.close = MagicMock()
+
+        ddl_cursor = MagicMock()
+        ddl_cursor.fetchone = MagicMock(return_value=("CREATE TABLE SAFE (id NUMBER)",))
+        ddl_cursor.close = MagicMock()
+
+        cursors = [show_tables_cursor, ddl_cursor]
+        cursor_index = {"i": 0}
+
+        def mock_cursor_factory(*args: Any, **kwargs: Any) -> MagicMock:
+            idx = cursor_index["i"]
+            cursor_index["i"] += 1
+            return cursors[idx]
+
+        mock_conn = MagicMock()
+        mock_conn.cursor = mock_cursor_factory
+
+        import snowflake_adapter
+
+        monkeypatch.setattr(snowflake_adapter._pool, "get_connection", lambda: mock_conn)
+
+        schema = snowflake_adapter.get_snowflake_schema()
+
+        ddl_cursor.execute.assert_called_once_with(
+            "SELECT GET_DDL('TABLE', %s)",
+            ('"SALES""; DROP TABLE USERS; --"',),
+        )
+        assert "CREATE TABLE SAFE" in schema
 
 
 # ---------------------------------------------------------------------------
