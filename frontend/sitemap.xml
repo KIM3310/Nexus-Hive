@@ -7,25 +7,25 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://nexus-hive.pages.dev/guide.html</loc>
+    <loc>https://nexus-hive.pages.dev/guide</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://nexus-hive.pages.dev/architecture.html</loc>
+    <loc>https://nexus-hive.pages.dev/architecture</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://nexus-hive.pages.dev/verification.html</loc>
+    <loc>https://nexus-hive.pages.dev/verification</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://nexus-hive.pages.dev/publisher.html</loc>
+    <loc>https://nexus-hive.pages.dev/publisher</loc>
     <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

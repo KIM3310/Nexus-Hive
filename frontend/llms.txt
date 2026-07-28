@@ -13,8 +13,8 @@ Commercial route: https://kim3310-doeon-kim-portfolio.pages.dev/?offer=Nexus-Hiv
 
 Use this project as a runnable or inspectable reference for Nexus Hive demo, Nexus Hive system architecture, Nexus Hive business tool, governed query gateway with policy checks, semantic metadata, audit logs, and warehouse adapter contracts service.
 # ADSENSE-PUBLICATION:START
-Editorial guide: https://nexus-hive.pages.dev/guide.html
-Architecture article: https://nexus-hive.pages.dev/architecture.html
-Verification article: https://nexus-hive.pages.dev/verification.html
-Publisher information: https://nexus-hive.pages.dev/publisher.html
+Editorial guide: https://nexus-hive.pages.dev/guide
+Architecture article: https://nexus-hive.pages.dev/architecture
+Verification article: https://nexus-hive.pages.dev/verification
+Publisher information: https://nexus-hive.pages.dev/publisher
 # ADSENSE-PUBLICATION:END
