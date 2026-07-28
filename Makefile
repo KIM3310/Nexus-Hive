@@ -11,7 +11,7 @@ VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
 
-.PHONY: check-bootstrap-python install seed lint test smoke verify run
+.PHONY: check-bootstrap-python install seed lint test smoke verify run deploy-pages
 
 check-bootstrap-python:
 	@if [ -z "$(BOOTSTRAP_PYTHON)" ]; then \
@@ -72,3 +72,6 @@ verify: lint test smoke
 
 run: install
 	$(VENV_PYTHON) -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+deploy-pages:
+	npx --yes wrangler@latest pages deploy frontend --project-name nexus-hive
