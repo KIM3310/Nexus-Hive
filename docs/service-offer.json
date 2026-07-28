@@ -89,9 +89,24 @@
       "status": "sponsors-listing-not-configured"
     },
     "advertising": {
-      "provider": null,
-      "eligible": false,
-      "status": "not-applicable"
+      "provider": "google-adsense",
+      "eligible": true,
+      "delivery_surface": "https://kim3310-doeon-kim-portfolio.pages.dev/resources/Nexus-Hive/",
+      "status": "central-resource-site-review-dependent"
     }
+  },
+  "monetization_strategy": {
+    "primary_model": "free-public-resource-with-contextual-advertising",
+    "public_resource_url": "https://kim3310-doeon-kim-portfolio.pages.dev/resources/Nexus-Hive/",
+    "advertising_provider": "google-adsense",
+    "advertising_status": "code-ready-site-review-dependent",
+    "aggregate_data_value": "anonymous aggregate analytics governance topics and adapter-interest counts",
+    "aggregate_insight_use": [
+      "publish privacy-safe benchmark summaries",
+      "prioritize useful public resources",
+      "improve search content from aggregate topic demand"
+    ],
+    "data_sale_boundary": "forbid sale of personal, sensitive, raw, event-level, or re-identifiable data",
+    "sensitive_flow_boundary": "ads allowed only on public analytics-readiness resources; query workbench, saved SQL, exports, and dashboards are ad-free"
   }
 }

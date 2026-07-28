@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-07-28",
+  "owner": "KIM3310",
+  "repo": "Nexus-Hive",
+  "positioning": "Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter reviews.",
+  "audience": "data platform leads and analytics engineers",
+  "public_resource": {
+    "url": "https://kim3310-doeon-kim-portfolio.pages.dev/resources/Nexus-Hive/",
+    "live_demo": "https://nexus-hive.pages.dev",
+    "readiness_checklist": [
+      "Architecture Summary",
+      "Runtime And Data Flow",
+      "Cloud Or Local Deployment Boundary",
+      "Deployment patterns",
+      "Control boundaries"
+    ]
+  },
+  "ad_supported_revenue": {
+    "participates": true,
+    "delivery_surface": "central policy-eligible public resource page",
+    "boundary": "ads allowed only on public analytics-readiness resources; query workbench, saved SQL, exports, and dashboards are ad-free",
+    "provider": "google-adsense",
+    "publisher_id": "ca-pub-4973160293737562",
+    "status": "code-ready-site-review-dependent"
+  },
+  "aggregate_data": {
+    "data_asset": "anonymous aggregate analytics governance topics and adapter-interest counts",
+    "sensitivity_class": "data-high-trust",
+    "allowed_events": [
+      "resource_view",
+      "resource_cta_click",
+      "architecture_doc_open",
+      "privacy_support_open"
+    ],
+    "prohibited_fields": [
+      "raw_input",
+      "prompt",
+      "url",
+      "referrer",
+      "title",
+      "user_id",
+      "session_id",
+      "ip_address",
+      "precise_location",
+      "payment_detail"
+    ],
+    "consent_default": "off",
+    "dnt_gpc": "fail-closed",
+    "sale_boundary": "forbid sale of personal, sensitive, raw, event-level, or re-identifiable data",
+    "event_store": "Cloudflare D1 daily aggregate counters",
+    "public_data_mart": "Firebase Firestore kim3310-free-tools"
+  }
+}
