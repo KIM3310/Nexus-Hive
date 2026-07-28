@@ -6,7 +6,7 @@
   "audience": "data platform leads and analytics engineers",
   "public_resource": {
     "url": "https://kim3310-doeon-kim-portfolio.pages.dev/resources/Nexus-Hive/",
-    "live_demo": "https://nexus-hive.pages.dev",
+    "live_demo": "https://nexus-hive.pages.dev/",
     "readiness_checklist": [
       "Architecture Summary",
       "Runtime And Data Flow",

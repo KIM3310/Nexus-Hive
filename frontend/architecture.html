@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture | Nexus Hive</title>
+  <meta name="description" content="Source-backed architecture, boundaries, data flow, and failure handling for Nexus Hive.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="google-adsense-account" content="ca-pub-4973160293737562">
+  <link rel="canonical" href="https://nexus-hive.pages.dev/architecture.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Architecture | Nexus Hive">
+  <meta property="og:description" content="Source-backed architecture, boundaries, data flow, and failure handling for Nexus Hive.">
+  <meta property="og:url" content="https://nexus-hive.pages.dev/architecture.html">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Architecture | Nexus Hive","description":"Source-backed architecture, boundaries, data flow, and failure handling for Nexus Hive.","url":"https://nexus-hive.pages.dev/architecture.html","dateModified":"2026-07-28","author":{"@type":"Person","name":"KIM3310","url":"https://github.com/KIM3310"},"publisher":{"@type":"Person","name":"KIM3310","url":"https://kim3310-doeon-kim-portfolio.pages.dev"},"isAccessibleForFree":true}</script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4973160293737562" crossorigin="anonymous"></script>
+  <style>
+    :root { color-scheme: light; --ink: #17201f; --muted: #52605d; --line: #cbd2ce; --paper: #ffffff; --ground: #f5f6f4; --green: #126455; --coral: #c94732; --gold: #b67a00; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--ground); color: var(--ink); font: 17px/1.72 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--green); text-underline-offset: 3px; }
+    .site-header { border-bottom: 1px solid var(--line); background: rgba(245, 246, 244, .97); }
+    .site-nav, .article-shell, .site-footer-inner { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+    .site-nav { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .site-nav strong { font-size: .92rem; }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: .84rem; }
+    .article-shell { padding: 54px 0 72px; }
+    .breadcrumbs { color: var(--muted); font-size: .82rem; }
+    .article-intro { padding: 28px 0 36px; border-bottom: 2px solid var(--ink); }
+    .kicker { color: var(--coral); font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 10px 0 16px; max-width: 18ch; font-size: 3.5rem; line-height: 1.04; letter-spacing: 0; overflow-wrap: anywhere; }
+    .lede { max-width: 68ch; color: var(--muted); font-size: 1.08rem; }
+    .review-note { margin-top: 18px; color: var(--muted); font-size: .84rem; }
+    article { padding-top: 24px; }
+    article h2 { margin: 42px 0 12px; padding-top: 6px; font-size: 1.75rem; line-height: 1.2; letter-spacing: 0; }
+    article h3 { margin: 30px 0 8px; font-size: 1.2rem; letter-spacing: 0; }
+    article h4 { margin: 24px 0 6px; font-size: 1.02rem; letter-spacing: 0; }
+    article p, article li { max-width: 76ch; }
+    article li + li { margin-top: 6px; }
+    pre { max-width: 100%; overflow: auto; border-left: 4px solid var(--gold); background: #1d2423; color: #f6f8f7; padding: 18px; border-radius: 4px; font-size: .86rem; }
+    code { overflow-wrap: anywhere; }
+    :not(pre) > code { border: 1px solid var(--line); background: var(--paper); padding: 1px 5px; border-radius: 3px; font-size: .9em; }
+    .table-scroll { overflow-x: auto; margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; background: var(--paper); font-size: .9rem; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #e9eeeb; }
+    .boundary-note { margin: 30px 0 4px; border-left: 4px solid var(--coral); background: var(--paper); padding: 18px; }
+    .source-basis { margin-top: 48px; border-top: 1px solid var(--line); padding-top: 22px; color: var(--muted); }
+    .site-footer { border-top: 1px solid var(--line); background: var(--paper); }
+    .site-footer-inner { padding: 28px 0 44px; color: var(--muted); font-size: .84rem; }
+    .site-footer-links { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+    @media (max-width: 720px) {
+      .site-nav { align-items: flex-start; flex-direction: column; padding: 14px 0; }
+      .article-shell { padding-top: 32px; }
+      h1 { font-size: 2.35rem; }
+    }
+  </style>
+</head>
+<body data-ad-surface="editorial">
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Primary">
+      <strong>Nexus Hive</strong>
+      <div class="nav-links"><a href="/">Home</a><a href="/guide.html">Project guide</a><a href="/architecture.html">Architecture</a><a href="/verification.html">Verification</a><a href="/publisher.html">Publisher</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
+    </nav>
+  </header>
+  <main class="article-shell">
+    <p class="breadcrumbs"><a href="/">Home</a> / Architecture</p>
+    <header class="article-intro">
+      <div class="kicker">Architecture</div>
+      <h1>Architecture | Nexus Hive</h1>
+      <p class="lede">A repository-derived architecture review covering components, control flow, operating boundaries, and the evidence a technical reviewer should inspect.</p>
+      <p class="review-note">Reviewed 2026-07-28. This page is derived from checked-in repository evidence and links back to its source.</p>
+    </header>
+
+    <article><h2>System Architecture - Nexus-Hive</h2>
+<p>This document is the system-level architecture attachment for the repository. It keeps the technical stack, runtime boundary, data/control flow, deployment surface, and operating assumptions in one place.</p>
+<h3>Architecture Summary</h3>
+<div class="table-scroll"><table><thead><tr><th>Area</th><th>Design</th></tr></thead><tbody><tr><td>Repository</td><td><code>Nexus-Hive</code></td></tr><tr><td>Primary domain</td><td>governed analytics, data contracts, and decision intelligence</td></tr><tr><td>Primary stack</td><td>Python service or lab runtime, Terraform infrastructure modules, Container build surface, Local compose environment, GitHub Actions validation</td></tr><tr><td>Architecture axes</td><td>cloud architecture, AI engineering, reliability, security, operator experience</td></tr></tbody></table></div>
+<p>Repository-local proof surface for governed analytics, data contracts, and decision intelligence, backed by Python service or lab runtime, Terraform infrastructure modules, Container build surface.</p>
+<h3>Runtime And Data Flow</h3>
+<pre><code>flowchart LR
+    User[&quot;User or data owner&quot;] --&gt; Surface[&quot;Public demo, CLI, package, or README surface&quot;]
+    Surface --&gt; Runtime[&quot;Runtime boundary: Python service or lab runtime, Terraform infrastructure modules, Container build surface, Local compose environment, GitHub Actions validation&quot;]
+    Runtime --&gt; Control[&quot;Control plane: configuration, policies, adapters, and jobs&quot;]
+    Control --&gt; Data[&quot;Data and artifacts: fixtures, reports, logs, exports, or model outputs&quot;]
+    Runtime --&gt; Observability[&quot;Observability and validation hooks&quot;]
+    Observability --&gt; Handoff[&quot;Documented handoff and operating boundary&quot;]
+    Data --&gt; Handoff</code></pre>
+<p>Primary domain: governed analytics, data contracts, and decision intelligence.</p>
+<h3>Stack Surface</h3>
+<div class="table-scroll"><table><thead><tr><th>Layer</th><th>Current surface</th><th>Operating note</th></tr></thead><tbody><tr><td>Interface</td><td>Public demo, README, CLI, package, or static proof surface depending on repository shape</td><td>Keep the first screen or command path inspectable without private credentials.</td></tr><tr><td>Runtime</td><td>Python service or lab runtime, Terraform infrastructure modules, Container build surface, Local compose environment, GitHub Actions validation</td><td>Keep runtime adapters bounded by environment configuration and documented fallbacks.</td></tr><tr><td>Control plane</td><td>Policies, configuration, job orchestration, tests, and release scripts</td><td>Keep operator-impacting changes traceable through docs and validation hooks.</td></tr><tr><td>Data and artifacts</td><td>Fixtures, generated reports, screenshots, exports, logs, or model outputs</td><td>Keep sample and generated artifacts clearly separated from private or customer data.</td></tr><tr><td>Operations</td><td>CI, local validation, architecture guard, and handoff notes</td><td>Keep the architecture docs current when runtime, data, or deployment boundaries change.</td></tr></tbody></table></div>
+<h3>Cloud Or Local Deployment Boundary</h3>
+<p>Operating model: contracted data zones, warehouse adapters, lineage capture, policy gates, and reproducible deployment modules</p>
+<h4>Deployment patterns</h4>
+<ul><li>Infrastructure-as-code entrypoint with explicit variables, outputs, and provider boundaries</li><li>Containerized runtime path suitable for repeatable local, staging, or managed service deployment</li><li>Data-contract lane with schema validation, lineage notes, and policy-aware analytics boundaries</li></ul>
+<h4>Control boundaries</h4>
+<ul><li>identity boundary and least-privilege service access</li><li>environment separation for local, staging, and managed runtime paths</li><li>secret storage outside source and deterministic fallback for missing credentials</li><li>observability hooks for logs, metrics, traces, and audit events</li><li>rollback path for deployment, schema, and model changes</li></ul>
+<h4>Resilience controls</h4>
+<ul><li>bounded retries with explicit failure states</li><li>health/readiness checks before operator-facing flows are trusted</li><li>idempotent data or artifact writes where repeat execution is possible</li><li>cost and quota guardrails for hosted services and model adapters</li></ul>
+<h3>AI And Automation Boundary</h3>
+<p>Operating model: semantic query planning, schema-aware retrieval, forecast explanation, validation packs, and guarded natural-language interfaces</p>
+<h4>Engineering patterns</h4>
+<ul><li>Bind natural-language interfaces to schema contracts, metric definitions, and query policy checks</li><li>Expose lineage, freshness, and access posture before generated analytics are trusted</li><li>Separate deterministic checks from model-generated output so the system remains testable without external credentials</li><li>Capture prompts, inputs, outputs, and decision metadata as inspectable artifacts instead of hidden side effects</li><li>Gate model-assisted actions with policy, confidence, and fallback states before they reach an operator path</li></ul>
+<h4>Evaluation and model-risk controls</h4>
+<ul><li>deterministic fixtures for CI-safe verification</li><li>golden output or schema checks for generated artifacts</li><li>trace capture for prompts, tool calls, inputs, and outputs</li><li>quality gates that fail closed when evidence is missing</li></ul>
+<h4>Risks to keep explicit</h4>
+<ul><li>schema drift</li><li>ungrounded analytics</li><li>lineage gaps</li><li>policy bypass</li></ul>
+<h3>Attached Architecture References</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/service-architecture.md" rel="noopener">Service architecture</a></li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/cloud-ai-architecture.md" rel="noopener">Cloud + AI architecture</a></li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/architecture/blueprint.json" rel="noopener">Architecture manifest</a></li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/product-operating-model.md" rel="noopener">Product operating model</a></li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/quality-gate.md" rel="noopener">Quality gate</a></li></ul>
+<h3>Local Architecture Guard</h3>
+<pre><code>python3 scripts/validate_architecture_blueprint.py</code></pre>
+<p>CI workflow: <code>.github/workflows/architecture-blueprint.yml</code>.</p>
+<p>Update this document whenever runtime entrypoints, data stores, hosted services, model/provider boundaries, or operating assumptions change.</p></article>
+    <aside class="source-basis">
+      <strong>Source basis:</strong> <a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md" rel="noopener">docs/system-architecture.md</a>. Corrections can be proposed through the public repository without submitting private data.
+    </aside>
+  </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-links"><a href="/">Home</a><a href="/guide.html">Project guide</a><a href="/architecture.html">Architecture</a><a href="/verification.html">Verification</a><a href="/publisher.html">Publisher</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://kim3310-doeon-kim-portfolio.pages.dev/">Resource atlas</a></div>
+      <p>Advertising may appear on this public editorial page after Google approves the site. Ads are not placed inside private, transactional, diagnostic, security-response, or operational workflows.</p>
+    </div>
+  </footer>
+</body>
+</html>

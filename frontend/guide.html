@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Guide | Nexus Hive</title>
+  <meta name="description" content="Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter reviews. Source-backed guide for data platform leads and analytics…">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="google-adsense-account" content="ca-pub-4973160293737562">
+  <link rel="canonical" href="https://nexus-hive.pages.dev/guide.html">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Project Guide | Nexus Hive">
+  <meta property="og:description" content="Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter reviews. Source-backed guide for data platform leads and analytics engineers.">
+  <meta property="og:url" content="https://nexus-hive.pages.dev/guide.html">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Project Guide | Nexus Hive","description":"Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter reviews. Source-backed guide for data platform leads and analytics engineers.","url":"https://nexus-hive.pages.dev/guide.html","dateModified":"2026-07-28","author":{"@type":"Person","name":"KIM3310","url":"https://github.com/KIM3310"},"publisher":{"@type":"Person","name":"KIM3310","url":"https://kim3310-doeon-kim-portfolio.pages.dev"},"isAccessibleForFree":true}</script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4973160293737562" crossorigin="anonymous"></script>
+  <style>
+    :root { color-scheme: light; --ink: #17201f; --muted: #52605d; --line: #cbd2ce; --paper: #ffffff; --ground: #f5f6f4; --green: #126455; --coral: #c94732; --gold: #b67a00; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--ground); color: var(--ink); font: 17px/1.72 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--green); text-underline-offset: 3px; }
+    .site-header { border-bottom: 1px solid var(--line); background: rgba(245, 246, 244, .97); }
+    .site-nav, .article-shell, .site-footer-inner { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+    .site-nav { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .site-nav strong { font-size: .92rem; }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: .84rem; }
+    .article-shell { padding: 54px 0 72px; }
+    .breadcrumbs { color: var(--muted); font-size: .82rem; }
+    .article-intro { padding: 28px 0 36px; border-bottom: 2px solid var(--ink); }
+    .kicker { color: var(--coral); font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 10px 0 16px; max-width: 18ch; font-size: 3.5rem; line-height: 1.04; letter-spacing: 0; overflow-wrap: anywhere; }
+    .lede { max-width: 68ch; color: var(--muted); font-size: 1.08rem; }
+    .review-note { margin-top: 18px; color: var(--muted); font-size: .84rem; }
+    article { padding-top: 24px; }
+    article h2 { margin: 42px 0 12px; padding-top: 6px; font-size: 1.75rem; line-height: 1.2; letter-spacing: 0; }
+    article h3 { margin: 30px 0 8px; font-size: 1.2rem; letter-spacing: 0; }
+    article h4 { margin: 24px 0 6px; font-size: 1.02rem; letter-spacing: 0; }
+    article p, article li { max-width: 76ch; }
+    article li + li { margin-top: 6px; }
+    pre { max-width: 100%; overflow: auto; border-left: 4px solid var(--gold); background: #1d2423; color: #f6f8f7; padding: 18px; border-radius: 4px; font-size: .86rem; }
+    code { overflow-wrap: anywhere; }
+    :not(pre) > code { border: 1px solid var(--line); background: var(--paper); padding: 1px 5px; border-radius: 3px; font-size: .9em; }
+    .table-scroll { overflow-x: auto; margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; background: var(--paper); font-size: .9rem; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #e9eeeb; }
+    .boundary-note { margin: 30px 0 4px; border-left: 4px solid var(--coral); background: var(--paper); padding: 18px; }
+    .source-basis { margin-top: 48px; border-top: 1px solid var(--line); padding-top: 22px; color: var(--muted); }
+    .site-footer { border-top: 1px solid var(--line); background: var(--paper); }
+    .site-footer-inner { padding: 28px 0 44px; color: var(--muted); font-size: .84rem; }
+    .site-footer-links { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+    @media (max-width: 720px) {
+      .site-nav { align-items: flex-start; flex-direction: column; padding: 14px 0; }
+      .article-shell { padding-top: 32px; }
+      h1 { font-size: 2.35rem; }
+    }
+  </style>
+</head>
+<body data-ad-surface="editorial">
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Primary">
+      <strong>Nexus Hive</strong>
+      <div class="nav-links"><a href="/">Home</a><a href="/guide.html">Project guide</a><a href="/architecture.html">Architecture</a><a href="/verification.html">Verification</a><a href="/publisher.html">Publisher</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></div>
+    </nav>
+  </header>
+  <main class="article-shell">
+    <p class="breadcrumbs"><a href="/">Home</a> / Project guide</p>
+    <header class="article-intro">
+      <div class="kicker">Project guide</div>
+      <h1>Project Guide | Nexus Hive</h1>
+      <p class="lede">Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter reviews. This guide organizes the repository&#039;s original implementation notes for data platform leads and analytics engineers.</p>
+      <p class="review-note">Reviewed 2026-07-28. This page is derived from checked-in repository evidence and links back to its source.</p>
+    </header>
+
+    <article><p>##  &lt;h1 align=&quot;center&quot;&gt;Nexus-Hive&lt;/h1&gt;</p>
+<p>&lt;p align=&quot;center&quot;&gt;   &lt;strong&gt;Multi-agent NL-to-SQL copilot with governed analytics, audit trails, and multi-warehouse support&lt;/strong&gt; &lt;/p&gt;</p>
+<p>&lt;p align=&quot;center&quot;&gt;   &lt;a href=&quot;https://github.com/KIM3310/Nexus-Hive/actions/workflows/ci.yml&quot;&gt;&lt;img src=&quot;https://github.com/KIM3310/Nexus-Hive/actions/workflows/ci.yml/badge.svg&quot; alt=&quot;CI&quot;&gt;&lt;/a&gt;   &lt;a href=&quot;https://codecov.io/gh/KIM3310/Nexus-Hive&quot;&gt;&lt;img src=&quot;https://codecov.io/gh/KIM3310/Nexus-Hive/branch/main/graph/badge.svg&quot; alt=&quot;codecov&quot;&gt;&lt;/a&gt;   &lt;a href=&quot;https://www.python.org/downloads/&quot;&gt;&lt;img src=&quot;https://img.shields.io/badge/python-3.11%2B-blue.svg&quot; alt=&quot;Python 3.11+&quot;&gt;&lt;/a&gt;   &lt;a href=&quot;LICENSE&quot;&gt;&lt;img src=&quot;https://img.shields.io/badge/License-MIT-green.svg&quot; alt=&quot;License: MIT&quot;&gt;&lt;/a&gt;   &lt;a href=&quot;https://fastapi.tiangolo.com&quot;&gt;&lt;img src=&quot;https://img.shields.io/badge/FastAPI-0.115+-009688.svg&quot; alt=&quot;FastAPI&quot;&gt;&lt;/a&gt; &lt;/p&gt;</p>
+<p>---</p>
+<p>Nexus-Hive turns natural-language business questions into <strong>audited SQL</strong>, executes them safely against a warehouse, and returns <strong>chart-ready answers with a full agent trace</strong>. Every step -- translation, policy check, execution, visualization -- is independently inspectable, testable, and governed.</p>
+<p><strong>Why this matters:</strong> Most NL-to-SQL tools generate SQL and run it. Nexus-Hive inserts a policy engine, audit trail, and retry loop between generation and execution -- making it safe for environments where data access requires governance.</p>
+<p>---</p>
+<h3>System Overview</h3>
+<div class="table-scroll"><table><thead><tr><th>Lens</th><th>Current answer</th></tr></thead><tbody><tr><td>Users</td><td>Data platform, analytics, BI, and internal operations teams that need governed self-service questions.</td></tr><tr><td>Technical path</td><td>Validate the demo, README, architecture notes, and quality gate before deeper workflow review.</td></tr><tr><td>System scope</td><td>NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output.</td></tr><tr><td>Operating boundary</td><td>SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated.</td></tr><tr><td>Evaluation path</td><td><code>make verify</code>, seeded local SQLite demo, governance endpoints, and adapter abstraction docs.</td></tr></tbody></table></div>
+<h3>Evaluation Path</h3>
+<ul><li><strong>Start here:</strong> Ask one seeded business question, inspect the SQL policy decision, then open the agent trace.</li><li><strong>Local demo:</strong> Run <code>make run</code>, then open <code>http://localhost:8000</code> or <code>http://localhost:8000/docs</code>.</li><li><strong>Checks:</strong> Run <code>make verify</code>; it covers lint, pytest, and smoke testing against the live local server.</li></ul>
+<p>---</p>
+<h3>Architecture Notes</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/architecture-evidence-map.md" rel="noopener">Architecture guide</a> summarizes the system scope, first files to inspect, runtime commands, and known boundaries.</li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/quality-gate.md" rel="noopener">Quality notes</a> lists the local checks, CI surface, and release expectations for this repository.</li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/enterprise-readiness.md" rel="noopener">Enterprise readiness notes</a> outlines security, data, operations, integration, and handoff expectations.</li></ul>
+<h3>Architecture</h3>
+<pre><code>flowchart TB
+    User[&quot;Business User / Analyst&quot;]
+    User --&gt;|&quot;Natural language question&quot;| API[&quot;FastAPI Runtime\n/api/ask&quot;]
+
+    subgraph AgentPipeline[&quot;LangGraph Multi-Agent Pipeline&quot;]
+        direction TB
+        T[&quot;Agent 1: Translator\nNL --&gt; SQL via Ollama/LLM\n+ heuristic fallback&quot;]
+        E[&quot;Agent 2: Executor\nPolicy engine + read-only SQL execution&quot;]
+        V[&quot;Agent 3: Visualizer\nChart.js config generation&quot;]
+        T --&gt; E
+        E --&gt;|&quot;error + retry budget &gt; 0&quot;| T
+        E --&gt;|&quot;success&quot;| V
+    end
+
+    API --&gt; AgentPipeline
+
+    subgraph Governance[&quot;Governance Layer&quot;]
+        direction LR
+        PE[&quot;Policy Engine\nDeny / Review / Allow&quot;]
+        AT[&quot;Audit Trail\nJSONL + query tags&quot;]
+        GE[&quot;Gold Eval Suite\nSQL quality scoring&quot;]
+    end
+
+    E --- PE
+    E --- AT
+
+    subgraph Warehouses[&quot;Warehouse Adapters&quot;]
+        direction LR
+        SQLite[&quot;SQLite\n(demo, active by default)&quot;]
+        SF[&quot;Snowflake\n(live when configured)&quot;]
+        DB[&quot;Databricks\n(live when configured)&quot;]
+    end
+
+    E --&gt; Warehouses
+    V --&gt; UI[&quot;Frontend\nChart.js + agent trace viewer&quot;]</code></pre>
+<p>The pipeline is built with <strong>LangGraph</strong> as a compiled state graph. Each agent is a node with typed state (<code>AgentState</code>), connected by edges with conditional routing. When the Executor rejects SQL (policy denial or execution error), the graph routes back to the Translator for correction -- up to 3 retries -- without re-running the Visualizer.</p>
+<p>---</p>
+<h4>Local (3 commands)</h4>
+<pre><code>git clone https://github.com/KIM3310/Nexus-Hive.git &amp;&amp; cd Nexus-Hive
+make install                 # creates venv, installs deps
+make seed                    # seeds 10k enterprise sales records into SQLite
+make run                     # starts uvicorn on http://localhost:8000
+
+
+## If your default python3 is older than 3.11:
+make BOOTSTRAP_PYTHON=/path/to/python3.11 install</code></pre>
+<p>Open <a href="http://localhost:8000" rel="noopener">http://localhost:8000</a> for the frontend, or <a href="http://localhost:8000/docs" rel="noopener">http://localhost:8000/docs</a> for Swagger UI.</p>
+<h4>Docker</h4>
+<pre><code>docker compose up app
+
+## With live LLM inference via Ollama:
+docker compose --profile with-ollama up
+docker exec nexus-hive-ollama ollama pull phi3</code></pre>
+<h4>Verify Everything Works</h4>
+<pre><code>make verify   # runs lint + pytest + smoke test against a live server</code></pre>
+<p>---</p>
+<h3>Tech Stack</h3>
+<div class="table-scroll"><table><thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead><tbody><tr><td><strong>API Framework</strong></td><td>FastAPI 0.115+</td><td>Async HTTP, OpenAPI docs, middleware</td></tr><tr><td><strong>Agent Orchestration</strong></td><td>LangGraph + LangChain Core</td><td>State graph, conditional edges, typed agent state</td></tr><tr><td><strong>LLM Runtime</strong></td><td>Ollama (phi3 default)</td><td>Local inference for SQL generation + chart config</td></tr><tr><td><strong>Policy Engine</strong></td><td>Custom Python</td><td>Deny/review/allow decisions, sensitive column gating</td></tr><tr><td><strong>Warehouse (Demo)</strong></td><td>SQLite + Pandas</td><td>Zero-config local execution with 10k seeded records</td></tr><tr><td><strong>Warehouse (Prod)</strong></td><td>Snowflake, Databricks</td><td>Live adapters via <code>snowflake-connector-python</code> / <code>databricks-sdk</code></td></tr><tr><td><strong>Visualization</strong></td><td>Chart.js</td><td>Bar, line, pie, doughnut charts from query results</td></tr><tr><td><strong>Security</strong></td><td>HMAC-signed cookies, RBAC</td><td>Operator sessions, token auth, role-based column gating</td></tr><tr><td><strong>Resilience</strong></td><td>Circuit Breaker</td><td>Ollama failure isolation with auto-recovery</td></tr><tr><td><strong>Infrastructure</strong></td><td>Docker, Kubernetes, Terraform</td><td>Container, K8s manifests, GCP Cloud Run via Terraform</td></tr><tr><td><strong>CI/CD</strong></td><td>GitHub Actions</td><td>Lint (ruff), test (pytest + coverage), Docker build</td></tr></tbody></table></div>
+<p>---</p>
+<h3>Governance Features</h3>
+<div class="table-scroll"><table><thead><tr><th>Feature</th><th>Description</th><th>Endpoint</th></tr></thead><tbody><tr><td><strong>Policy Engine</strong></td><td>Deny write ops, block <code>SELECT *</code>, gate sensitive columns by role, flag non-aggregated queries for review</td><td><code>POST /api/policy/check</code></td></tr><tr><td><strong>Audit Trails</strong></td><td>Every query logged with request ID, role, policy verdict, adapter, execution time</td><td><code>GET /api/query-audit/recent</code></td></tr><tr><td><strong>Query Tags</strong></td><td>Structured tags mapping onto Snowflake <code>QUERY_TAG</code> and Databricks warehouse tag conventions</td><td><code>GET /api/schema/query-tag</code></td></tr><tr><td><strong>Session Boards</strong></td><td>Operator surfaces for pending approvals, approval histories, query throughput</td><td><code>GET /api/query-session-board</code></td></tr><tr><td><strong>Gold Evals</strong></td><td>Built-in evaluation suite scoring generated SQL against expected feature patterns</td><td><code>GET /api/evals/nl2sql-gold/run</code></td></tr><tr><td><strong>Approval Workflows</strong></td><td>Review-required queries produce actionable approval bundles</td><td><code>GET /api/query-approval-board</code></td></tr></tbody></table></div>
+<p>---</p>
+<h3>Core API</h3>
+<pre><code>
+## Ask a question (returns stream URL for agent trace)
+curl -X POST http://localhost:8000/api/ask \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#039;{&quot;question&quot;: &quot;Show total net revenue by region&quot;}&#039;
+
+
+## Stream agent trace (SSE)
+curl -N &quot;http://localhost:8000/api/stream?q=Show+total+net+revenue+by+region&amp;rid=REQUEST_ID&quot;
+
+
+## Policy check -- preview SQL before execution
+curl -X POST http://localhost:8000/api/policy/check \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#039;{&quot;sql&quot;: &quot;SELECT region_name, SUM(net_revenue) FROM sales GROUP BY region_name&quot;, &quot;role&quot;: &quot;analyst&quot;}&#039;
+
+
+## Runtime metadata
+curl http://localhost:8000/api/meta
+
+
+## Run gold eval suite
+curl http://localhost:8000/api/evals/nl2sql-gold/run</code></pre>
+<p>---</p>
+<h3>Test Results and Benchmarks</h3>
+<p>From pytest 8.3.5 on Python 3.11 -- <code>make verify</code> (lint + test + smoke)</p>
+<div class="table-scroll"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Test files</td><td>8</td></tr><tr><td>Total test cases</td><td>80+</td></tr><tr><td>Policy engine tests</td><td>38 (deny, review, allow, sensitive columns, query tags)</td></tr><tr><td>Agent orchestration tests</td><td>12 (translator, executor, visualizer, routing)</td></tr><tr><td>API endpoint tests</td><td>15 (health, meta, ask, policy, audit, schema)</td></tr><tr><td>SQL validation tests</td><td>9 (read-only enforcement, injection blocking)</td></tr><tr><td>Circuit breaker tests</td><td>6 (state transitions, timeout recovery)</td></tr></tbody></table></div>
+<h4>Endpoint Response Times (local SQLite)</h4>
+<div class="table-scroll"><table><thead><tr><th>Endpoint</th><th>Avg Response</th></tr></thead><tbody><tr><td><code>GET /health</code></td><td>21 ms</td></tr><tr><td><code>GET /api/meta</code></td><td>16 ms</td></tr><tr><td><code>GET /api/runtime/brief</code></td><td>42 ms</td></tr><tr><td><code>GET /api/evals/nl2sql-gold/run</code></td><td>9 ms</td></tr><tr><td><code>GET /api/schema/*</code></td><td>&lt; 1 ms</td></tr></tbody></table></div>
+<p>---</p>
+<h4>Snowflake</h4>
+<pre><code>pip install -e &quot;.[snowflake]&quot;
+export SNOWFLAKE_ACCOUNT=your_account.us-east-1
+export SNOWFLAKE_USER=your_username
+export SNOWFLAKE_PASSWORD=your_password
+export SNOWFLAKE_DATABASE=ANALYTICS</code></pre>
+<h4>Databricks</h4>
+<pre><code>pip install -e &quot;.[databricks]&quot;
+export DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
+export DATABRICKS_AUTH_TYPE=databricks-cli
+export DATABRICKS_WAREHOUSE_ID=your_sql_warehouse_id
+python scripts/bootstrap_databricks_demo.py</code></pre>
+<p>---</p>
+<h3>Deployment</h3>
+<p><strong>Kubernetes</strong></p>
+<pre><code>kubectl apply -f infra/k8s/namespace.yaml
+kubectl apply -f infra/k8s/</code></pre>
+<p><strong>GCP Cloud Run</strong> -- Terraform configs in <code>infra/terraform/</code>. See <code>infra/terraform/README.md</code> for variables and outputs.</p>
+<p><strong>Docker</strong></p>
+<pre><code>docker compose up app</code></pre>
+<p>---</p>
+<h3>Enterprise Deployment</h3>
+<p>Production-grade overlays for regulated and high-scale environments.</p>
+<h4>Helm chart</h4>
+<p>A full Helm chart lives at <code>helm/nexus-hive/</code> with three value overlays:</p>
+<pre><code>
+## Default / dev-staging
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace
+
+
+## Production: HPA, PDB, NetworkPolicy, ServiceMonitor, external secrets, HA spread
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace \
+  -f helm/nexus-hive/values.yaml \
+  -f helm/nexus-hive/values-prod.yaml \
+  --set image.tag=0.2.0
+
+
+## Air-gapped: Ollama sidecar, no external LLM, internal registry only
+helm upgrade --install nexus-hive helm/nexus-hive \
+  -n analytics --create-namespace \
+  -f helm/nexus-hive/values.yaml \
+  -f helm/nexus-hive/values-airgap.yaml</code></pre>
+<p>See <code>helm/nexus-hive/README.md</code> for the full values reference.</p>
+<h4>Kubernetes production baseline</h4>
+<p><code>infra/k8s/production/</code> ships a hardened namespace baseline: Pod Security Standards (<code>restricted</code>), ResourceQuota, LimitRange, default-deny NetworkPolicy, and scoped allow policies for ingress and warehouse egress.</p>
+<p><code>infra/k8s/observability/</code> ships a <code>ServiceMonitor</code> and <code>PrometheusRule</code> set with SLO-grade alerts (error rate, p99 latency, circuit breaker, audit-write stall).</p>
+<h4>Terraform for GCP Cloud Run</h4>
+<p><code>infra/terraform/</code> provisions Cloud Run v2 with Secret Manager, Workload Identity, VPC connector, uptime checks, and log-based alerting. See <code>infra/terraform/README.md</code> for the variable and output tables.</p>
+<h4>Runbooks</h4>
+<p>Five step-by-step runbooks live at <code>docs/runbooks/</code>:</p>
+<div class="table-scroll"><table><thead><tr><th>Runbook</th><th>Use when</th></tr></thead><tbody><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/production-deploy.md" rel="noopener">`production-deploy.md`</a></td><td>First production rollout (60 min)</td></tr><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/airgap-deploy.md" rel="noopener">`airgap-deploy.md`</a></td><td>Deploying to a restricted / offline cluster (3 hr)</td></tr><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/incident-response.md" rel="noopener">`incident-response.md`</a></td><td>On-call response to alerts, SEV levels, AegisOps handoff</td></tr><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/schema-evolution.md" rel="noopener">`schema-evolution.md`</a></td><td>Evolving the governed schema without breaking queries</td></tr><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/runbooks/model-swap.md" rel="noopener">`model-swap.md`</a></td><td>Swapping phi3 to llama3 to Claude without downtime</td></tr></tbody></table></div>
+<p>---</p>
+<h3>Composite Discovery Narratives</h3>
+<p>Narrative discovery handouts for technical review conversations. They are fictional composites, not customer references, production evidence, or outcome claims.</p>
+<div class="table-scroll"><table><thead><tr><th>Narrative</th><th>Use</th></tr></thead><tbody><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/customer-stories/acme-finance-narrative.md" rel="noopener">Acme Finance</a></td><td>Fictional financial-services discovery scenario</td></tr><tr><td><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/customer-stories/regulated-healthcare-narrative.md" rel="noopener">Northstar Health</a></td><td>Fictional regulated-healthcare discovery scenario</td></tr></tbody></table></div>
+<p>Use these narratives to frame questions and implementation boundaries. Do not present them as live customer deployments, benchmarks, references, or guaranteed business results.</p>
+<p>---</p>
+<h3>Benchmarks</h3>
+<p><code>benchmarks/</code> contains reproducible performance and accuracy tests.</p>
+<p>  question mix, thresholds gated on p95/p99 latency and checks pass rate.</p>
+<p>  and renders a per-case accuracy chart.</p>
+<ul><li><code>benchmarks/load_test.js</code> - k6 script, 50 VUs x 5 min with governed</li><li><code>benchmarks/agent_accuracy_eval.py</code> - runs the gold eval suite N times</li><li><code>benchmarks/sample_results.json</code> - realistic run output.</li></ul>
+<h4>Sample run (from <code>sample_results.json</code>)</h4>
+<div class="table-scroll"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>VUs / duration</td><td>50 / 5 min</td></tr><tr><td>Total requests</td><td>12,847</td></tr><tr><td>Failed request rate</td><td>0.3%</td></tr><tr><td><code>http_req_duration</code> p95</td><td>1,390 ms</td></tr><tr><td><code>http_req_duration</code> p99</td><td>1,842 ms</td></tr><tr><td>Policy allow / review / deny</td><td>82.6% / 13.1% / 4.3%</td></tr><tr><td>Gold eval score (mean of 5 runs, Claude Sonnet 4)</td><td>0.91</td></tr><tr><td>Gold eval score stdev</td><td>0.022</td></tr><tr><td>SLO compliance</td><td>pass</td></tr></tbody></table></div>
+<p>See <code>benchmarks/README.md</code> for the full usage and CI integration recipe.</p>
+<p>---</p>
+<h3>Project Structure</h3>
+<pre><code>Nexus-Hive/
+  main.py                    # FastAPI entrypoint (thin, delegates to modules)
+  config.py                  # Centralized config, constants, metric definitions
+  graph/
+    nodes.py                 # LangGraph agent nodes + graph builder
+  policy/
+    engine.py                # Policy evaluation, query tags, heuristic inference
+    audit.py                 # Audit trail writer
+    governance.py            # Governance surfaces (scorecard, warehouse brief)
+  routes/
+    ask.py                   # /api/ask + /api/stream (SSE agent trace)
+    health_meta.py           # /health, /api/meta
+    warehouse.py             # Warehouse adapter endpoints
+    auth.py                  # Operator auth session endpoints
+  services/
+    build_helpers.py         # Runtime brief, meta builders
+    streaming.py             # SSE streaming for agent trace
+    openai_helpers.py        # Optional OpenAI integration
+  warehouse_adapter.py       # Adapter base class + SQLite + registry
+  snowflake_adapter.py       # Live Snowflake adapter
+  databricks_adapter.py      # Live Databricks adapter
+  circuit_breaker.py         # Ollama circuit breaker
+  security.py                # HMAC sessions, token auth, RBAC
+  seed_db.py                 # 10k-row synthetic dataset generator
+  tests/                     # 8 test modules, 80+ test cases
+  infra/
+    k8s/                     # Kubernetes manifests
+    terraform/               # GCP Cloud Run Terraform configs
+  frontend/                  # Chart.js + agent trace viewer
+  docs/
+    adr/                     # Architecture Decision Records
+    solution-architecture.md
+    discovery-guide.md</code></pre>
+<p>---</p>
+<h3>Related Projects</h3>
+<div class="table-scroll"><table><thead><tr><th>Project</th><th>Relationship</th></tr></thead><tbody><tr><td><a href="https://github.com/KIM3310/lakehouse-contract-lab" rel="noopener">lakehouse-contract-lab</a></td><td>Data pipeline that feeds Nexus-Hive&#039;s warehouse</td></tr><tr><td><a href="https://github.com/KIM3310/enterprise-llm-adoption-kit" rel="noopener">enterprise-llm-adoption-kit</a></td><td>Enterprise LLM governance patterns</td></tr><tr><td><a href="https://github.com/KIM3310/agent-orchestration-benchmark" rel="noopener">agent-orchestration-benchmark</a></td><td>Comparative benchmarks for multi-agent orchestration frameworks (LangGraph, CrewAI, custom)</td></tr><tr><td><a href="https://github.com/KIM3310/llm-onprem-deployment-kit" rel="noopener">llm-onprem-deployment-kit</a></td><td>Reference deployment kit for airgapped / on-prem LLM serving, reused by Nexus-Hive&#039;s airgap overlay</td></tr></tbody></table></div>
+<p>---</p>
+<h3>Cloud + AI Architecture</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/cloud-ai-architecture.md" rel="noopener">Cloud + AI architecture blueprint</a></li><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/architecture/blueprint.json" rel="noopener">Machine-readable architecture manifest</a></li><li>Validation command: <code>python3 scripts/validate_architecture_blueprint.py</code></li></ul>
+<h3>Enterprise Productization</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/product-operating-model.md" rel="noopener">Product operating model</a> defines the product scope, trust boundary, operating checks, and service path for this repository.</li></ul>
+<h3>System Architecture</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/system-architecture.md" rel="noopener">System architecture</a> maps the runtime boundary, data/control flow, cloud or local deployment surface, and operating assumptions for this repository.</li></ul>
+<h3>Service Architecture</h3>
+<ul><li><a href="https://github.com/KIM3310/Nexus-Hive/blob/main/docs/service-architecture.md" rel="noopener">Service architecture</a> defines the cloud resources, account information, cost controls, and production guardrails needed to turn this repo into a scoped service without publishing public financial assumptions.</li></ul></article>
+    <aside class="source-basis">
+      <strong>Source basis:</strong> <a href="https://github.com/KIM3310/Nexus-Hive/blob/main/README.md" rel="noopener">README.md</a>. Corrections can be proposed through the public repository without submitting private data.
+    </aside>
+  </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-links"><a href="/">Home</a><a href="/guide.html">Project guide</a><a href="/architecture.html">Architecture</a><a href="/verification.html">Verification</a><a href="/publisher.html">Publisher</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://kim3310-doeon-kim-portfolio.pages.dev/">Resource atlas</a></div>
+      <p>Advertising may appear on this public editorial page after Google approves the site. Ads are not placed inside private, transactional, diagnostic, security-response, or operational workflows.</p>
+    </div>
+  </footer>
+</body>
+</html>

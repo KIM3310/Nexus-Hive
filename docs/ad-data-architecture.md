@@ -8,7 +8,7 @@ Free governed analytics readiness worksheet for NL-to-SQL and warehouse adapter 
 
 - Audience: data platform leads and analytics engineers
 - Central resource: https://kim3310-doeon-kim-portfolio.pages.dev/resources/Nexus-Hive/
-- Live system: https://nexus-hive.pages.dev
+- Live system: https://nexus-hive.pages.dev/
 - Advertising boundary: ads allowed only on public analytics-readiness resources; query workbench, saved SQL, exports, and dashboards are ad-free
 - Current ad state: code-ready on the central resource; serving depends on Google AdSense site approval and consent policy.
 
