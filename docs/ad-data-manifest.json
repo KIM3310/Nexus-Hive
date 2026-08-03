@@ -48,6 +48,6 @@
     "dnt_gpc": "fail-closed",
     "sale_boundary": "forbid sale of personal, sensitive, raw, event-level, or re-identifiable data",
     "event_store": "Cloudflare D1 daily aggregate counters",
-    "public_data_mart": "Firebase Firestore kim3310-free-tools"
+    "public_data_mart": "Cloudflare D1 aggregate benchmark responses"
   }
 }

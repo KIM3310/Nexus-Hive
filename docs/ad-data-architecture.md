@@ -43,7 +43,6 @@ Public resource
   -> Cloudflare Pages event API
   -> rate-limited daily aggregate counter
   -> public benchmark response
-  -> Firebase public aggregate data mart
 ```
 
-Cloudflare D1 holds operational counters. Firestore project `kim3310-free-tools` is the deny-by-default public aggregate data mart. Private inquiries remain isolated from telemetry.
+Cloudflare D1 holds aggregate counters and expiring abuse-control counters. Private inquiries remain isolated from telemetry.
