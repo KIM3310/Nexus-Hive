@@ -28,6 +28,13 @@ def test_frontend_preview_asset_exists() -> None:
     assert PREVIEW_CARD.exists()
 
 
+def test_public_frontend_defaults_to_recorded_mode() -> None:
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
+
+    assert 'data-runtime-mode="recorded"' in html
+    assert "run.app" not in html
+
+
 def test_architecture_priority_surface_contract() -> None:
     html = FRONTEND_INDEX.read_text(encoding="utf-8")
     required_tokens = [
