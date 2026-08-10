@@ -3,6 +3,7 @@ Governance scorecards, warehouse briefs, semantic governance pack, lakehouse rea
 gold eval suite, quality gates, lineage, and metric layer schemas.
 """
 
+import logging
 import os
 import time
 
@@ -42,8 +43,11 @@ from policy.audit import (
 from security import operator_auth_status
 
 
+_logger = logging.getLogger("nexus_hive.policy.governance")
+
 _WAREHOUSE_BRIEF_CACHE: Dict[str, Dict[str, Any]] = {}
 _WAREHOUSE_BRIEF_CACHE_TTL_SEC = 120.0
+_GOLD_EVAL_EXECUTION_ERROR = "query execution failed"
 
 
 def run_scalar_query(sql: str) -> int:
@@ -297,8 +301,9 @@ def run_gold_eval_suite(
         if policy_verdict["decision"] != "deny" and execute_previews:
             try:
                 execution = execute_sql_preview(sql)
-            except Exception as exc:
-                execution_error = str(exc)
+            except Exception:
+                _logger.exception("Gold evaluation preview failed for case %s", case["case_id"])
+                execution_error = _GOLD_EVAL_EXECUTION_ERROR
         elif policy_verdict["decision"] != "deny":
             execution = {
                 "row_count": 0,

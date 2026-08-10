@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import importlib.util
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -434,6 +436,56 @@ def test_operator_session_cookie_reuses_token_for_protected_routes() -> None:
             os.environ.pop("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES", None)
         else:
             os.environ["NEXUS_HIVE_OPERATOR_ALLOWED_ROLES"] = previous_roles
+
+
+def test_operator_session_cookie_contains_only_server_trusted_claims(monkeypatch) -> None:
+    credential = "operator-secret\r\nSet-Cookie: injected=true"
+    monkeypatch.setenv("NEXUS_HIVE_OPERATOR_TOKEN", credential)
+    monkeypatch.setenv("NEXUS_HIVE_OPERATOR_ALLOWED_ROLES", "analyst")
+    monkeypatch.setenv("NEXUS_HIVE_OPERATOR_SESSION_SECURE", "0")
+    client = TestClient(APP_MODULE.app)
+
+    response = client.post(
+        "/api/auth/session",
+        json={"credential": credential, "roles": ["analyst", "untrusted-admin"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session"]["roles"] == ["analyst"]
+    cookie_value = client.cookies.get("nexus_hive_operator_session")
+    assert cookie_value is not None
+    encoded_payload = cookie_value.split(".", 1)[0]
+    padded_payload = encoded_payload + "=" * ((4 - len(encoded_payload) % 4) % 4)
+    cookie_payload = json.loads(base64.urlsafe_b64decode(padded_payload).decode("utf-8"))
+    assert "credential" not in cookie_payload
+    assert credential not in cookie_payload.values()
+    assert cookie_payload["roles"] == ["analyst"]
+    assert cookie_payload["credential_fingerprint"]
+
+    current_session = client.get("/api/auth/session")
+    assert current_session.status_code == 200
+    assert current_session.json()["active"] is True
+
+
+def test_warehouse_brief_redacts_gold_eval_execution_errors(monkeypatch) -> None:
+    import policy.governance as governance
+
+    original_execute_sql_preview = governance.execute_sql_preview
+    sensitive_error = "database /srv/private/nexus.db failed: SELECT secret FROM credentials"
+
+    def fail_gold_eval_preview(sql: str):
+        if "quality_gate_snapshot" in sql:
+            return original_execute_sql_preview(sql)
+        raise RuntimeError(sensitive_error)
+
+    monkeypatch.setattr(governance, "execute_sql_preview", fail_gold_eval_preview)
+    response = TestClient(APP_MODULE.app).get("/api/runtime/warehouse-brief")
+
+    assert response.status_code == 200
+    errors = [item["error"] for item in response.json()["gold_eval_run"]["items"]]
+    assert errors
+    assert set(errors) == {"query execution failed"}
+    assert sensitive_error not in response.text
 
 
 def test_stream_completion_writes_query_audit_detail(monkeypatch) -> None:

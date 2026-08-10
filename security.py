@@ -26,13 +26,33 @@ DEFAULT_SESSION_COOKIE: str = "nexus_hive_operator_session"
 DEFAULT_SESSION_TTL_SEC: int = 12 * 60 * 60
 
 
+def _configured_operator_token() -> str:
+    """Return the server-configured operator token."""
+    return str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip()
+
+
 def operator_token_enabled() -> bool:
     """Check whether operator token authentication is configured.
 
     Returns:
         True if the NEXUS_HIVE_OPERATOR_TOKEN environment variable is set.
     """
-    return bool(str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip())
+    return bool(_configured_operator_token())
+
+
+def operator_token_matches(credential: str) -> bool:
+    """Compare a presented credential with the server-configured token.
+
+    Args:
+        credential: Credential supplied by the operator.
+
+    Returns:
+        True only when a non-empty configured token matches the credential.
+    """
+    expected = _configured_operator_token()
+    return bool(expected) and hmac.compare_digest(
+        credential.encode("utf-8"), expected.encode("utf-8")
+    )
 
 
 def operator_allowed_roles() -> list[str]:
@@ -92,9 +112,8 @@ def operator_session_secret() -> str:
     Returns:
         The secret string used for HMAC signing.
     """
-    secret = (
-        str(os.getenv("NEXUS_HIVE_OPERATOR_SESSION_SECRET", "")).strip()
-        or str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip()
+    secret = str(os.getenv("NEXUS_HIVE_OPERATOR_SESSION_SECRET", "")).strip() or (
+        _configured_operator_token()
     )
     if secret:
         return secret
@@ -185,6 +204,15 @@ def _sign_payload(payload: str) -> str:
     )
 
 
+def _session_token_fingerprint(credential: str) -> str:
+    """Bind a session to the current operator token without storing that token."""
+    return hmac.new(
+        operator_session_secret().encode("utf-8"),
+        b"nexus-hive-operator-session\x00" + credential.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 def _parse_cookie_header(value: str | None) -> dict[str, str]:
     """Parse a Cookie header string into a name-value dictionary.
 
@@ -236,8 +264,15 @@ def _read_operator_session_record(request: Request) -> dict[str, object] | None:
     if not isinstance(parsed, dict):
         return None
     expires_at: str = str(parsed.get("expires_at") or "").strip()
-    credential: str = str(parsed.get("credential") or "").strip()
-    if not credential or not expires_at:
+    token_fingerprint: str = str(parsed.get("credential_fingerprint") or "").strip()
+    credential = _configured_operator_token()
+    if (
+        not credential
+        or not token_fingerprint
+        or not hmac.compare_digest(token_fingerprint, _session_token_fingerprint(credential))
+        or not expires_at
+    ):
+        _logger.warning("Session cookie is not bound to the configured operator token")
         return None
     if datetime.fromisoformat(expires_at) <= datetime.now(timezone.utc):
         _logger.info("Session cookie expired")
@@ -314,26 +349,35 @@ def apply_operator_session(request: Request) -> dict[str, object] | None:
 
 def create_operator_session_cookie(
     *,
-    credential: str,
     roles: list[str],
     subject: str | None,
 ) -> tuple[str, dict[str, object]]:
-    """Create an HMAC-signed session cookie for operator authentication.
+    """Create an HMAC-signed operator session cookie value.
+
+    The operator token remains server-side. A keyed fingerprint binds the
+    session to the current token so rotating that token invalidates existing
+    sessions without exposing the credential in a reversible cookie payload.
 
     Args:
-        credential: The operator credential (token) to embed.
-        roles: List of operator roles to include in the session.
+        roles: Server-allowlisted operator roles to include in the session.
         subject: Optional subject identifier for audit logging.
 
     Returns:
-        A tuple of (Set-Cookie header string, session metadata dictionary).
+        A tuple of (signed cookie value, session metadata dictionary).
+
+    Raises:
+        RuntimeError: If operator token authentication is not configured.
     """
+    credential = _configured_operator_token()
+    if not credential:
+        raise RuntimeError("operator token must be configured before creating a session")
+
     issued_at: datetime = datetime.now(timezone.utc)
     expires_at: datetime = issued_at + timedelta(seconds=operator_session_ttl_sec())
     payload: str = _to_base64_url(
         json.dumps(
             {
-                "credential": credential,
+                "credential_fingerprint": _session_token_fingerprint(credential),
                 "expires_at": expires_at.isoformat(),
                 "issued_at": issued_at.isoformat(),
                 "roles": roles,
@@ -343,22 +387,13 @@ def create_operator_session_cookie(
         )
     )
     signature: str = _sign_payload(payload)
-    parts: list[str] = [
-        f"{operator_session_cookie_name()}={payload}.{signature}",
-        "Path=/",
-        f"Max-Age={operator_session_ttl_sec()}",
-        "HttpOnly",
-        "SameSite=Strict",
-    ]
-    if operator_session_secure():
-        parts.append("Secure")
     _logger.info(
         "Created operator session for subject=%s, roles=%s",
         subject,
         roles,
     )
     return (
-        "; ".join(parts),
+        f"{payload}.{signature}",
         {
             "auth_mode": "token",
             "expires_at": expires_at.isoformat(),
@@ -367,26 +402,6 @@ def create_operator_session_cookie(
             "subject": subject,
         },
     )
-
-
-def clear_operator_session_cookie() -> str:
-    """Generate a Set-Cookie header that clears the operator session.
-
-    Returns:
-        A Set-Cookie header string with Max-Age=0.
-    """
-    parts: list[str] = [
-        f"{operator_session_cookie_name()}=",
-        "Path=/",
-        "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-        "Max-Age=0",
-        "HttpOnly",
-        "SameSite=Strict",
-    ]
-    if operator_session_secure():
-        parts.append("Secure")
-    _logger.info("Cleared operator session cookie")
-    return "; ".join(parts)
 
 
 def read_presented_roles(request: Request) -> list[str]:
@@ -421,14 +436,13 @@ def require_operator_token(request: Request) -> None:
         HTTPException: 403 if the token is missing/invalid or required roles
             are not presented.
     """
-    expected: str = str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip()
-    if expected:
+    if operator_token_enabled():
         header_token: str = str(request.headers.get("x-operator-token", "")).strip()
         authorization: str = str(request.headers.get("authorization", "")).strip()
         bearer_token: str = (
             authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
         )
-        if header_token != expected and bearer_token != expected:
+        if not operator_token_matches(header_token) and not operator_token_matches(bearer_token):
             _logger.warning("Operator token authentication failed")
             raise HTTPException(status_code=403, detail="missing or invalid operator token")
 
