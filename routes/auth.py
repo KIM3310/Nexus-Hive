@@ -2,18 +2,19 @@
 Auth session route handlers.
 """
 
-import os
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from config import log_runtime_event, normalize_operator_roles
 from security import (
-    clear_operator_session_cookie,
     create_operator_session_cookie,
     operator_allowed_roles,
     operator_session_cookie_name,
+    operator_session_secure,
+    operator_session_ttl_sec,
     operator_token_enabled,
+    operator_token_matches,
     read_operator_session,
     require_operator_token,
 )
@@ -51,16 +52,24 @@ async def create_auth_session(request: Request, response: Response):
     roles = normalize_operator_roles(payload.get("roles")) if isinstance(payload, dict) else []
     if not credential:
         raise HTTPException(status_code=400, detail="missing credential")
-    expected = str(os.getenv("NEXUS_HIVE_OPERATOR_TOKEN", "")).strip()
-    if credential != expected:
+    if not operator_token_matches(credential):
         raise HTTPException(status_code=403, detail="missing or invalid operator token")
     allowed_roles = operator_allowed_roles()
-    if allowed_roles and not any(role in allowed_roles for role in roles):
+    session_roles = [allowed_role for allowed_role in allowed_roles if allowed_role in roles]
+    if allowed_roles and not session_roles:
         raise HTTPException(status_code=403, detail="missing required operator role")
-    cookie, session = create_operator_session_cookie(
-        credential=credential, roles=roles or allowed_roles, subject="token-operator"
+    cookie_value, session = create_operator_session_cookie(
+        roles=session_roles, subject="token-operator"
     )
-    response.headers["set-cookie"] = cookie
+    response.set_cookie(
+        key=operator_session_cookie_name(),
+        value=cookie_value,
+        max_age=operator_session_ttl_sec(),
+        path="/",
+        secure=operator_session_secure(),
+        httponly=True,
+        samesite="strict",
+    )
     log_runtime_event(
         "info",
         "operator-session-created",
@@ -78,7 +87,13 @@ async def create_auth_session(request: Request, response: Response):
 
 @router.delete("/api/auth/session")
 async def clear_auth_session(request: Request, response: Response):
-    response.headers["set-cookie"] = clear_operator_session_cookie()
+    response.delete_cookie(
+        key=operator_session_cookie_name(),
+        path="/",
+        secure=operator_session_secure(),
+        httponly=True,
+        samesite="strict",
+    )
     log_runtime_event(
         "info", "operator-session-cleared", request_id=getattr(request.state, "request_id", None)
     )
