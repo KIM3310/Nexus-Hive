@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/KIM3310/Nexus-Hive/actions/workflows/ci.yml"><img src="https://github.com/KIM3310/Nexus-Hive/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://codecov.io/gh/KIM3310/Nexus-Hive"><img src="https://codecov.io/gh/KIM3310/Nexus-Hive/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
   <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.115+-009688.svg" alt="FastAPI"></a>
@@ -25,7 +24,6 @@ Nexus-Hive turns natural-language business questions into **audited SQL**, execu
 | Lens | Current answer |
 |---|---|
 | Users | Data platform, analytics, BI, and internal operations teams that need governed self-service questions. |
-| Technical path | Validate the demo, README, architecture notes, and quality gate before deeper workflow review. |
 | System scope | NL-to-SQL state graph, policy engine, audit trail, approval bundles, warehouse adapters, and chart output. |
 | Operating boundary | SQLite demo is active by default; Snowflake and Databricks live modes are environment-gated. |
 | Evaluation path | `make verify`, seeded local SQLite demo, governance endpoints, and adapter abstraction docs. |
@@ -195,29 +193,17 @@ Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs) (Swag
 
 ---
 
-## Test Results and Benchmarks
+## Verification Coverage
 
-> From pytest 8.3.5 on Python 3.11 -- `make verify` (lint + test + smoke)
+`make verify` is the authoritative gate; it runs lint, the current pytest suite, and smoke tests against a live local server.
 
-| Metric | Value |
-|--------|-------|
-| Test files | 8 |
-| Total test cases | 80+ |
-| Policy engine tests | 38 (deny, review, allow, sensitive columns, query tags) |
-| Agent orchestration tests | 12 (translator, executor, visualizer, routing) |
-| API endpoint tests | 15 (health, meta, ask, policy, audit, schema) |
-| SQL validation tests | 9 (read-only enforcement, injection blocking) |
-| Circuit breaker tests | 6 (state transitions, timeout recovery) |
-
-### Endpoint Response Times (local SQLite)
-
-| Endpoint | Avg Response |
-|----------|-------------|
-| `GET /health` | 21 ms |
-| `GET /api/meta` | 16 ms |
-| `GET /api/runtime/brief` | 42 ms |
-| `GET /api/evals/nl2sql-gold/run` | 9 ms |
-| `GET /api/schema/*` | < 1 ms |
+| Surface | Covered behavior |
+|--------|------------------|
+| Policy engine | deny/review/allow decisions, sensitive columns, and query tags |
+| Agent orchestration | translation, execution, visualization, and routing |
+| API contracts | health, metadata, governed questions, policy, audit, and schema routes |
+| SQL safety | read-only enforcement and injection blocking |
+| Resilience | circuit-breaker transitions, timeout recovery, and fallback behavior |
 
 ---
 
@@ -393,7 +379,7 @@ Nexus-Hive/
   circuit_breaker.py         # Ollama circuit breaker
   security.py                # HMAC sessions, token auth, RBAC
   seed_db.py                 # 10k-row synthetic dataset generator
-  tests/                     # 8 test modules, 80+ test cases
+  tests/                     # pytest unit, integration, policy, and API suites
   infra/
     k8s/                     # Kubernetes manifests
     terraform/               # GCP Cloud Run Terraform configs
