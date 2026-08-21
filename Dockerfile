@@ -12,7 +12,9 @@ COPY policy ./policy
 COPY routes ./routes
 COPY frontend ./frontend
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=83.0.0" \
+    && python -m pip install --no-cache-dir -r requirements.txt \
+    && python -m pip check
 
 # Seed the local SQLite demo database as part of the image build so
 # the container is self-contained. nexus_enterprise.db is gitignored
