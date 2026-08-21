@@ -118,7 +118,7 @@ docker exec nexus-hive-ollama ollama pull phi3
 ### Verify Everything Works
 
 ```bash
-make verify   # runs lint + pytest + smoke test against a live server
+make verify   # lint + format + pytest (60% coverage floor) + live smoke
 ```
 
 ---

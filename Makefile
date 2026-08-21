@@ -1,4 +1,4 @@
-.SHELLFLAGS := -eu -o pipefail -c
+.SHELLFLAGS := -eu -c
 PYTHON_MIN_VERSION := 3.11
 PYTHON_CANDIDATES = $(VENV)/bin/python python3.13 python3.12 python3.11 python3
 BOOTSTRAP_PYTHON ?= $(shell for py in $(PYTHON_CANDIDATES); do \
@@ -11,7 +11,7 @@ VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
 
-.PHONY: check-bootstrap-python install seed lint test smoke verify run deploy-pages
+.PHONY: check-bootstrap-python install seed lint format-check test smoke verify run deploy-pages
 
 check-bootstrap-python:
 	@if [ -z "$(BOOTSTRAP_PYTHON)" ]; then \
@@ -47,8 +47,11 @@ seed: install
 lint: install
 	$(VENV_PYTHON) -m ruff check .
 
+format-check: install
+	$(VENV_PYTHON) -m ruff format --check .
+
 test: seed
-	$(VENV_PYTHON) -m pytest -q
+	$(VENV_PYTHON) -m pytest -q --cov=. --cov-report=term-missing --cov-fail-under=60
 
 smoke: seed
 	@set -eu; \
@@ -68,7 +71,7 @@ smoke: seed
 	curl -fsS "http://127.0.0.1:$$PORT/api/runtime/warehouse-brief" >/dev/null; \
 	echo "smoke ok: http://127.0.0.1:$$PORT"
 
-verify: lint test smoke
+verify: lint format-check test smoke
 
 run: install
 	$(VENV_PYTHON) -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
