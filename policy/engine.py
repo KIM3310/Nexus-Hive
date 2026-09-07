@@ -9,6 +9,10 @@ paths for SQL generation and chart configuration.
 import logging
 from typing import Any, Dict, List, Set
 
+import sqlglot
+from sqlglot import exp
+from sqlglot.errors import SqlglotError
+
 from config import (
     DEFAULT_ROLE,
     QUERY_TAG_SCHEMA,
@@ -126,20 +130,50 @@ def evaluate_sql_policy(
         deny_reasons, and review_reasons lists.
     """
     normalized_sql: str = str(sql or "").strip()
-    upper_sql: str = normalized_sql.upper()
-    lower_sql: str = normalized_sql.lower()
+    role = str(role).strip().lower()
     deny_reasons: List[str] = []
     review_reasons: List[str] = []
     sensitive_columns: Set[str] = SENSITIVE_COLUMNS_BY_ROLE.get(role, set())
+    if role not in {"admin", *SENSITIVE_COLUMNS_BY_ROLE}:
+        deny_reasons.append("unknown_role")
 
-    if any(keyword in upper_sql for keyword in READ_ONLY_BLOCKLIST):
-        deny_reasons.append("write_operations_blocked")
-    if "SELECT *" in upper_sql:
-        deny_reasons.append("wildcard_projection_denied")
-    if any(column in lower_sql for column in sensitive_columns):
-        deny_reasons.append("sensitive_columns_require_privileged_role")
-    if "GROUP BY" not in upper_sql and "LIMIT" not in upper_sql:
-        review_reasons.append("non_aggregated_queries_without_limit_require_operator_review")
+    try:
+        if not normalized_sql or len(normalized_sql) > 65_536:
+            raise ValueError("SQL must contain 1 to 65536 characters")
+        statements = [statement for statement in sqlglot.parse(normalized_sql) if statement]
+        if len(statements) != 1:
+            deny_reasons.append("single_statement_required")
+        else:
+            query = statements[0]
+            if not isinstance(query, (exp.Select, exp.SetOperation, exp.Subquery)) or any(
+                isinstance(node, (exp.DDL, exp.DML, exp.Into, exp.Command, exp.Lock))
+                for node in query.walk()
+            ):
+                deny_reasons.append("write_operations_blocked")
+            if any(not isinstance(star.parent, exp.Count) for star in query.find_all(exp.Star)):
+                deny_reasons.append("wildcard_projection_denied")
+            if any(
+                column.name.lower() in sensitive_columns for column in query.find_all(exp.Column)
+            ):
+                deny_reasons.append("sensitive_columns_require_privileged_role")
+            limit = query.args.get("limit")
+            limit_value = limit.expression if isinstance(limit, exp.Limit) else None
+            bounded = (
+                isinstance(limit_value, exp.Literal)
+                and limit_value.is_int
+                and int(limit_value.this) >= 0
+            )
+            if not query.args.get("group") and not bounded:
+                review_reasons.append(
+                    "non_aggregated_queries_without_limit_require_operator_review"
+                )
+    except (SqlglotError, ValueError, RecursionError):
+        deny_reasons.append("invalid_sql")
+        if (
+            normalized_sql.split(maxsplit=1)[0:1]
+            and normalized_sql.split(maxsplit=1)[0].upper() in READ_ONLY_BLOCKLIST
+        ):
+            deny_reasons.append("write_operations_blocked")
 
     decision: str = "deny" if deny_reasons else "review" if review_reasons else "allow"
 
