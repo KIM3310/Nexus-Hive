@@ -279,9 +279,12 @@ def executor_node(state: AgentState) -> AgentState:
         _logger.warning("Executor policy denied: %s", policy["deny_reasons"])
         return state
     if policy["review_reasons"]:
+        state["error"] = "Operator review required before SQL execution."
+        state["db_result"] = []
         state["log_stream"].append(
             f"[Agent 2: Executor] Review required: {', '.join(policy['review_reasons'])}"
         )
+        return state
 
     try:
         execution: Dict[str, Any] = active_adapter.execute_sql_preview(sql, DB_PATH)
@@ -385,6 +388,8 @@ def route_after_execution(state: AgentState) -> str:
     Returns:
         The name of the next node: 'translator', 'visualizer', or END.
     """
+    if state.get("policy_verdict", {}).get("decision") in {"review", "deny"}:
+        return END
     if state["error"] and state["retry_count"] < 3:
         state["retry_count"] += 1
         _logger.info(
