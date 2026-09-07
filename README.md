@@ -40,3 +40,5 @@ The demo uses synthetic data and can fall back to predefined SQL; it is not a mo
 - [Detailed reference](REFERENCE.md)
 - [Engineering changes and regression cases](docs/engineering-notes.md)
 - [Cloud architecture](docs/cloud-ai-architecture.md) · [Machine-readable blueprint](docs/architecture/blueprint.json) · [Blueprint validator](scripts/validate_architecture_blueprint.py)
+
+[Design decisions and implementation evidence](docs/IMPLEMENTATION_NOTES.md)
