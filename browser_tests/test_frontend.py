@@ -31,7 +31,17 @@ def test_recorded_action_opens_identified_audit_without_asking(page, static_url,
         question = page.get_by_label("Analytics question", exact=True)
         expect(question).to_have_value("Which region saw the highest Q4 revenue dip?")
         expect(question).to_have_attribute("readonly", "")
+        page.evaluate("""() => {
+            window.auditFetches = [];
+            const originalFetch = window.fetch;
+            window.fetch = (...args) => {
+                window.auditFetches.push(String(args[0]));
+                return originalFetch(...args);
+            };
+        }""")
+        question.evaluate("input => { input.value = 'An unrelated new question'; }")
         button.click()
+        expect(question).to_have_value("Which region saw the highest Q4 revenue dip?")
         detail = page.locator("#audit-detail")
         expect(detail).to_contain_text("req-recorded-1042")
         expect(detail).to_contain_text("Decision: REVIEW")
@@ -39,6 +49,7 @@ def test_recorded_action_opens_identified_audit_without_asking(page, static_url,
         expect(detail).to_be_focused()
         expect(page.locator("#query-status")).to_contain_text("No new query")
         assert api_requests == []
+        assert page.evaluate("window.auditFetches") == []
         assert "Failed to register" not in page.locator("#agent-logs").inner_text()
     finally:
         capture(page, "recorded-action")
@@ -59,7 +70,34 @@ def test_trace_disclosure_has_keyboard_state(page, static_url, capture):
     capture(page, "trace-disclosure")
 
 
-def test_live_mode_runs_real_synthetic_query(page, live_url, capture):
+def test_recorded_action_does_not_require_chart_cdn(page, static_url, capture):
+    page.route("https://cdn.jsdelivr.net/npm/chart.js", lambda route: route.abort())
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(static_url)
+    try:
+        page.get_by_role("button", name="View recorded example", exact=True).click()
+        expect(page.locator("#audit-detail")).to_contain_text("req-recorded-1042")
+        expect(page.locator("#audit-detail")).to_contain_text("Decision: REVIEW")
+        expect(page.locator("#biChart")).to_be_hidden()
+        assert errors == []
+    finally:
+        capture(page, "recorded-without-chart-cdn")
+
+
+@pytest.mark.parametrize(
+    "brief_unavailable,chart_available", [(False, True), (True, True), (False, False)]
+)
+def test_live_mode_runs_real_synthetic_query(
+    page, live_url, capture, brief_unavailable, chart_available
+):
+    if not chart_available:
+        page.route("https://cdn.jsdelivr.net/npm/chart.js", lambda route: route.abort())
+    if brief_unavailable:
+        page.route(
+            "**/api/runtime/brief",
+            lambda route: route.fulfill(status=503, body="Synthetic brief failure"),
+        )
     page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
     page.goto(live_url)
     question = page.get_by_label("Analytics question", exact=True)
@@ -82,9 +120,16 @@ def test_live_mode_runs_real_synthetic_query(page, live_url, capture):
     assert audit["latest"]["status"] == "completed"
     assert audit["latest"]["row_count"] == 2
     assert audit["latest"]["fallback_sql_used"] is True
-    assert (
-        "Chart rendered successfully using 2 data points."
-        in page.locator("#agent-logs").inner_text()
+    logs = page.locator("#agent-logs").inner_text()
+    if chart_available:
+        assert "Chart rendered successfully using 2 data points." in logs
+        expect(page.locator("#biChart")).to_be_visible()
+    else:
+        assert "Chart library unavailable. Review the query audit instead." in logs
+        expect(page.locator("#biChart")).to_be_hidden()
+    suffix = (
+        "without-chart-cdn"
+        if not chart_available
+        else ("with-brief-failure" if brief_unavailable else "success")
     )
-    assert page.locator("#biChart").is_visible()
-    capture(page, "live-result")
+    capture(page, f"live-result-{suffix}")
