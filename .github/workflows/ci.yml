@@ -61,6 +61,12 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-fail-under=60
 
+      - name: Install browser for frontend checks
+        run: python -m playwright install --with-deps chromium
+
+      - name: Check recorded and synthetic API browser flows
+        run: python -m pytest browser_tests -v
+
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

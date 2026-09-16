@@ -1,23 +1,38 @@
-# Deployment Activation
+# Deploy the static recorded demo
 
-Generated: 2026-06-26
+Cloudflare Pages project `nexus-hive` publishes the `frontend/` directory. It does not run FastAPI, SQLite queries, Ollama, or warehouse adapters. The public primary action opens an existing recorded audit fixture, not a new query result.
 
-This document records the approved deployment path for `KIM3310/Nexus-Hive` without storing secrets or forcing a production launch.
+## Verify before upload
 
-## Safe deployment order
+```bash
+make verify
+make browser-install
+make browser-test
+```
 
-1. Run the repository verification command from README/package/CI docs.
-2. Review redacted secret-pattern audit findings before publishing.
-3. Confirm privacy policy, terms/refund language, and support channel are ready.
-4. Deploy a preview or staging build first.
-5. Approve production traffic, custom domain/DNS, analytics, email capture, and rollback owner.
+`make verify` seeds only the local synthetic SQLite database. The browser suite starts a separate disposable SQLite runtime with paid model and warehouse credentials absent. Use `NEXUS_HIVE_BROWSER_CHANNEL=chrome make browser-test` when Google Chrome is already installed.
 
-## Static hosting references
+The static page still fetches Chart.js and fonts from their public CDNs. Verify the page in the deployment environment as well as locally.
 
-- Cloudflare Pages docs: https://developers.cloudflare.com/pages/
-- Cloudflare Pages Direct Upload: https://developers.cloudflare.com/pages/get-started/direct-upload/
-- GitHub Pages publishing source: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
+## Publish the right artifact
 
-## Secrets rule
+The checked-in `wrangler.jsonc` and `.github/workflows/pages-auto-deploy.yml` both name project `nexus-hive` and output `frontend`.
 
-Do not put API keys, payment secrets, database credentials, customer data, or private logs in static bundles or public repositories. Use environment variables and provider dashboards.
+After an authorized operator verifies the account and project, the workflow-equivalent direct upload is:
+
+```bash
+npx wrangler@4 pages deploy frontend --project-name=nexus-hive --branch=main
+```
+
+The GitHub workflow skips upload when `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` is missing. A green workflow in that case is not a completed deployment. Inspect the upload step and the resulting public page. Do not infer deployment from the workflow conclusion alone.
+
+Keep privacy, terms, support links, and the recorded-mode notice in the artifact. Verify the primary recorded action, keyboard focus, and mobile layout after publication. Production traffic, custom domains, DNS, analytics, and any remote backend need separate approval.
+
+## Keep the API separate
+
+Run `make run` for the local API on port 8000. Hosting that API elsewhere requires its own database permissions, operator identity, network controls, and deployment plan. Setting a static API base does not supply those controls.
+
+Never put API keys, payment secrets, database credentials, customer data, or private logs in the static bundle. Configure credentials only through the backend or provider's supported secret store.
+
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/)
+- [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)
