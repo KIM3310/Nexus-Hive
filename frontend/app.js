@@ -1,13 +1,13 @@
-// Sidebar collapse toggle
 document.addEventListener('DOMContentLoaded', () => {
     const collapseBtn = document.getElementById('sidebarCollapseBtn');
     const sidebar = document.querySelector('.sidebar');
-    if (collapseBtn && sidebar) {
+    const logs = document.getElementById('agent-logs');
+    if (collapseBtn && sidebar && logs) {
         collapseBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('is-collapsed');
-            collapseBtn.textContent = sidebar.classList.contains('is-collapsed')
-                ? 'Show trace log'
-                : 'Toggle trace log';
+            logs.hidden = !logs.hidden;
+            sidebar.classList.toggle('is-collapsed', logs.hidden);
+            collapseBtn.setAttribute('aria-expanded', String(!logs.hidden));
+            collapseBtn.textContent = logs.hidden ? 'Show trace log' : 'Hide trace log';
         });
     }
 });
@@ -35,7 +35,9 @@ async function readJsonOrThrow(response, label) {
 let currentChart = null;
 let latestRequestId = null;
 let latestAuditRequestId = null;
+let latestFeedRequestId = null;
 let latestAuditDetailPayload = null;
+let auditSelectionVersion = 0;
 let latestArchitectureRoutes = [];
 let latestGoldEvalPayload = null;
 let latestSessionBoardPayload = null;
@@ -274,9 +276,20 @@ const RECORDED_REVIEW = {
     },
 };
 
-// Ensure prompt chip updates input
+const RECORDED_EXAMPLE_ID = 'req-recorded-1042';
+const RECORDED_NEXT_ACTION = 'Inspect this recorded audit. New questions require the local API runtime. This view cannot grant approval.';
+
+function getRecordedAudit(requestId) {
+    const payload = RECORDED_REVIEW.auditDetails[requestId];
+    if (!payload) return null;
+    const item = RECORDED_REVIEW.queryAuditFeed.items.find((entry) => entry.request_id === requestId);
+    return { ...payload, latest: { ...payload.latest, question: item?.question || '' } };
+}
+
 window.setPrompt = function (text) {
-    document.getElementById('nl-input').value = text;
+    const input = document.getElementById('nl-input');
+    if (!input.readOnly) input.value = text;
+    input.focus();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -375,10 +388,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionBoardSummary = document.getElementById('session-board-summary');
     const sessionBoardList = document.getElementById('session-board-list');
     const statusText = document.getElementById('status-text');
-
-    // Add CSS generic dark theme to Chart.js
-    Chart.defaults.color = '#8b92a5';
-    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+    const queryHelp = document.getElementById('query-help');
+    const queryStatus = document.getElementById('query-status');
+    const recordedMode = shouldPreferRecordedReview();
+    document.body.dataset.runtimeMode = recordedMode ? 'recorded' : 'api';
+    nlInput.readOnly = recordedMode;
+    document.querySelector('.suggested-prompts').hidden = recordedMode;
+    if (recordedMode) {
+        nlInput.value = getRecordedAudit(RECORDED_EXAMPLE_ID)?.latest.question || '';
+        askBtn.textContent = 'View recorded example';
+        queryHelp.textContent = `View the synthetic recording ${RECORDED_EXAMPLE_ID}. New questions require the local API runtime. No SQL will run here.`;
+        queryStatus.textContent = 'Recorded example ready to view. No new query will be run.';
+        emptyState.querySelector('p').textContent = 'The recorded example contains audit metadata, not chart data. No query is run in this mode.';
+        agentLogs.querySelector('p').textContent = 'View the recorded example to inspect its saved audit metadata.';
+        governanceHotkeys.textContent = governanceHotkeys.textContent.replace('E execute', 'E view recorded example');
+    } else {
+        queryStatus.textContent = 'Ready for a governed query.';
+    }
 
     function addLog(message, type = 'system') {
         const div = document.createElement('div');
@@ -400,14 +426,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function activateRecordedReview(reason = 'review surfaces') {
-        if (statusText) {
-            statusText.innerText = 'Recorded review only';
-        }
         if (recordedReviewActive) {
             return;
         }
         recordedReviewActive = true;
-        addLog(`Backend unavailable. Loaded recorded review flow for ${reason}.`, 'success');
+        addLog(`Loaded recorded review content for ${reason}. This did not run a query.`, 'system');
         renderArchitecturePriority();
     }
 
@@ -503,6 +526,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function describeTraceContinuity() {
+        if (latestAuditDetailPayload?.source === 'recorded') {
+            return {
+                summary: 'Trace events not included',
+                note: 'This recording has no trace event details. The retry count is recorded metadata.',
+            };
+        }
         const history = Array.isArray(latestAuditDetailPayload?.history) ? latestAuditDetailPayload.history : [];
         const latest = latestAuditDetailPayload?.latest || {};
         const retryCount = Number(latest.retry_count || 0);
@@ -521,24 +550,33 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function hasFocusedChart() {
+        return Boolean(currentChart)
+            && latestAuditDetailPayload?.source === 'api'
+            && latestAuditDetailPayload.request_id === latestRequestId;
+    }
+
     function renderArchitecturePriority() {
         const latest = latestAuditDetailPayload?.latest || {};
+        const isRecorded = latestAuditDetailPayload
+            ? latestAuditDetailPayload.source === 'recorded'
+            : shouldPreferRecordedReview();
         const architecturePack = RECORDED_REVIEW.architecturePack;
         const architectureRoutes = latestArchitectureRoutes.length > 0
             ? latestArchitectureRoutes
             : (architecturePack.proof_bundle?.architecture_routes || []);
-        const approvalDecision = String(latest.policy_decision || 'review').replace(/-/g, ' ').toUpperCase();
-        const effectiveRequestId = latest.request_id || latestAuditRequestId || latestRequestId || 'Awaiting request';
-        const modeLabel = recordedReviewActive
+        const approvalDecision = String(latest.policy_decision || 'review-pending').replace(/-/g, ' ').toUpperCase();
+        const effectiveRequestId = latestAuditDetailPayload?.request_id || latestAuditRequestId || latestRequestId || 'Awaiting request';
+        const modeLabel = isRecorded
             ? 'Recorded workflow only'
             : 'Live endpoint evidence';
-        const nextAction = latest.next_action
+        const nextAction = isRecorded ? RECORDED_NEXT_ACTION : latest.next_action
             || (approvalDecision === 'DENY'
                 ? 'Keep the denied request on the approval board until blocked SQL is rewritten.'
                 : latest.request_id
                     ? 'Keep this request ID attached through approval, chart, and audit before sharing.'
                     : 'Run ask, then focus approval before chart sharing.');
-        const hasChart = Boolean(latest.chart_type);
+        const hasChart = hasFocusedChart();
         const hasAudit = Boolean(latest.request_id);
         const stepStates = {
             ask: Boolean(latestRequestId || latestAuditRequestId),
@@ -547,21 +585,25 @@ document.addEventListener('DOMContentLoaded', () => {
             audit: hasAudit,
         };
 
-        priorityHeadline.innerText = recordedReviewActive
+        priorityHeadline.innerText = isRecorded
             ? 'Keep one recorded request visible from ask to approval to chart to audit.'
             : 'Keep one live request visible from ask to approval to chart to audit.';
         if (statusText) {
-            statusText.innerText = recordedReviewActive
+            statusText.innerText = shouldPreferRecordedReview()
                 ? 'Recorded review only'
-                : (latest.request_id ? 'Live request in review' : 'Waiting for governed proof');
+                : (isRecorded ? 'API mode; recorded audit focused' : (latest.request_id ? 'Live request in review' : 'Waiting for governed proof'));
         }
-        priorityBadge.innerText = recordedReviewActive ? 'RECORDED REVIEW' : 'LIVE REVIEW';
-        prioritySummary.innerText = recordedReviewActive
+        priorityBadge.innerText = isRecorded ? 'RECORDED REVIEW' : 'LIVE REVIEW';
+        prioritySummary.innerText = isRecorded
             ? 'Recorded mode shows the review flow with one request thread. Do not treat it as live warehouse runtime evidence.'
             : 'Use one request ID as the continuity anchor so approval posture, chart output, and audit proof stay on the same top-fold story.';
         const questionLane = latest.question || latestAuditDetailPayload?.question || 'Run a governed question or focus a recorded audit request.';
         const chartPosture = latest.chart_type
-            ? `${latest.chart_type} · ${latest.row_count || 0} rows kept on the same request.`
+            ? (isRecorded
+                ? `${latest.chart_type} · ${latest.row_count || 0} rows of recorded metadata. Chart data is not included.`
+                : (hasChart
+                    ? `${latest.chart_type} · ${latest.row_count || 0} rows kept on the same request.`
+                    : `No chart is rendered. The audit records ${latest.chart_type} metadata and ${latest.row_count || 0} rows.`))
             : 'Awaiting governed answer';
         const routePreview = `${architectureRoutes[0] || '/api/query-approval-board'} → ${architectureRoutes[1] || '/api/query-review-board'} → ${architectureRoutes[2] || '/api/query-audit/{request_id}'}`;
 
@@ -569,37 +611,35 @@ document.addEventListener('DOMContentLoaded', () => {
         priorityMode.innerText = modeLabel;
         priorityApproval.innerText = approvalDecision;
         priorityNext.innerText = nextAction;
-        const freshness = describeAuditFreshness(latest.updated_at || latest.generated_at || null);
+        const freshness = isRecorded && hasAudit
+            ? { freshness: 'Recording timestamp not provided', note: 'This fixture does not prove current runtime state.' }
+            : describeAuditFreshness(latest.updated_at || latest.generated_at || null);
         if (priorityFreshness) priorityFreshness.innerText = freshness.freshness;
         if (priorityQuestion) priorityQuestion.innerText = questionLane;
         if (priorityRoute) priorityRoute.innerText = routePreview;
         if (priorityChart) priorityChart.innerText = chartPosture;
         const trace = describeTraceContinuity();
         if (priorityTrace) priorityTrace.innerText = trace.summary;
-        priorityProofNote.innerText = recordedReviewActive
+        priorityProofNote.innerText = isRecorded
             ? 'Recorded review mode demonstrates workflow shape only. Treat live warehouse and runtime claims as valid only when the related endpoints answer successfully.'
             : `Live walkthrough path: ${routePreview}.`;
         if (priorityStaleness) {
-            priorityStaleness.innerText = recordedReviewActive
-                ? 'Proof freshness should stay visible before any governed chart is shared.'
-                : freshness.note;
+            priorityStaleness.innerText = freshness.note;
         }
         if (priorityTraceNote) {
-            priorityTraceNote.innerText = recordedReviewActive
-                ? 'Trace continuity keeps retries and audit depth attached to the same request.'
-                : trace.note;
+            priorityTraceNote.innerText = trace.note;
         }
         if (priorityLock) {
             const proofAligned = hasAudit && hasChart && !freshness.freshness.includes('stale');
-            priorityLock.innerText = recordedReviewActive
-                ? `Recorded request lock: keep ${effectiveRequestId} attached through approval, chart, and audit before you narrate governed quality.`
+            priorityLock.innerText = isRecorded
+                ? `Recorded request ${effectiveRequestId}. This view provides no new execution, chart data, or approval.`
                 : (proofAligned
                     ? `Request continuity is aligned for ${effectiveRequestId}. Approval posture, chart posture, and audit freshness are reading from the same request thread.`
                     : `Request continuity stays blocked for ${effectiveRequestId} until approval posture, chart posture, and audit freshness all point to the same request ID.`);
         }
         if (priorityReviewWindow) {
-            priorityReviewWindow.innerText = recordedReviewActive
-                ? `Recorded analysis window: keep ${effectiveRequestId} as the only governed thread before forwarding any chart copy.`
+            priorityReviewWindow.innerText = isRecorded
+                ? `Recorded request ${effectiveRequestId} is for inspection only. Review is still required before sharing.`
                 : `Review window for ${effectiveRequestId}: ${freshness.note}`;
         }
 
@@ -623,28 +663,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderStoryboard() {
         const architecturePack = RECORDED_REVIEW.architecturePack;
         const latest = latestAuditDetailPayload?.latest || {};
+        const isRecorded = latestAuditDetailPayload
+            ? latestAuditDetailPayload.source === 'recorded'
+            : shouldPreferRecordedReview();
         const sessionSummary = latestSessionBoardPayload?.summary || {};
         const evalSummary = latestGoldEvalPayload?.summary || {};
         const architectureRoutes = latestArchitectureRoutes.length > 0
             ? latestArchitectureRoutes
             : (architecturePack.proof_bundle?.architecture_routes || []);
-        const effectiveRequestId = latest.request_id || latestAuditRequestId || 'review-pending';
-        const approvalDecision = String(latest.policy_decision || 'review').replace(/-/g, ' ').toUpperCase();
+        const effectiveRequestId = latestAuditDetailPayload?.request_id || latestAuditRequestId || 'review-pending';
+        const approvalDecision = String(latest.policy_decision || 'review-pending').replace(/-/g, ' ').toUpperCase();
         const chartState = latest.chart_type
-            ? `${latest.chart_type} · ${latest.row_count || 0} rows`
+            ? `${latest.chart_type} · ${latest.row_count || 0} rows${isRecorded ? ' (recorded metadata only)' : (hasFocusedChart() ? '' : ' (audit metadata only, no chart rendered)')}`
             : 'Awaiting focused request';
         const compareCount = sessionSummary.compare_count || 0;
         const reviewCount = sessionSummary.review_count || 0;
-        const nextAction = latest.next_action
+        const nextAction = isRecorded ? RECORDED_NEXT_ACTION : latest.next_action
             || (approvalDecision === 'DENY'
                 ? 'Keep the request on the approval board until the blocked SQL is rewritten.'
                 : 'Open the audit detail and query review board before sharing the chart claim.');
-        const fallbackLabel = latest.fallback_sql_used || latest.fallback_chart_used ? 'Fallback path used' : 'Fallback not used';
+        const fallbackLabel = !latestAuditDetailPayload?.latest
+            ? 'Audit detail not loaded'
+            : (latest.fallback_sql_used || latest.fallback_chart_used ? 'Fallback path used' : 'Fallback not used');
 
-        storyboardHeadline.innerText = recordedReviewActive
+        storyboardHeadline.innerText = isRecorded
             ? 'Follow one recorded governed chart story from approval gate to audit trace before you present the answer.'
             : 'Follow the current governed chart story from approval gate to audit trace before you present the answer.';
-        storyboardBadge.innerText = recordedReviewActive ? 'RECORDED STORY' : 'LIVE STORY';
+        storyboardBadge.innerText = isRecorded ? 'RECORDED STORY' : 'LIVE STORY';
         storyboardApproval.innerText = approvalDecision;
         storyboardChart.innerText = chartState;
         storyboardSessions.innerText = `${reviewCount} review · ${compareCount} compare`;
@@ -652,8 +697,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderDetailCard(storyboardClaim, [
             `Request ID: ${effectiveRequestId}`,
-            `Question lane: ${latest.question || 'Use the latest audit or gold eval example.'}`,
-            `Claim posture: ${approvalDecision === 'DENY' ? 'blocked before chart sharing' : 'approval trace stays attached to the chart claim'}`,
+            `Question lane: ${latest.question || latestAuditDetailPayload?.question || 'Use the latest audit or gold eval example.'}`,
+            `Claim posture: ${approvalDecision === 'DENY' ? 'blocked before chart sharing' : (isRecorded ? 'review required; this view grants no approval' : 'approval trace stays attached to the chart claim')}`,
         ]);
         renderDetailCard(storyboardAudit, [
             `Audit proof: ${fallbackLabel}`,
@@ -663,8 +708,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDetailCard(storyboardNext, [
             `Next review move: ${nextAction}`,
             `Fast path: ${(architectureRoutes[0] || '/api/query-approval-board')} → ${(architectureRoutes[1] || '/api/query-review-board')} → ${(architectureRoutes[2] || '/api/evals/nl2sql-gold/run')}`,
-            recordedReviewActive
-                ? 'Recorded mode proves approval, audit, and chart storytelling without claiming live warehouse latency.'
+            isRecorded
+                ? 'Recorded mode shows saved metadata only. It does not run a new query or grant approval.'
                 : 'Live mode should still keep the approval board and audit trace visible before external sharing.',
         ]);
         renderArchitecturePriority();
@@ -928,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            latestAuditRequestId = items[0].request_id || latestAuditRequestId;
+            latestFeedRequestId = items[0].request_id || latestFeedRequestId;
             warehouseAuditFeed.innerHTML = '';
             items.forEach((item) => {
                 const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
@@ -960,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            latestAuditRequestId = items[0].request_id || latestAuditRequestId;
+            latestFeedRequestId = items[0].request_id || latestFeedRequestId;
             warehouseAuditFeed.innerHTML = '';
             items.forEach((item) => {
                 const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
@@ -981,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = RECORDED_REVIEW.queryAuditFeed;
             activateRecordedReview('query audit feed');
             const items = payload.items || [];
-            latestAuditRequestId = items[0]?.request_id || latestAuditRequestId;
+            latestFeedRequestId = items[0]?.request_id || latestFeedRequestId;
             warehouseAuditFeed.innerHTML = '';
             items.forEach((item) => {
                 const chartPart = item.chart_type ? ` | ${item.chart_type}` : '';
@@ -1095,69 +1140,81 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function renderQueryAuditDetail(payload, source) {
+        const latest = payload.latest;
+        latestAuditDetailPayload = { ...payload, source };
+        latestAuditRequestId = payload.request_id;
+        policySqlInput.value = latest?.sql_query || '';
+        if (source === 'recorded' || !latest || payload.request_id !== latestRequestId) {
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+            canvas.style.display = 'none';
+            emptyState.style.display = 'block';
+            emptyState.querySelector('p').textContent = source === 'recorded'
+                ? 'This recording contains audit metadata, not chart data. No new query was run.'
+                : 'No chart is loaded for this audit request.';
+        }
+        if (!latest) {
+            renderDetailCard(auditDetail, [
+                `Request ID: ${payload.request_id}`,
+                `${source === 'recorded' ? 'Recorded' : 'API'} audit detail unavailable. No other request was substituted.`,
+            ]);
+            renderStoryboard();
+            return;
+        }
+        const policyDecision = latest.policy_decision || 'unknown';
+        const fallback = latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no';
+        renderDetailCard(auditDetail, [
+            `Request ID: ${payload.request_id}`,
+            `Source: ${source === 'recorded' ? 'Recorded synthetic example. No new query was run.' : 'API audit'}`,
+            `Question: ${latest.question || payload.question || 'not captured yet'}`,
+            `Decision: ${String(policyDecision).replace(/-/g, ' ').toUpperCase()}`,
+            `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
+            `Adapter: ${latest.adapter_name || 'unknown'}`,
+            `Query Tag: ${latest.query_tag || 'not captured yet'}`,
+            `Rows: ${latest.row_count || 0}${source === 'recorded' ? ' (recorded metadata)' : ''}`,
+            `Retries: ${latest.retry_count || 0}`,
+            `Chart: ${latest.chart_type || 'n/a'}${source === 'recorded' ? ' (metadata only, no chart data)' : ''}`,
+            `Fallback: ${fallback}`,
+            `SQL: ${latest.sql_query || 'not captured yet'}`,
+        ]);
+        if (source === 'api') {
+            addLog(
+                `Audit detail ${payload.request_id}: ${String(policyDecision).toUpperCase()} | ${latest.row_count || 0} rows | ${fallback}`,
+                policyDecision === 'deny' ? 'error' : 'system'
+            );
+        }
+        renderStoryboard();
+    }
+
     async function loadQueryAuditDetail(requestId) {
         if (!requestId) return;
+        const selectionVersion = ++auditSelectionVersion;
+        if (shouldPreferRecordedReview()) {
+            renderQueryAuditDetail(getRecordedAudit(requestId) || { request_id: requestId }, 'recorded');
+            return;
+        }
         try {
             const response = await fetch(apiUrl(`/api/query-audit/${encodeURIComponent(requestId)}`));
             if (!response.ok) {
                 throw new Error(`Query audit detail request failed with ${response.status}`);
             }
-
             const payload = await readJsonOrThrow(response, 'Query audit detail');
-            const latest = payload.latest || {};
-            const policyDecision = latest.policy_decision || 'unknown';
-            const fallback = latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no';
-            latestAuditDetailPayload = payload;
-            latestAuditRequestId = payload.request_id;
-            if (latest.sql_query) {
-                policySqlInput.value = latest.sql_query;
-            }
-            renderDetailCard(auditDetail, [
-                `Request ID: ${payload.request_id}`,
-                `Decision: ${String(policyDecision || 'review-pending').replace(/-/g, ' ').toUpperCase()}`,
-                `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
-                `Adapter: ${latest.adapter_name || 'unknown'}`,
-                `Query Tag: ${latest.query_tag || 'not captured yet'}`,
-                `Rows: ${latest.row_count || 0}`,
-                `Retries: ${latest.retry_count || 0}`,
-                `Chart: ${latest.chart_type || 'n/a'}`,
-                `Fallback: ${fallback}`,
-                `SQL: ${latest.sql_query || 'not captured yet'}`,
-            ]);
-            addLog(
-                `Audit detail ${payload.request_id}: ${policyDecision.toUpperCase()} | ${latest.row_count || 0} rows | ${fallback}`,
-                policyDecision === 'deny' ? 'error' : 'system'
-            );
-            renderStoryboard();
+            if (selectionVersion !== auditSelectionVersion) return;
+            renderQueryAuditDetail(payload, 'api');
         } catch (error) {
-            console.warn('Recorded audit detail fallback:', error);
-            const payload = RECORDED_REVIEW.auditDetails[requestId];
-            if (!payload) {
-                latestAuditDetailPayload = null;
+            if (selectionVersion !== auditSelectionVersion) return;
+            console.warn('Query audit detail unavailable:', error);
+            const payload = getRecordedAudit(requestId);
+            if (payload) {
+                activateRecordedReview('audit detail');
+                renderQueryAuditDetail(payload, 'recorded');
+            } else {
                 addLog('Failed to load query audit detail.', 'error');
-                renderDetailCard(auditDetail, ['Audit detail unavailable.']);
-                renderStoryboard();
-                return;
+                renderQueryAuditDetail({ request_id: requestId }, 'api');
             }
-            activateRecordedReview('audit detail');
-            const latest = payload.latest || {};
-            const history = payload.history || [];
-            latestAuditDetailPayload = payload;
-            latestAuditRequestId = payload.request_id;
-            if (latest.sql_query) {
-                policySqlInput.value = latest.sql_query;
-            }
-            renderDetailCard(auditDetail, [
-                `Request ID: ${payload.request_id}`,
-                `Decision: ${String(latest.policy_decision || 'review-pending').replace(/-/g, ' ').toUpperCase()}`,
-                `Stage: ${String(latest.stage || 'not-run').replace(/-/g, ' ').toUpperCase()}`,
-                `Rows: ${latest.row_count || 0}`,
-                `Retries: ${latest.retry_count || 0}`,
-                `Chart: ${latest.chart_type || 'n/a'}`,
-                `Fallback: ${latest.fallback_sql_used || latest.fallback_chart_used ? 'fallback=yes' : 'fallback=no'}`,
-                `SQL: ${latest.sql_query || 'not captured yet'}`,
-            ]);
-            renderStoryboard();
         }
     }
 
@@ -1290,6 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const evalSummary = latestGoldEvalPayload?.summary || {};
         const lines = [
             'Nexus-Hive governed claim snapshot',
+            `Audit source: ${latestAuditDetailPayload?.source || 'not focused'}`,
             `Headline: ${architecturePackHeadline.innerText || '-'}`,
             `Warehouse ready: ${architecturePackReady.innerText || '-'}`,
             `Schema: ${architecturePackSchema.innerText || '-'}`,
@@ -1312,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function copyQueryDecisionBrief() {
         const latestSummary = latestAuditDetailPayload?.latest || {};
         const history = latestAuditDetailPayload?.history || [];
-        const nextAction = latestSummary.next_action
+        const nextAction = latestAuditDetailPayload?.source === 'recorded' ? RECORDED_NEXT_ACTION : latestSummary.next_action
             || (latestSummary.policy_decision === 'deny'
                 ? 'Remove blocked SQL patterns and rerun after policy preview.'
                 : latestSummary.policy_decision === 'review'
@@ -1320,6 +1378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     : 'Share the governed answer with audit detail attached.');
         const lines = [
             'Nexus-Hive query decision brief',
+            `Audit source: ${latestAuditDetailPayload?.source || 'not focused'}`,
             `Headline: ${architecturePackHeadline.innerText || '-'}`,
             `Request ID: ${latestSummary.request_id || latestAuditRequestId || '-'}`,
             `Policy decision: ${String(latestSummary.policy_decision || 'review-pending').toUpperCase()}`,
@@ -1328,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Chart: ${latestSummary.chart_type || 'n/a'}`,
             `Fallback: ${latestSummary.fallback_sql_used || latestSummary.fallback_chart_used ? 'yes' : 'no'}`,
             `Proof freshness: ${priorityFreshness?.innerText || '-'}`,
-            `History entries: ${history.length}`,
+            `History entries: ${latestAuditDetailPayload?.source === 'recorded' ? 'not included in this recording' : history.length}`,
             `Next action: ${nextAction}`,
             '',
             'Fast routes',
@@ -1340,13 +1399,15 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(ok ? 'Copied query decision brief.' : 'Failed to copy query decision brief.', ok ? 'success' : 'error');
     }
 
-    function focusLatestAudit() {
-        if (!latestAuditRequestId) {
+    async function focusLatestAudit() {
+        const requestId = latestAuditDetailPayload?.request_id || latestAuditRequestId || latestFeedRequestId;
+        if (!requestId) {
             renderDetailCard(auditDetail, ['Run a governed query or select a request from the audit feed first.']);
             addLog('No recent audit request is available yet.', 'error');
             return;
         }
-        loadQueryAuditDetail(latestAuditRequestId);
+        await loadQueryAuditDetail(requestId);
+        auditDetail.focus();
     }
 
     function seedDeniedSql() {
@@ -1389,13 +1450,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const history = latestAuditDetailPayload.history || [];
         const lines = [
             'Nexus-Hive latest audit snapshot',
+            `Audit source: ${latestAuditDetailPayload?.source || 'not focused'}`,
             `Request ID: ${latestAuditDetailPayload.request_id || '-'}`,
             `Decision: ${String(latest.policy_decision || 'unknown').toUpperCase()}`,
             `Stage: ${String(latest.stage || 'unknown').toUpperCase()}`,
             `Rows: ${latest.row_count || 0}`,
             `Retries: ${latest.retry_count || 0}`,
             `Chart: ${latest.chart_type || 'n/a'}`,
-            `History entries: ${history.length}`,
+            `History entries: ${latestAuditDetailPayload?.source === 'recorded' ? 'not included in this recording' : history.length}`,
             `Fallback: ${latest.fallback_sql_used || latest.fallback_chart_used ? 'yes' : 'no'}`,
             `SQL: ${latest.sql_query || 'not captured yet'}`,
         ];
@@ -1449,6 +1511,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderChart(configData, dbData) {
+        if (typeof window.Chart !== 'function') {
+            addLog('Chart library unavailable. Review the query audit instead.', 'error');
+            emptyState.querySelector('p').textContent = 'Chart library unavailable. The query audit remains available.';
+            return;
+        }
+        Chart.defaults.color = '#8b92a5';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
         if (!dbData || dbData.length === 0) {
             addLog("No records returned to visualize.", "error");
             return;
@@ -1456,7 +1525,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const labels = dbData.map(row => {
             const val = row[configData.labels_key];
-            // Format if it looks like a number but is acting as a label (e.g., categories)
             return val;
         });
 
@@ -1474,7 +1542,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const ctx = canvas.getContext('2d');
 
-        // Define an enterprise gradient
         let bgGradient = ctx.createLinearGradient(0, 0, 0, 400);
         bgGradient.addColorStop(0, 'rgba(94, 106, 210, 0.8)');
         bgGradient.addColorStop(1, 'rgba(94, 106, 210, 0.1)');
@@ -1482,7 +1549,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let borderColors = '#5e6ad2';
 
         if (configData.type === 'pie' || configData.type === 'doughnut') {
-            // Give pie charts distinct colors
             borderColors = '#20222b';
             bgGradient = [
                 '#5e6ad2', '#2ecd71', '#e74c3c', '#f39c12', '#9b59b6', '#34495e'
@@ -1527,14 +1593,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function executeQuery() {
+        if (shouldPreferRecordedReview()) {
+            auditSelectionVersion += 1;
+            const payload = getRecordedAudit(RECORDED_EXAMPLE_ID);
+            nlInput.value = payload?.latest.question || '';
+            renderQueryAuditDetail(payload || { request_id: RECORDED_EXAMPLE_ID }, 'recorded');
+            auditDetail.focus();
+            queryStatus.textContent = payload
+                ? `Opened recorded example ${RECORDED_EXAMPLE_ID}. No new query was run.`
+                : `Recorded example ${RECORDED_EXAMPLE_ID} is unavailable. No new query was run.`;
+            return;
+        }
         const query = nlInput.value.trim();
-        if (!query) return;
+        if (!query || askBtn.disabled) return;
 
         askBtn.disabled = true;
         nlInput.disabled = true;
         askBtn.innerText = "THINKING...";
+        queryStatus.textContent = 'Submitting the question to the API runtime.';
+        auditSelectionVersion += 1;
+        latestRequestId = null;
+        latestAuditRequestId = null;
+        latestAuditDetailPayload = null;
+        policySqlInput.value = '';
+        renderDetailCard(auditDetail, ['Waiting for the current query audit.']);
+        renderStoryboard();
+        if (currentChart) {
+            currentChart.destroy();
+            currentChart = null;
+        }
+        canvas.style.display = 'none';
+        emptyState.style.display = 'block';
+        emptyState.querySelector('p').textContent = 'Waiting for this query to return chart data.';
 
-        // Clear old state safely
         agentLogs.innerHTML = '';
         addLog(`User Query: "${query}"`, 'system');
         let askPayload;
@@ -1556,16 +1647,19 @@ document.addEventListener('DOMContentLoaded', () => {
             latestRequestId = askPayload.request_id;
             latestAuditRequestId = askPayload.request_id;
             addLog(`Audit Request ID: ${askPayload.request_id}`, 'system');
+            renderArchitecturePriority();
         } catch (error) {
-            console.warn('Recorded ask fallback:', error);
+            console.warn('Ask request failed:', error);
             addLog('Failed to register governed query request.', 'error');
+            queryStatus.textContent = 'The API request failed. No recorded example was substituted. Check the runtime before retrying.';
+            emptyState.querySelector('p').textContent = 'The query request failed. No chart is available.';
             askBtn.disabled = false;
             nlInput.disabled = false;
+            nlInput.focus();
             askBtn.innerText = "EXECUTE";
             return;
         }
 
-        // Connect to SSE Endpoint
         const eventSource = new EventSource(apiUrl(askPayload.stream_url));
 
         eventSource.onmessage = function (event) {
@@ -1573,8 +1667,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 data = JSON.parse(event.data);
             } catch (error) {
-                console.warn("EventSource delivered non-JSON payload, keeping recorded review mode:", error);
+                console.warn("EventSource delivered non-JSON payload:", error);
                 eventSource.close();
+                queryStatus.textContent = 'The API stream returned an unreadable response. Check the audit before retrying.';
                 askBtn.disabled = false;
                 nlInput.disabled = false;
                 askBtn.innerText = "EXECUTE";
@@ -1589,12 +1684,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog(data.content, logType);
             }
             else if (data.type === 'chart_data') {
-                // The AI finished execution and passed the Chart JS conf + raw data
                 addLog("Compiling visual payload for dashboard...", "system");
                 renderChart(data.config, data.data);
             }
             else if (data.type === 'done') {
                 eventSource.close();
+                queryStatus.textContent = `API request ${latestRequestId} finished. Review its policy decision and audit detail.`;
+                if (!currentChart) {
+                    emptyState.querySelector('p').textContent = typeof window.Chart === 'function'
+                        ? 'No chart is displayed for this request. Review its audit for the outcome.'
+                        : 'Chart library unavailable. The query audit remains available.';
+                }
                 loadWarehouseBrief();
                 loadQueryAuditFeed();
                 loadQuerySessionBoard();
@@ -1607,8 +1707,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         eventSource.onerror = function (err) {
-            console.warn("EventSource failed, keeping recorded review mode:", err);
+            console.warn("EventSource failed:", err);
             addLog("Lost connection to the LangGraph Hive Engine.", "error");
+            queryStatus.textContent = 'The API stream disconnected. Execution status is uncertain. Check the audit before retrying.';
             eventSource.close();
             loadWarehouseBrief();
             loadQueryAuditFeed();
@@ -1623,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     askBtn.addEventListener('click', executeQuery);
     policyCheckBtn.addEventListener('click', runPolicyCheck);
     useLatestSqlBtn.addEventListener('click', () => {
-        const requestId = latestRequestId || latestAuditRequestId;
+        const requestId = latestAuditDetailPayload?.request_id || latestAuditRequestId || latestRequestId || latestFeedRequestId;
         if (requestId) {
             loadQueryAuditDetail(requestId);
         } else {
@@ -1667,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = event.key.toLowerCase();
         if (key === '?') {
             if (governanceHotkeys) {
-                governanceHotkeys.textContent = 'Keyboard: E execute · P policy check · G governed claim · D decision brief · B review bundle · A latest audit.';
+                governanceHotkeys.textContent = `Keyboard: E ${shouldPreferRecordedReview() ? 'view recorded example' : 'execute'} · P policy check · G governed claim · D decision brief · B review bundle · A latest audit.`;
             }
             return;
         }
