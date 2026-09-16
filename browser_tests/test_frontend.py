@@ -201,3 +201,67 @@ def test_late_audit_response_cannot_replace_new_query(page, live_url, capture):
         expect(page.locator("#biChart")).to_be_visible()
     finally:
         capture(page, "late-audit-response")
+
+
+def test_background_feed_cannot_change_active_request(page, live_url, capture):
+    page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
+    page.goto(live_url)
+    old_id = run_synthetic_question(page, live_url, "Show total net revenue by region")
+    held = {}
+
+    def hold_once(name, route):
+        if name in held:
+            route.continue_()
+            return
+        held[name] = (route, route.fetch())
+        page.evaluate(f"window.{name}Held = true")
+
+    page.route(f"{live_url}/api/query-audit/recent", lambda route: hold_once("feed", route))
+    page.route(
+        f"{live_url}/api/query-session-board?limit=6", lambda route: hold_once("sessions", route)
+    )
+    page.reload()
+    page.wait_for_function("window.feedHeld && window.sessionsHeld")
+    stream = []
+    page.route(f"{live_url}/api/stream?**", lambda route: stream.append(route))
+    page.get_by_label("Analytics question", exact=True).fill("Show top 5 regions by total profit")
+    with page.expect_response(lambda response: response.url == f"{live_url}/api/ask") as accepted:
+        page.get_by_label("Analytics question", exact=True).press("Enter")
+    active_id = accepted.value.json()["request_id"]
+    assert active_id != old_id
+    expect(page.locator("#priority-request")).to_have_text(active_id)
+    try:
+        for name in ("feed", "sessions"):
+            route, response = held[name]
+            with page.expect_response(lambda candidate: candidate.url == response.url) as released:
+                route.fulfill(response=response)
+            released.value.body()
+            page.evaluate("() => new Promise(resolve => requestAnimationFrame(resolve))")
+        expect(page.locator("#priority-request")).to_have_text(active_id)
+        expect(page.locator("#audit-detail")).not_to_contain_text(old_id)
+    finally:
+        for route in stream:
+            route.abort()
+        expect(page.locator("#ask-btn")).to_be_enabled()
+        capture(page, "background-feed-identity")
+
+
+def test_done_without_chart_finishes_loading_state(page, live_url, capture):
+    page.route("https://cdn.jsdelivr.net/npm/chart.js", lambda route: route.abort())
+    page.route(
+        f"{live_url}/api/stream?**",
+        lambda route: route.fulfill(
+            content_type="text/event-stream", body='data: {"type": "done"}\n\n'
+        ),
+    )
+    page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
+    page.goto(live_url)
+    page.get_by_label("Analytics question", exact=True).fill("Show total net revenue by region")
+    page.get_by_label("Analytics question", exact=True).press("Enter")
+    try:
+        expect(page.locator("#query-status")).to_contain_text("finished")
+        expect(page.locator("#empty-state")).to_contain_text("Chart library unavailable")
+        expect(page.locator("#biChart")).to_be_hidden()
+        expect(page.locator("#ask-btn")).to_be_enabled()
+    finally:
+        capture(page, "done-without-chart-data")
