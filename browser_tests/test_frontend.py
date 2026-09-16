@@ -100,6 +100,8 @@ def test_live_mode_runs_real_synthetic_query(
         )
     page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
     page.goto(live_url)
+    if brief_unavailable:
+        expect(page.locator("#brief-badge")).to_have_text("RECORDED")
     question = page.get_by_label("Analytics question", exact=True)
     expect(question).to_be_editable()
     page.get_by_role("button", name="Revenue by Category", exact=True).click()
@@ -127,9 +129,75 @@ def test_live_mode_runs_real_synthetic_query(
     else:
         assert "Chart library unavailable. Review the query audit instead." in logs
         expect(page.locator("#biChart")).to_be_hidden()
+        expect(page.locator('#priority-flow [data-step="chart"]')).not_to_have_class(
+            re.compile(r".*complete.*")
+        )
+        expect(page.locator("#priority-lock")).to_contain_text("blocked")
+        expect(page.locator("#empty-state")).to_contain_text("Chart library unavailable")
     suffix = (
         "without-chart-cdn"
         if not chart_available
         else ("with-brief-failure" if brief_unavailable else "success")
     )
     capture(page, f"live-result-{suffix}")
+
+
+def run_synthetic_question(page, live_url, question):
+    page.get_by_label("Analytics question", exact=True).fill(question)
+    with page.expect_response(lambda response: response.url == f"{live_url}/api/ask") as response:
+        page.get_by_label("Analytics question", exact=True).press("Enter")
+    request_id = response.value.json()["request_id"]
+    expect(page.locator("#audit-detail")).to_contain_text(request_id)
+    expect(page.locator("#audit-detail")).to_contain_text("Decision: ALLOW")
+    expect(page.locator("#ask-btn")).to_be_enabled()
+    return request_id
+
+
+def test_new_question_clears_previous_evidence(page, live_url, capture):
+    page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
+    page.goto(live_url)
+    previous_id = run_synthetic_question(page, live_url, "Show total net revenue by region")
+    pending = []
+    page.route(f"{live_url}/api/ask", lambda route: pending.append(route))
+    page.get_by_label("Analytics question", exact=True).fill("Show top 5 regions by total profit")
+    page.get_by_label("Analytics question", exact=True).press("Enter")
+    try:
+        expect(page.locator("#ask-btn")).to_be_disabled()
+        expect(page.locator("#audit-detail")).not_to_contain_text(previous_id)
+        expect(page.locator("#priority-request")).not_to_have_text(previous_id)
+        expect(page.locator("#policy-sql-input")).to_have_value("")
+    finally:
+        for route in pending:
+            route.abort()
+        expect(page.locator("#ask-btn")).to_be_enabled()
+        capture(page, "new-question-evidence")
+
+
+def test_late_audit_response_cannot_replace_new_query(page, live_url, capture):
+    page.add_init_script(f"window.NEXUS_API_BASE = {live_url!r}")
+    page.goto(live_url)
+    old_id = run_synthetic_question(page, live_url, "Show total net revenue by region")
+    old_audit_url = f"{live_url}/api/query-audit/{old_id}"
+    held = {}
+
+    def hold_old_audit(route):
+        held["response"] = route.fetch()
+        held["route"] = route
+        page.evaluate("window.oldAuditHeld = true")
+
+    page.route(old_audit_url, hold_old_audit)
+    page.get_by_role("button", name="Load Latest SQL", exact=True).click()
+    page.wait_for_function("window.oldAuditHeld === true")
+    new_id = run_synthetic_question(page, live_url, "Show top 5 regions by total profit")
+    try:
+        with page.expect_response(lambda response: response.url == old_audit_url) as late_response:
+            held["route"].fulfill(response=held["response"])
+        assert old_id.encode() in late_response.value.body()
+        page.evaluate(
+            "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+        )
+        expect(page.locator("#audit-detail")).to_contain_text(new_id)
+        expect(page.locator("#priority-request")).to_have_text(new_id)
+        expect(page.locator("#biChart")).to_be_visible()
+    finally:
+        capture(page, "late-audit-response")

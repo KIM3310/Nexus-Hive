@@ -75,6 +75,7 @@ def live_url(tmp_path_factory):
         "TMPDIR": str(directory),
         "NEXUS_HIVE_DB_PATH": str(database),
         "NEXUS_HIVE_AUDIT_PATH": str(directory / "audit.jsonl"),
+        "NEXUS_HIVE_RUNTIME_STORE_PATH": str(directory / "runtime-events.db"),
         "NEXUS_HIVE_WAREHOUSE_ADAPTER": "sqlite-demo",
         "NEXUS_HIVE_OLLAMA_URL": "http://127.0.0.1:1/api/generate",
         "NEXUS_HIVE_ALLOW_HEURISTIC_FALLBACK": "1",
