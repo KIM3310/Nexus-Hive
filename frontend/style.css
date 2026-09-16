@@ -27,9 +27,7 @@ body {
     min-height: 100vh;
     overflow: auto;
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    display: block;
     padding: 2rem 0;
 }
 
@@ -37,6 +35,7 @@ body {
 .app-container {
     width: 95vw;
     max-width: 1600px;
+    margin-inline: auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 280px;
     align-items: start;
@@ -557,6 +556,7 @@ canvas {
 
 .cmd-input {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
     color: white;
@@ -571,6 +571,7 @@ canvas {
 }
 
 .execute-btn {
+    flex-shrink: 0;
     background: var(--accent);
     color: white;
     border: none;
@@ -589,6 +590,17 @@ canvas {
     background: #3a3f58;
     cursor: not-allowed;
     color: var(--text-muted);
+}
+
+.query-help,
+.query-status {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.suggested-prompts[hidden] {
+    display: none;
 }
 
 .suggested-prompts {
@@ -640,10 +652,6 @@ canvas {
 }
 
 @media (max-width: 720px) {
-    body {
-        align-items: stretch;
-    }
-
     .app-container {
         width: 100%;
         min-height: 100vh;
@@ -793,9 +801,8 @@ textarea:focus-visible,
     transform: scale(0.96);
 }
 
-/* Sidebar toggle for mobile */
 .sidebar-collapse-btn {
-    display: none;
+    display: block;
     width: 100%;
     padding: 8px;
     border: 1px solid var(--panel-border);
@@ -808,19 +815,13 @@ textarea:focus-visible,
     text-align: center;
 }
 
-@media (max-width: 1280px) {
-    .sidebar-collapse-btn {
-        display: block;
-    }
+.agent-feed[hidden] {
+    display: none;
+}
 
-    .sidebar.is-collapsed .agent-feed {
-        display: none;
-    }
-
-    .sidebar.is-collapsed {
-        max-height: none;
-        min-height: auto;
-    }
+.sidebar.is-collapsed {
+    max-height: none;
+    min-height: auto;
 }
 
 /* Error state for detail cards */

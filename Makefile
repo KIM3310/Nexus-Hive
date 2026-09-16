@@ -11,7 +11,7 @@ VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed-dev
 
-.PHONY: check-bootstrap-python install seed lint format-check test smoke verify run deploy-pages
+.PHONY: check-bootstrap-python install seed lint format-check test smoke verify browser-install browser-test run deploy-pages
 
 check-bootstrap-python:
 	@if [ -z "$(BOOTSTRAP_PYTHON)" ]; then \
@@ -72,6 +72,12 @@ smoke: seed
 	echo "smoke ok: http://127.0.0.1:$$PORT"
 
 verify: lint format-check test smoke
+
+browser-install: install
+	$(VENV_PYTHON) -m playwright install chromium
+
+browser-test: install
+	$(VENV_PYTHON) -m pytest browser_tests -v
 
 run: install
 	$(VENV_PYTHON) -m uvicorn main:app --reload --host 0.0.0.0 --port 8000

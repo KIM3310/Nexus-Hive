@@ -138,13 +138,16 @@
             </header>
 
             <div class="command-palette glass-panel command-palette-priority">
+                <label class="brief-label" for="nl-input">Analytics question</label>
                 <div class="input-wrap">
                     <input type="text" id="nl-input" class="cmd-input"
                         placeholder="e.g., Show me total revenue by region, grouped as a bar chart..."
-                        autocomplete="off">
-                    <button id="ask-btn" class="execute-btn">EXECUTE</button>
+                        autocomplete="off" aria-describedby="query-help">
+                    <button id="ask-btn" class="execute-btn" type="button">EXECUTE</button>
                 </div>
-                <div class="suggested-prompts" aria-label="recorded prompt starters">
+                <p class="query-help" id="query-help">Ask a question through the configured API runtime. Policy checks apply before execution.</p>
+                <p class="query-status" id="query-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <div class="suggested-prompts" aria-label="Query starters">
                     <button class="prompt-chip" type="button" data-prompt="what is the total net revenue grouped by category?">Revenue by Category</button>
                     <button class="prompt-chip" type="button" data-prompt="show me the top 5 regions by total profit in a pie chart">Top Regions (Profit)</button>
                     <button class="prompt-chip" type="button" data-prompt="What is the average discount applied per category?">Avg Discount</button>
@@ -504,7 +507,7 @@
 
                     <section class="brief-list-card">
                         <span class="brief-label">Audit Detail</span>
-                        <div id="audit-detail" class="detail-card">
+                        <div id="audit-detail" class="detail-card" tabindex="-1">
                             Select a recent audit request or run a question to inspect request-level trace and SQL posture.
                         </div>
                     </section>
@@ -520,7 +523,7 @@
             <div class="visualization-area glass-panel">
                 <div class="empty-state" id="empty-state">
                     <h3>No Data Rendered</h3>
-                    <p>Ask a question below to trigger the SQL compilation and visualization pipeline.</p>
+                    <p>Ask a question above to use the SQL compilation and visualization pipeline.</p>
                 </div>
                 <canvas id="biChart" style="display: none;"></canvas>
             </div>
@@ -553,7 +556,7 @@
                 <span class="badge sidebar-badge">SECONDARY</span>
             </div>
 
-            <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button">Toggle trace log</button>
+            <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" aria-controls="agent-logs" aria-expanded="true">Hide trace log</button>
             <div class="agent-feed" id="agent-logs">
                 <div class="log-entry system">
                     <span class="timestamp">System initialized.</span>
